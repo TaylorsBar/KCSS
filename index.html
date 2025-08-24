@@ -124,6 +124,14 @@
         background-image: var(--theme-bg-texture);
         background-size: var(--theme-bg-size);
       }
+
+      @keyframes subtle-pulse {
+        0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px var(--theme-accent-primary, #00FFFF)); }
+        50% { opacity: 0.9; filter: drop-shadow(0 0 5px var(--theme-accent-primary, #00FFFF)); }
+      }
+      .ar-wireframe-animated {
+        animation: subtle-pulse 5s ease-in-out infinite;
+      }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

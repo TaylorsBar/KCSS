@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert } from '../types';
 
@@ -264,6 +263,32 @@ export const getVoiceCommandIntent = async (command: string): Promise<VoiceComma
       confidence: 1.0,
       error: 'Failed to process command.',
     } as any;
+  }
+};
+
+export const generateComponentImage = async (componentName: string): Promise<string> => {
+  try {
+    const prompt = `A high-resolution, photorealistic image of a single automotive '${componentName}' for a 2022 Subaru WRX, isolated on a clean white background. Studio lighting.`;
+
+    const response = await ai.models.generateImages({
+        model: 'imagen-3.0-generate-002',
+        prompt: prompt,
+        config: {
+          numberOfImages: 1,
+          outputMimeType: 'image/jpeg',
+          aspectRatio: '1:1',
+        },
+    });
+
+    if (response.generatedImages && response.generatedImages.length > 0) {
+        const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+        return `data:image/jpeg;base64,${base64ImageBytes}`;
+    } else {
+        throw new Error("No image was generated.");
+    }
+  } catch (error) {
+    console.error(`Error generating component image for ${componentName}:`, error);
+    throw new Error("Failed to generate component diagram.");
   }
 };
 
