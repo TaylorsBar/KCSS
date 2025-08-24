@@ -19,6 +19,9 @@ export interface SensorDataPoint {
   engineLoad: number;
   // For Race Pack
   distance: number;
+  // For GPS
+  latitude: number;
+  longitude: number;
 }
 
 export enum AlertLevel {

@@ -1,77 +1,14 @@
 import React from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
 import { SensorDataPoint } from '../../types';
-import ClassicTachometer from '../../components/tachometers/ClassicTachometer';
+import EdelbrockGauge from '../../components/gauges/EdelbrockGauge';
+import BarMeter from '../../components/gauges/BarMeter';
+import DigitalDisplay from '../../components/gauges/DigitalDisplay';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
-
-const AnalogGauge: React.FC<{
-  label: string;
-  value: number;
-  unit: string;
-  min: number;
-  max: number;
-  size?: number;
-}> = ({ label, value, unit, min, max, size = 120 }) => {
-  const animatedValue = useAnimatedValue(value);
-  const ANGLE_MIN = -135;
-  const ANGLE_MAX = 135;
-  const range = max - min;
-  const valueRatio = (Math.max(min, Math.min(animatedValue, max)) - min) / range;
-  const angle = ANGLE_MIN + valueRatio * (ANGLE_MAX - ANGLE_MIN);
-
-  return (
-    <div className="flex flex-col items-center p-2 rounded-full shadow-lg" style={{ background: 'var(--theme-panel-bg)'}}>
-      <svg width={size} height={size} viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r="58" style={{ fill: 'var(--theme-gauge-bezel)' }} />
-        <circle cx="60" cy="60" r="52" fill="var(--theme-gauge-face)" stroke="#888" strokeWidth="1" />
-        
-        {/* Ticks */}
-        {Array.from({length: 9}).map((_, i) => {
-            const tickAngle = ANGLE_MIN + i * ((ANGLE_MAX - ANGLE_MIN) / 8);
-            return (
-                 <line
-                    key={i}
-                    transform={`rotate(${tickAngle} 60 60)`}
-                    x1="60" y1="12" x2="60" y2="18"
-                    stroke="var(--theme-gauge-text)" strokeWidth="1.5"
-                />
-            )
-        })}
-
-        <g transform={`rotate(${angle} 60 60)`} style={{ transition: 'transform 0.1s ease-out' }}>
-          <path d="M 60 60 L 60 15" stroke="var(--theme-needle-color)" strokeWidth="2" strokeLinecap="round" />
-        </g>
-        <circle cx="60" cy="60" r="4" fill="#333" stroke="var(--theme-gauge-bezel)" strokeWidth="1" />
-        
-        <text x="60" y="80" textAnchor="middle" fill="var(--theme-gauge-text)" fontSize="14" fontWeight="bold" className="font-mono">{animatedValue.toFixed(0)}</text>
-      </svg>
-      <div className="mt-2 text-center">
-        <div className="text-sm font-bold text-black">{label}</div>
-        <div className="text-xs text-gray-600">{unit}</div>
-      </div>
-    </div>
-  );
-};
-
-const BarMeter: React.FC<{label: string, value: number, max: number}> = ({label, value, max}) => {
-    const animatedValue = useAnimatedValue(value);
-    const percentage = (animatedValue / max) * 100;
-    return (
-        <div className="bg-[#1a1a1a] p-3 border-t-2 border-b-2 border-gray-600 shadow-inner w-full">
-            <div className="flex justify-between items-baseline mb-1">
-                <span className="text-sm text-gray-300 font-bold">{label}</span>
-                <span className="font-mono text-lg font-bold text-white">{animatedValue.toFixed(1)}</span>
-            </div>
-            <div className="w-full h-4 bg-black border border-gray-700 flex items-center p-0.5">
-                <div className="h-full bg-red-600 transition-all duration-100" style={{width: `${percentage}%`}}></div>
-            </div>
-        </div>
-    );
-};
 
 const StatusLight: React.FC<{label: string, active: boolean}> = ({label, active}) => (
      <div className="flex items-center gap-2">
-        <div className={`w-4 h-4 rounded-full border-2 border-gray-800 ${active ? 'bg-green-500 shadow-[0_0_5px_#38A169]' : 'bg-green-900'}`}></div>
+        <div className={`w-3 h-3 rounded-full border border-gray-800 ${active ? 'bg-green-500 shadow-[0_0_5px_#38A169]' : 'bg-green-800'}`}></div>
         <span className="text-sm font-bold text-gray-300">{label}</span>
     </div>
 )
@@ -79,29 +16,55 @@ const StatusLight: React.FC<{label: string, active: boolean}> = ({label, active}
 const ClassicThemeDashboard: React.FC = () => {
   const { latestData } = useVehicleData();
   const d: SensorDataPoint = latestData;
+  const animatedAFR = useAnimatedValue(14.7 - (d.shortTermFuelTrim / 10)); // Simulate AFR
 
   return (
-    <div className="grid grid-cols-3 gap-6 h-full w-full p-6 theme-background">
-      {/* Left Column */}
-      <div className="flex flex-col items-center justify-around">
-        <AnalogGauge label="Water Temp" value={d.engineTemp} unit="°C" min={40} max={120} size={150} />
-        <AnalogGauge label="Oil Pressure" value={d.oilPressure} unit="Bar" min={0} max={8} size={150} />
-      </div>
+    <div className="flex flex-col h-full w-full p-2 md:p-4 theme-background gap-4">
+      {/* Header */}
+      <header className="flex items-center justify-between p-2 rounded-t-lg" style={{ background: 'var(--theme-panel-bg)'}}>
+        <div className="flex items-center gap-4">
+          <div className="bg-black/50 p-2 rounded-md">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </div>
+          <h1 className="text-xl font-bold font-display text-white">EFI-DASHBOARD CH1</h1>
+        </div>
+        {/* Header Icons can go here */}
+      </header>
+      
+      {/* Main Content */}
+      <main className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Left and Middle Columns */}
+        <div className="md:col-span-2 grid grid-cols-2 gap-4">
+            <div className="bg-black/50 p-4 rounded-lg flex flex-col justify-around gap-4 border border-gray-700/50">
+                <DigitalDisplay label="Throttle" value={d.engineLoad.toFixed(0)} unit="%" />
+                <BarMeter label="Actual AFR" value={animatedAFR} target={13.4} />
+                <BarMeter label="AFR SP" value={13.4} target={13.4} />
+            </div>
+            <div className="grid grid-rows-2 gap-4">
+              <EdelbrockGauge label="Water Temp" value={d.engineTemp} unit="°C" min={40} max={120} />
+              <EdelbrockGauge label="Boost" value={d.turboBoost * 14.5} unit="PSI" min={-15} max={15} />
+            </div>
+        </div>
 
-      {/* Center Column */}
-      <div className="flex flex-col items-center justify-center gap-6">
-        <ClassicTachometer rpm={d.rpm} />
-        <div className="flex gap-8">
+        {/* Right Column */}
+        <div className="flex items-center justify-center bg-black/50 p-4 rounded-lg border border-gray-700/50">
+            <EdelbrockGauge label="RPM" value={d.rpm} unit="" min={0} max={8000} size="large" />
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="flex items-center justify-between p-2 rounded-b-lg bg-black/50 border-t border-gray-700/50">
+          <div className="flex gap-2">
+            <button className="px-4 py-2 bg-[var(--theme-accent-primary)] text-white font-bold rounded-md">CH 1</button>
+            <button className="px-4 py-2 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600">CH 2</button>
+            <button className="px-4 py-2 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600">CH 3</button>
+            <button className="px-4 py-2 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600">CH 4</button>
+          </div>
+          <div className="flex items-center gap-4">
             <StatusLight label="Closed Loop" active={true} />
             <StatusLight label="O2 Learn" active={true} />
-        </div>
-      </div>
-
-      {/* Right Column */}
-      <div className="flex flex-col items-center justify-around gap-4">
-        <AnalogGauge label="Fuel Level" value={100 - (d.fuelUsed / 50 * 100)} unit="%" min={0} max={100} size={150} />
-        <AnalogGauge label="Voltage" value={d.batteryVoltage} unit="V" min={10} max={16} size={150} />
-      </div>
+          </div>
+      </footer>
     </div>
   );
 };

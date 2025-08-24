@@ -1,12 +1,14 @@
 
 import React, { useContext } from 'react';
-import { ThemeContext } from '../contexts/ThemeContext';
+import { AppearanceContext } from '../contexts/AppearanceContext';
 import RallyThemeDashboard from './dashboards/RallyThemeDashboard';
 import ModernThemeDashboard from './dashboards/ModernThemeDashboard';
 import ClassicThemeDashboard from './dashboards/ClassicThemeDashboard';
+import HaltechDashboard from './dashboards/HaltechDashboard';
+import MinimalistDashboard from './dashboards/MinimalistDashboard';
 
 const Dashboard: React.FC = () => {
-  const { theme } = useContext(ThemeContext);
+  const { theme } = useContext(AppearanceContext);
 
   const renderDashboard = () => {
     switch (theme) {
@@ -16,6 +18,10 @@ const Dashboard: React.FC = () => {
         return <ModernThemeDashboard />;
       case 'classic':
         return <ClassicThemeDashboard />;
+      case 'haltech':
+        return <HaltechDashboard />;
+      case 'minimalist':
+        return <MinimalistDashboard />;
       default:
         return <RallyThemeDashboard />;
     }

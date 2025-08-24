@@ -5,12 +5,14 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Diagnostics from './pages/Diagnostics';
 import MaintenanceLog from './pages/MaintenanceLog';
-import TuningSandbox from './pages/TuningSandbox';
+import TuningPage from './pages/TuningPage';
 import AIEngine from './pages/AIEngine';
 import Security from './pages/Security';
 import ARAssistant from './pages/ARAssistant';
 import Hedera from './pages/Hedera';
-import { ThemeProvider } from './contexts/ThemeContext';
+import Appearance from './pages/Appearance';
+import Accessories from './pages/Accessories';
+import { AppearanceProvider } from './contexts/AppearanceContext';
 import CoPilot from './components/CoPilot';
 import { useVehicleData } from './hooks/useVehicleData';
 import { MOCK_ALERTS } from './components/Alerts'; // Mock alerts for context
@@ -25,7 +27,7 @@ const App: React.FC = () => {
     : [];
 
   return (
-    <ThemeProvider>
+    <AppearanceProvider>
       <HashRouter>
         <div className="flex h-screen bg-black text-gray-200">
           <Sidebar />
@@ -35,19 +37,21 @@ const App: React.FC = () => {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/diagnostics" element={<Diagnostics />} />
                 <Route path="/logbook" element={<MaintenanceLog />} />
-                <Route path="/tuning" element={<TuningSandbox />} />
+                <Route path="/tuning" element={<TuningPage />} />
                 <Route path="/ai-engine" element={<AIEngine />} />
                 <Route path="/ar-assistant" element={<ARAssistant />} />
                 <Route path="/security" element={<Security />} />
                 <Route path="/hedera" element={<Hedera />} />
                 <Route path="/race-pack" element={<RacePack />} />
+                <Route path="/accessories" element={<Accessories />} />
+                <Route path="/appearance" element={<Appearance />} />
               </Routes>
             </main>
             <CoPilot latestVehicleData={latestData} activeAlerts={activeAlerts} />
           </div>
         </div>
       </HashRouter>
-    </ThemeProvider>
+    </AppearanceProvider>
   );
 };
 
