@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert } from '../types';
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -13,7 +14,21 @@ const ai = new GoogleGenAI({ apiKey: API_KEY! });
 
 const SYSTEM_INSTRUCTION = `You are an expert automotive mechanic and performance tuner named 'KC'. You are the AI assistant for the 'Karapiro Cartel Speed Shop' app. Your answers should be clear, concise, and helpful to both novice drivers and experienced technicians. When appropriate, provide step-by-step instructions or bullet points. Do not mention that you are an AI model. Format your responses using markdown for better readability.`;
 
+const isOnline = () => navigator.onLine;
+
 export const getDiagnosticAnswer = async (query: string): Promise<string> => {
+  if (!isOnline()) {
+    console.log("Offline mode: Returning mock diagnostic answer.");
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate thinking
+    return `I am currently in offline mode. For your query about **"${query}"**, I would typically provide a detailed diagnostic. 
+    
+A common cause for many issues is related to sensors or fuel delivery. Please consider the following general advice:
+- Check for any loose connections around the engine bay.
+- Ensure your battery terminals are clean and tight.
+- Review your maintenance log for any overdue services.
+
+Please try your query again when you are back online for a full analysis.`;
+  }
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -33,6 +48,40 @@ export const getPredictiveAnalysis = async (
   liveData: SensorDataPoint,
   maintenanceHistory: MaintenanceRecord[]
 ) => {
+    if (!isOnline()) {
+        console.log("Offline mode: Returning mock predictive analysis.");
+        await new Promise(resolve => setTimeout(resolve, 1200)); // Simulate analysis
+        return { 
+          timelineEvents: [
+            {
+              id: 'offline-1',
+              level: AlertLevel.Warning,
+              title: 'Offline: Mock Spark Plug Wear',
+              timeframe: 'Next 3000 miles',
+              details: {
+                component: 'Spark Plugs',
+                rootCause: 'This is an offline mock analysis. Based on typical mileage, spark plugs may be nearing their service interval, which can lead to reduced efficiency.',
+                recommendedActions: ['Visually inspect spark plugs for wear when online.', 'Schedule replacement if necessary.'],
+                plainEnglishSummary: "It might be time to check your spark plugs soon. Worn plugs can affect performance and fuel economy. This is a mock suggestion as you are offline.",
+                tsbs: ["TSB data unavailable offline"],
+              }
+            },
+            {
+              id: 'offline-2',
+              level: AlertLevel.Info,
+              title: 'Offline: Mock Air Filter Check',
+              timeframe: 'Next Service',
+              details: {
+                component: 'Engine Air Filter',
+                rootCause: 'This is an offline mock analysis. A clean air filter is crucial for engine performance.',
+                recommendedActions: ['Visually inspect air filter.', 'Replace if dirty.'],
+                plainEnglishSummary: "Remember to check your engine's air filter at your next service. This is a mock suggestion as you are offline.",
+              }
+            }
+          ]
+        };
+    }
+
   const prompt = `
     Analyze the following vehicle data for potential issues.
 
@@ -84,18 +133,14 @@ export const getPredictiveAnalysis = async (
       contents: prompt,
       config: {
         tools: [{googleSearch: {}}],
-        // responseMimeType is not allowed when using the googleSearch tool, this was an error.
-        // It has been corrected by removing it.
       },
     });
 
-    // The Gemini API can sometimes wrap the JSON in markdown backticks.
     const cleanedText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleanedText);
 
   } catch (error) {
     console.error("Error fetching predictive analysis from Gemini:", error);
-    // Return a structured error so the UI can handle it gracefully
     return { 
       error: "Failed to get predictive analysis.",
       details: error instanceof Error ? error.message : String(error)
@@ -149,6 +194,21 @@ export const getTuningSuggestion = async (
   drivingStyle: string,
   conditions: string
 ): Promise<TuningSuggestion> => {
+    if (!isOnline()) {
+        console.log("Offline mode: Returning mock tuning suggestion.");
+        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate generation
+        return {
+            suggestedParams: {
+                fuelMap: 2,
+                ignitionTiming: 1,
+                boostPressure: 0.5,
+            },
+            analysis: {
+                predictedGains: "Offline Mock: A safe, mild improvement in throttle response and mid-range torque.",
+                potentialRisks: "Offline Mock: This is a conservative base map. A full online analysis is required for an optimized and safe tune for your specific conditions."
+            }
+        };
+    }
 
   const prompt = `
     You are 'KC', an expert automotive performance tuner for the 'Karapiro Cartel Speed Shop'. Your task is to provide a personalized engine tune recommendation.
@@ -216,6 +276,31 @@ const voiceCommandSchema = {
 };
 
 export const getVoiceCommandIntent = async (command: string): Promise<VoiceCommandIntent> => {
+    if (!isOnline()) {
+        console.log("Offline mode: Parsing voice command locally.");
+        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate local processing
+        const lowerCommand = command.toLowerCase();
+        
+        const components = ['o2-sensor', 'map-sensor', 'alternator', 'turbo', 'intake', 'coolant', 'oil-filter'];
+        for (const component of components) {
+            if (lowerCommand.includes(component.replace('-', ' '))) {
+                return { intent: IntentAction.ShowComponent, component, confidence: 0.9 };
+            }
+        }
+
+        if (lowerCommand.includes('service') || lowerCommand.includes('maintenance')) {
+            return { intent: IntentAction.QueryService, confidence: 0.9 };
+        }
+        if (lowerCommand.includes('clear') || lowerCommand.includes('hide')) {
+            return { intent: IntentAction.HideComponent, confidence: 0.9 };
+        }
+        if (lowerCommand.includes('show') || lowerCommand.includes('highlight')) {
+             return { intent: IntentAction.ShowComponent, component: 'turbo', confidence: 0.8 }; 
+        }
+
+        return { intent: IntentAction.Unknown, confidence: 1.0 };
+    }
+
   const prompt = `
     You are the Natural Language Understanding (NLU) engine for 'KC', an AR automotive assistant. Your task is to interpret the user's voice command and translate it into a structured JSON format.
 
@@ -255,11 +340,14 @@ export const getVoiceCommandIntent = async (command: string): Promise<VoiceComma
     });
 
     const cleanedText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanedText) as VoiceCommandIntent;
+    // Ensure the intent string from the API maps to our enum
+    const parsed = JSON.parse(cleanedText);
+    parsed.intent = Object.values(IntentAction).includes(parsed.intent) ? parsed.intent : IntentAction.Unknown;
+    return parsed as VoiceCommandIntent;
   } catch (error) {
     console.error("Error fetching voice command intent from Gemini:", error);
     return {
-      intent: 'UNKNOWN',
+      intent: IntentAction.Unknown,
       confidence: 1.0,
       error: 'Failed to process command.',
     } as any;
@@ -267,11 +355,17 @@ export const getVoiceCommandIntent = async (command: string): Promise<VoiceComma
 };
 
 export const generateComponentImage = async (componentName: string): Promise<string> => {
+    if (!isOnline()) {
+        console.log("Offline mode: Returning placeholder image.");
+        await new Promise(resolve => setTimeout(resolve, 300)); // Simulate loading
+        const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#1A202C"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="32" fill="#A0AEC0">${componentName}</text><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="24" fill="#718096">(Diagram is unavailable offline)</text></svg>`;
+        return `data:image/svg+xml;base64,${btoa(placeholderSvg)}`;
+    }
   try {
     const prompt = `A high-resolution, photorealistic image of a single automotive '${componentName}' for a 2022 Subaru WRX, isolated on a clean white background. Studio lighting.`;
 
     const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002',
+        model: 'imagen-4.0-generate-001',
         prompt: prompt,
         config: {
           numberOfImages: 1,
@@ -299,6 +393,31 @@ export const getCoPilotResponse = async (
   vehicleData: SensorDataPoint,
   activeAlerts: DiagnosticAlert[]
 ): Promise<string> => {
+    if (!isOnline()) {
+        console.log("Offline mode: Generating Co-Pilot response locally.");
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const lowerCommand = command.toLowerCase();
+
+        if (activeAlerts.length > 0 && (lowerCommand.includes('status') || lowerCommand.includes('what\'s up') || lowerCommand.includes('everything ok'))) {
+            const criticalAlert = activeAlerts.find(a => a.level === AlertLevel.Critical) || activeAlerts[0];
+            return `I have an active alert for the ${criticalAlert.component}. The system reports: ${criticalAlert.message}. I recommend you look into this.`;
+        }
+        if (lowerCommand.includes('oil pressure')) {
+            return `Your oil pressure is currently ${vehicleData.oilPressure.toFixed(1)} bar.`;
+        }
+        if (lowerCommand.includes('boost')) {
+            return `You're currently at ${vehicleData.turboBoost.toFixed(2)} bar of boost.`;
+        }
+        if (lowerCommand.includes('engine temp') || lowerCommand.includes('temperature')) {
+            return `Engine temperature is ${vehicleData.engineTemp.toFixed(1)} degrees Celsius.`;
+        }
+        if (lowerCommand.includes('status') || lowerCommand.includes('everything ok')) {
+            return "Yes, all systems are nominal. Everything looks good.";
+        }
+
+        return "I couldn't process that command while offline. Please try asking about a specific system, like 'what's my oil pressure?'.";
+    }
+
   const prompt = `
     The driver just gave you a voice command. Use the provided real-time context to give the best possible response.
 

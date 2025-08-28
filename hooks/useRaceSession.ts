@@ -11,6 +11,7 @@ const initialSessionState: RaceSession = {
     elapsedTime: 0,
     data: [],
     lapTimes: [],
+    gpsPath: [],
     zeroToHundredTime: null,
     quarterMileTime: null,
     quarterMileSpeed: null,
@@ -36,6 +37,8 @@ export const useRaceSession = () => {
             const now = performance.now();
             const elapsedTime = now - prev.startTime;
             const newData = [...prev.data, latestData];
+            const newGpsPath = [...prev.gpsPath, { latitude: latestData.latitude, longitude: latestData.longitude }];
+
 
             let { zeroToHundredTime, quarterMileTime, quarterMileSpeed } = prev;
 
@@ -65,6 +68,7 @@ export const useRaceSession = () => {
                 ...prev,
                 elapsedTime,
                 data: newData,
+                gpsPath: newGpsPath,
                 zeroToHundredTime,
                 quarterMileTime,
                 quarterMileSpeed,
@@ -95,6 +99,7 @@ export const useRaceSession = () => {
             isActive: true,
             startTime: performance.now(),
             data: [latestData], // Start with the very first data point
+            gpsPath: [{latitude: latestData.latitude, longitude: latestData.longitude}]
         });
     };
 
@@ -106,9 +111,10 @@ export const useRaceSession = () => {
     };
 
     const recordLap = () => {
-        if (!session.isActive || !session.startTime) return;
-        const now = performance.now();
-        const lapTime = now - (session.lapTimes.reduce((acc, lap) => acc + lap.time, session.startTime!));
+        if (!session.isActive || !session.startTime || session.elapsedTime < 1000) return; // Prevent accidental double-clicks
+        
+        const lastLapTotalTime = session.lapTimes.reduce((sum, lap) => sum + lap.time, 0);
+        const lapTime = session.elapsedTime - lastLapTotalTime;
 
         setSession(prev => ({
             ...prev,

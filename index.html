@@ -43,7 +43,7 @@
         --theme-accent-secondary: #007FFF;
         --theme-accent-red: #FF0000;
         --theme-accent-green: #00FF00;
-        --theme-panel-bg: #0A0A0F;
+        --theme-panel-bg: rgba(10, 10, 15, 0.5);
         --theme-panel-border: rgba(0, 255, 255, 0.3);
         --theme-gauge-bezel: #222;
         --theme-gauge-face: #000;
@@ -53,14 +53,12 @@
         --theme-bg-texture: none;
         --theme-bg-size: auto;
         
-        /* New centralized variables */
         --theme-accent-color: var(--theme-accent-primary);
         --theme-glow-color: var(--theme-accent-primary);
         --theme-accent-material-bg: var(--theme-accent-primary);
         --theme-ambient-glow-color: transparent;
       }
       
-      /* New Material Styles */
       [data-material="cyan"] {
         --theme-accent-color: #00FFFF;
         --theme-glow-color: #00FFFF;
@@ -83,20 +81,26 @@
         --theme-glow-color: #cd9575;
         --theme-accent-material-bg: linear-gradient(145deg, #6b4f3a, #a57d54);
       }
+      /* New High-Fidelity Carbon Fiber Background */
       [data-material="carbon-fiber"] {
         --theme-accent-color: #E0E0E0;
         --theme-glow-color: #E0E0E0;
-        --theme-accent-material-bg:
-          linear-gradient(27deg, #151515 5px, transparent 5px) 0 5px,
-          linear-gradient(207deg, #151515 5px, transparent 5px) 10px 0px,
-          linear-gradient(27deg, #222 5px, transparent 5px) 0px 10px,
-          linear-gradient(207deg, #222 5px, transparent 5px) 10px 5px,
-          linear-gradient(90deg, #1b1b1b 10px, transparent 10px),
-          linear-gradient(#1d1d1d 25%, #1a1a1a 25%, #1a1a1a 50%, transparent 50%, transparent 75%, #242424 75%, #242424);
-        background-size: 20px 20px;
+        --theme-accent-material-bg: transparent;
+      }
+      .carbon-background {
+        background-color: #050505;
+        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjEwMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYzJjMmUiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyMjIyMjIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSIxNiIgZmlsbD0iIzE4MTgxOCIvPjxyZWN0IHg9IjgiIHdpZHRoPSI4IiBoZWlnaHQ9IjE2IiBmaWxsPSIjMWExYTFhIi8+PHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjgiIGZpbGw9IiMxYzFjMWMiLz48cmVjdCB5PSI4IiB3aWR0aD0iMTYiIGhlaWdodD0iOCIgZmlsbD0iIzFkMWQxZCIvPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9InVybCgjZykiLz48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+');
+        background-size: 8px;
+        position: relative;
+      }
+      .carbon-background::after {
+        content: '';
+        position: absolute;
+        top: 0; right: 0; bottom: 0; left: 0;
+        background: radial-gradient(ellipse at top, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 40%),
+                    radial-gradient(ellipse at bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 50%);
       }
       
-      /* Updated Theme Styles */
       [data-theme="rally"] {
         --theme-bg: #0A0A0F;
         --theme-text-primary: #E2E8F0;
@@ -112,10 +116,6 @@
         --theme-gauge-text: #E2E8F0;
         --theme-needle-color: var(--theme-accent-color);
         --theme-indicator-inactive: #2D3748;
-        --theme-bg-texture: 
-          linear-gradient(rgba(10,10,15,0.95), rgba(10,10,15,0.95)),
-          url('https://www.transparenttextures.com/patterns/hexellence.png');
-        --theme-bg-size: auto, auto;
       }
 
       [data-theme="modern"] {
@@ -128,11 +128,6 @@
         --theme-panel-bg: rgba(10, 10, 15, 0.5);
         --theme-panel-border: #4A5568;
         --theme-glow-color: #00ffff;
-        --theme-bg-texture:
-            radial-gradient(ellipse at bottom, rgba(0, 50, 70, 0.4) 0%, transparent 60%),
-            linear-gradient(rgba(13,16,24,0.95), rgba(13,16,24,0.95)),
-            url('https://www.transparenttextures.com/patterns/hexellence.png');
-        --theme-bg-size: auto, auto, auto;
       }
 
       [data-theme="classic"] {
@@ -143,18 +138,14 @@
         --theme-accent-secondary: #E2E8F0;
         --theme-accent-red: #ef4444;
         --theme-accent-green: #38A169;
-        --theme-panel-bg: linear-gradient(to bottom, #4c0519, #1a1a1a); /* Red to black gradient for headers */
+        --theme-panel-bg: linear-gradient(to bottom, #4c0519, #1a1a1a);
         --theme-panel-border: #ef4444;
-        --theme-gauge-bezel: #333333;
-        --theme-gauge-face: #000000;
+        --theme-gauge-bezel: linear-gradient(145deg, #444, #111);
+        --theme-gauge-face: radial-gradient(ellipse at center, #333 0%, #000 100%);
         --theme-gauge-text: #FFFFFF;
         --theme-needle-color: #ef4444;
         --theme-indicator-inactive: #333;
         --theme-glow-color: #ef4444;
-        --theme-bg-texture: 
-          linear-gradient(rgba(10,10,15,0.95), rgba(10,10,15,0.95)),
-          url('https://www.transparenttextures.com/patterns/hexellence.png');
-        --theme-bg-size: auto, auto;
       }
 
       [data-theme="haltech"] {
@@ -167,37 +158,36 @@
         --theme-haltech-light-gray: #333333;
         --theme-haltech-silver: #a0a0a0;
         --theme-needle-color: var(--theme-haltech-red);
-        --theme-bg-texture: 
-          linear-gradient(rgba(10,10,15,0.98), rgba(10,10,15,0.98)),
-          url('https://www.transparenttextures.com/patterns/hexellence.png');
-        --theme-bg-size: auto, auto;
       }
 
       [data-theme="minimalist"] {
         --theme-bg: #2d3038;
         --theme-text-primary: #FFFFFF;
         --theme-text-secondary: #b0b0b0;
-        --theme-accent-primary: #FF4500; /* Glowing Orange/Red */
+        --theme-accent-primary: #FF4500;
         --theme-glow-color: #FF4500;
         --theme-panel-bg: rgba(90, 90, 90, 0.15);
         --theme-panel-border: rgba(200, 200, 200, 0.2);
-        --theme-gauge-bezel: #252528;
-        --theme-gauge-face: rgba(230, 230, 230, 0.9);
+        --theme-gauge-bezel: linear-gradient(145deg, #30333b, #202228);
+        --theme-gauge-face: radial-gradient(ellipse at center, rgba(230, 230, 230, 0.9) 0%, rgba(200, 200, 200, 0.9) 100%);
         --theme-gauge-text: #1a1a1a;
         --theme-needle-color: var(--theme-accent-primary);
-        --theme-bg-texture: 
-          radial-gradient(ellipse at bottom, rgba(255, 69, 0, 0.1) 0%, transparent 50%),
-          repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px);
-        --theme-bg-size: auto, auto;
       }
-
+      
       .theme-background {
         background-color: var(--theme-bg);
-        background-image: var(--theme-bg-texture);
-        background-size: var(--theme-bg-size);
         box-shadow: inset 0 0 80px 20px var(--theme-ambient-glow-color, transparent);
         transition: box-shadow 0.5s ease-in-out;
       }
+      
+      .glassmorphism-panel {
+        background-color: rgba(20, 20, 30, 0.6);
+        backdrop-filter: blur(12px) saturate(120%);
+        -webkit-backdrop-filter: blur(12px) saturate(120%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+
 
       @keyframes subtle-pulse {
         0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px var(--theme-glow-color, #00FFFF)); }

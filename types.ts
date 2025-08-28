@@ -64,7 +64,7 @@ export interface PredictiveIssue {
 }
 
 export interface TimelineEvent {
-    id: string;
+    id:string;
     level: AlertLevel;
     title: string;
     timeframe: string; // e.g., "Immediate", "Next 3 months", "Within 5000 miles"
@@ -142,6 +142,11 @@ export interface HederaRecord {
 }
 
 // Types for Race Pack
+export interface GpsPoint {
+    latitude: number;
+    longitude: number;
+}
+
 export interface LapTime {
     lap: number;
     time: number;
@@ -153,7 +158,32 @@ export interface RaceSession {
     elapsedTime: number;
     data: SensorDataPoint[];
     lapTimes: LapTime[];
+    gpsPath: GpsPoint[];
     zeroToHundredTime: number | null;
     quarterMileTime: number | null;
     quarterMileSpeed: number | null;
+}
+
+export interface SavedRaceSession {
+    id: string;
+    date: string;
+    totalTime: number;
+    maxSpeed: number;
+    distance: number;
+    zeroToHundredTime: number | null;
+    quarterMileTime: number | null;
+    quarterMileSpeed: number | null;
+    lapTimes: LapTime[];
+    gpsPath: GpsPoint[];
+}
+
+export interface LeaderboardEntry {
+    value: number;
+    date: string;
+}
+
+export interface Leaderboard {
+    zeroToHundred: LeaderboardEntry | null;
+    quarterMileTime: LeaderboardEntry | null;
+    quarterMileSpeed: LeaderboardEntry | null;
 }

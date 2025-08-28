@@ -45,29 +45,38 @@ const HaltechTachometer: React.FC<HaltechTachometerProps> = ({ rpm, speed, gear 
     <div className="relative w-full h-full max-w-[500px] aspect-square">
       <svg viewBox="0 0 200 200" className="w-full h-full">
         <defs>
-          <radialGradient id="brushed-metal" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-            <stop offset="0%" style={{stopColor: '#f0f0f0'}} />
-            <stop offset="100%" style={{stopColor: 'var(--theme-haltech-silver)'}} />
-          </radialGradient>
-          <radialGradient id="red-glow" cx="50%" cy="50%" r="50%">
-            <stop offset="60%" stopColor="var(--theme-haltech-red)" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="var(--theme-haltech-red)" stopOpacity="0" />
-          </radialGradient>
-           <filter id="needle-glow">
-            <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
-            <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
+            <radialGradient id="haltech-face-grad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#111" />
+                <stop offset="100%" stopColor="#000" />
+            </radialGradient>
+            <radialGradient id="red-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="60%" stopColor="var(--theme-haltech-red)" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="var(--theme-haltech-red)" stopOpacity="0" />
+            </radialGradient>
+            <filter id="needle-glow">
+                <feDropShadow dx="1" dy="1" stdDeviation="1" floodColor="#000" floodOpacity="0.7"/>
+                <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+            <filter id="bezel-lighting">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
+                <feSpecularLighting in="blur" surfaceScale="5" specularConstant=".75" specularExponent="20" lightingColor="#FFF" result="specular">
+                    <fePointLight x="-50" y="-50" z="200" />
+                </feSpecularLighting>
+                <feComposite in="specular" in2="SourceGraphic" operator="in" result="specular" />
+                <feComposite in="SourceGraphic" in2="specular" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" />
+            </filter>
         </defs>
         
         {/* Bezel */}
-        <path d="M 20 5 L 180 5 L 195 20 L 195 180 L 180 195 L 20 195 L 5 180 L 5 20 Z" fill="url(#brushed-metal)" />
+        <path d="M 20 5 L 180 5 L 195 20 L 195 180 L 180 195 L 20 195 L 5 180 L 5 20 Z" fill="var(--theme-haltech-silver)" filter="url(#bezel-lighting)" />
         <path d="M 22 7 L 178 7 L 193 22 L 193 178 L 178 193 L 22 193 L 7 178 L 7 22 Z" fill="var(--theme-haltech-dark-gray)" />
         
         {/* Face */}
-        <circle cx="100" cy="100" r="90" fill="black" />
+        <circle cx="100" cy="100" r="90" fill="url(#haltech-face-grad)" />
         
         {/* Red inner glow */}
         <circle cx="100" cy="100" r="50" fill="url(#red-glow)" style={{opacity: redGlowOpacity, transition: 'opacity 0.2s ease-in-out'}} />
@@ -76,11 +85,10 @@ const HaltechTachometer: React.FC<HaltechTachometerProps> = ({ rpm, speed, gear 
         {Array.from({ length: 11 }).map((_, i) => {
             const r = i * 1000;
             const angle = rpmToAngle(r);
-            const isMajorTick = i % 1 === 0;
             return (
                 <g key={`tick-${i}`} transform={`rotate(${angle} 100 100)`}>
-                    <line x1="100" y1="15" x2="100" y2={isMajorTick ? "25" : "20"} stroke="var(--theme-text-secondary)" strokeWidth="1.5" />
-                     {isMajorTick && <text
+                    <line x1="100" y1="15" x2="100" y2="25" stroke="var(--theme-text-secondary)" strokeWidth="1.5" />
+                     <text
                         x="100"
                         y="35"
                         textAnchor="middle"
@@ -88,9 +96,10 @@ const HaltechTachometer: React.FC<HaltechTachometerProps> = ({ rpm, speed, gear 
                         fontSize="10"
                         fontWeight="bold"
                         className="font-sans"
+                        style={{textShadow: '0 0 2px black'}}
                      >
                         {i}
-                    </text>}
+                    </text>
                 </g>
             )
         })}
