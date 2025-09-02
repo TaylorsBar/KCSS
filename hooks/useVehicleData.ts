@@ -10,7 +10,7 @@ enum VehicleState {
 }
 
 const UPDATE_INTERVAL_MS = 20; // 50Hz for high precision
-const MAX_DATA_POINTS = 200; // Store more data for race analysis
+const MAX_DATA_POINTS = 500; // Store more data for race analysis
 const RPM_IDLE = 800;
 const RPM_MAX = 8000;
 const SPEED_MAX = 280;
@@ -41,6 +41,7 @@ const generateInitialData = (): SensorDataPoint[] => {
       o2SensorVoltage: 0.45,
       engineLoad: 15,
       distance: 0,
+      gForce: 0,
       latitude: DEFAULT_LAT,
       longitude: DEFAULT_LON,
     });
@@ -68,7 +69,7 @@ export const useVehicleData = () => {
           });
         },
         (error) => {
-          console.error(`Geolocation error: ${error.message} (Code: ${error.code})`);
+          console.warn(`Geolocation error: ${error.message} (Code: ${error.code})`);
           setGpsData(null); // Fallback to simulation
         },
         {
@@ -171,6 +172,10 @@ export const useVehicleData = () => {
         }
 
         const speedMetersPerSecond = speed * (1000 / 3600);
+        const prevSpeedMetersPerSecond = prev.speed * (1000 / 3600);
+        const acceleration = (speedMetersPerSecond - prevSpeedMetersPerSecond) / deltaTimeSeconds;
+        const gForce = acceleration / 9.81;
+
         const distanceThisFrame = speedMetersPerSecond * deltaTimeSeconds;
         const newDistance = distance + distanceThisFrame;
 
@@ -197,6 +202,7 @@ export const useVehicleData = () => {
           o2SensorVoltage: 0.1 + (0.5 + Math.sin(now / 500) * 0.4),
           engineLoad: 15 + (rpm - RPM_IDLE) / (RPM_MAX - RPM_IDLE) * 85,
           distance: newDistance,
+          gForce,
           latitude,
           longitude,
         };
@@ -215,7 +221,7 @@ export const useVehicleData = () => {
         navigator.geolocation.clearWatch(watcherId);
       }
     };
-  }, []);
+  }, [gpsData]); // Rerun effect if gpsData object changes
 
   return { data, latestData: data[data.length - 1], hasActiveFault };
 };

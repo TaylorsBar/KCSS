@@ -106,7 +106,7 @@ export const getPredictiveAnalysis = async (
     4.  **Recommended Actions**: Provide a prioritized, step-by-step diagnostic and repair plan for the most urgent issue.
     5.  **Plain-English Summary**: Explain the core problem to the owner as if you were their trusted mechanic.
     6.  **Official Data**: Use your search tool to find any relevant Technical Service Bulletins (TSBs) or recalls for this issue on a 2022 Subaru WRX.
-    7.  **JSON Output**: Structure your entire response as a single, valid JSON object following this format: 
+    7.  **JSON Output**: Structure your entire response as a single, valid JSON object. Do not wrap it in markdown code blocks.
         {
           "timelineEvents": [
             {
@@ -132,11 +132,12 @@ export const getPredictiveAnalysis = async (
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
+        responseMimeType: "application/json",
         tools: [{googleSearch: {}}],
       },
     });
-
-    const cleanedText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    const cleanedText = response.text.trim();
     return JSON.parse(cleanedText);
 
   } catch (error) {
@@ -385,6 +386,62 @@ export const generateComponentImage = async (componentName: string): Promise<str
     throw new Error("Failed to generate component diagram.");
   }
 };
+
+export const getComponentTuningAnalysis = async (
+  componentName: string,
+  liveData: SensorDataPoint
+): Promise<string> => {
+  if (!isOnline()) {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    return `**Offline Analysis for ${componentName}**
+    
+    This is a mock analysis as you are currently offline. A full analysis would consider real-time data to provide specific tuning advice.
+    
+    *   **General Role**: The ${componentName} is a critical part of the engine system.
+    *   **Tuning Impact**: Adjusting parameters related to this component can significantly affect performance and engine health. For example, for a turbocharger, adjusting boost pressure is key.
+    
+    Please reconnect to receive a detailed, data-driven tuning analysis from KC.`;
+  }
+
+  const prompt = `
+    You are 'KC', an expert automotive performance tuner for the 'Karapiro Cartel Speed Shop'. Your task is to provide a concise tuning analysis for a specific engine component.
+
+    **Vehicle**: 2022 Subaru WRX (Simulated)
+
+    **Component to Inspect**: ${componentName}
+
+    **Live Data Snapshot**:
+    - RPM: ${liveData.rpm.toFixed(0)}
+    - Turbo Boost: ${liveData.turboBoost.toFixed(2)} BAR
+    - Engine Load: ${liveData.engineLoad.toFixed(1)}%
+
+    **Your Task**:
+    1.  Briefly explain the role of the '${componentName}' in relation to engine performance.
+    2.  Analyze how its current state might be inferred from the live data (if applicable).
+    3.  Explain which tuning parameters (e.g., Fuel Map Enrichment, Ignition Timing Advance, Boost Pressure) are most directly affected by or can affect this component.
+    4.  Provide one key tuning tip related to this component.
+
+    **Output**:
+    - Format your response using clear, concise markdown.
+    - Do not exceed 150 words.
+    - Be direct and actionable for a tuner.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+      }
+    });
+    return response.text;
+  } catch (error) {
+    console.error(`Error fetching tuning analysis for ${componentName}:`, error);
+    return "I'm sorry, I'm having trouble analyzing that component right now. Please try again in a moment.";
+  }
+};
+
 
 const COPILOT_INSTRUCTION = `You are 'KC', a hands-free, voice-activated AI Co-Pilot for a high-performance vehicle. Your purpose is to assist the driver with real-time information and diagnostics. Be conversational, concise, and direct. Your responses will be read aloud, so avoid long paragraphs, complex markdown, or lists. Focus on providing immediate, actionable information. The user is likely driving.`;
 

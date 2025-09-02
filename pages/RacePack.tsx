@@ -67,6 +67,8 @@ const RacePack: React.FC = () => {
             totalTime: summary.elapsedTime,
             maxSpeed: Math.max(0, ...data.map(d => d.speed)),
             distance: data.length > 0 ? data[data.length - 1].distance : 0,
+            // FIX: The 'data' property was missing from the SavedRaceSession object.
+            data,
             zeroToHundredTime: summary.zeroToHundredTime,
             quarterMileTime: summary.quarterMileTime,
             quarterMileSpeed: summary.quarterMileSpeed,

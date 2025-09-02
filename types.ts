@@ -19,6 +19,7 @@ export interface SensorDataPoint {
   engineLoad: number;
   // For Race Pack
   distance: number;
+  gForce: number;
   // For GPS
   latitude: number;
   longitude: number;
@@ -170,6 +171,7 @@ export interface SavedRaceSession {
     totalTime: number;
     maxSpeed: number;
     distance: number;
+    data: SensorDataPoint[];
     zeroToHundredTime: number | null;
     quarterMileTime: number | null;
     quarterMileSpeed: number | null;

@@ -88,17 +88,18 @@
         --theme-accent-material-bg: transparent;
       }
       .carbon-background {
-        background-color: #050505;
-        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjEwMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYzJjMmUiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyMjIyMjIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSIxNiIgZmlsbD0iIzE4MTgxOCIvPjxyZWN0IHg9IjgiIHdpZHRoPSI4IiBoZWlnaHQ9IjE2IiBmaWxsPSIjMWExYTFhIi8+PHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjgiIGZpbGw9IiMxYzFjMWMiLz48cmVjdCB5PSI4IiB3aWR0aD0iMTYiIGhlaWdodD0iOCIgZmlsbD0iIzFkMWQxZCIvPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9InVybCgjZykiLz48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+');
-        background-size: 8px;
+        background-color: #080808;
+        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgdmlld0JveD0iMCAwIDEyIDEyIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyMjIiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxMTIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB4PSIwIiB5PSIwIiBmaWxsPSIjMTYxNjE2Ii8+PHJlY3Qgd2lkdGg9IjYiIGhlaWdodD0iNiIgeD0iNiIgeT0iMCIgZmlsbD0iIzFhMWExYSIvPjxyZWN0IHdpZHRoPSI2IiBoZWlnaHQ9IjYiIHg9IjAiIHk9IjYiIGZpbGw9IiMxYTFhMWEiLz48cmVjdCB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB4PSI2IiB5PSI2IiBmaWxsPSIjMTYxNjE2Ii8+PHJlY3Qgd2lkdGg9IjEyIiBoZWlnaHQ9IjEiIHk9IjUiIGZpbGw9InVybCgjZykiIG9wYWNpdHk9IjAuNCIvPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEyIiB4PSI1IiBmaWxsPSJ1cmwoI2cpIiBvcGFjaXR5PSIwLjQiLz48L3N2Zz4=');
+        background-size: 6px;
         position: relative;
       }
       .carbon-background::after {
         content: '';
         position: absolute;
         top: 0; right: 0; bottom: 0; left: 0;
-        background: radial-gradient(ellipse at top, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 40%),
-                    radial-gradient(ellipse at bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 50%);
+        background: radial-gradient(ellipse at top, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 40%),
+                    radial-gradient(ellipse at bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 50%);
+        pointer-events: none;
       }
       
       [data-theme="rally"] {
@@ -109,7 +110,7 @@
         --theme-accent-secondary: #FFFFFF;
         --theme-accent-red: #E53E3E;
         --theme-accent-green: #38A169;
-        --theme-panel-bg: transparent;
+        --theme-panel-bg: rgba(10, 15, 20, 0.5);
         --theme-panel-border: rgba(0, 161, 255, 0.4);
         --theme-gauge-bezel: var(--theme-accent-material-bg, #1A202C);
         --theme-gauge-face: #0A0A0F;
@@ -128,36 +129,43 @@
         --theme-panel-bg: rgba(10, 10, 15, 0.5);
         --theme-panel-border: #4A5568;
         --theme-glow-color: #00ffff;
+        --theme-bg-texture: radial-gradient(ellipse at center, rgba(10, 20, 40, 0.4) 0%, rgba(13,16,24,0) 60%);
       }
 
       [data-theme="classic"] {
         --theme-bg: #1a1a1a;
-        --theme-text-primary: #FFFFFF;
-        --theme-text-secondary: #A0AEC0;
-        --theme-accent-primary: #ef4444; /* Red */
+        --theme-text-primary: #f5f5dc;
+        --theme-text-secondary: #d3c5a8;
+        --theme-accent-primary: #ffb700;
         --theme-accent-secondary: #E2E8F0;
         --theme-accent-red: #ef4444;
         --theme-accent-green: #38A169;
-        --theme-panel-bg: linear-gradient(to bottom, #4c0519, #1a1a1a);
+        --theme-panel-bg: transparent;
         --theme-panel-border: #ef4444;
         --theme-gauge-bezel: linear-gradient(145deg, #444, #111);
-        --theme-gauge-face: radial-gradient(ellipse at center, #333 0%, #000 100%);
-        --theme-gauge-text: #FFFFFF;
+        --theme-gauge-face: radial-gradient(ellipse at center, #1a1a1a 0%, #000 100%);
+        --theme-gauge-text: #f5f5dc;
         --theme-needle-color: #ef4444;
         --theme-indicator-inactive: #333;
-        --theme-glow-color: #ef4444;
+        --theme-glow-color: #ffb700;
+      }
+      
+      .classic-dash-panel {
+        background-color: #111;
+        background-image: 
+          /* Stitched Leather Texture */
+          url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDUwIDUwIj48ZGVmcz48cGF0dGVybiBpZD0icCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNMCA1IEwxMCA1IiBzdHJva2U9InJnYmEoMCwwLDAsMC4yKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PHBhdGggZD0iTTUgMCBMNSAxMCIgc3Ryb2tlPSJyZ2JhKDAsMCwwLDAuMikiIHN0cm9rZS1-aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjMjIyIi8+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSJ1cmwoI3ApIi8+PC9zdmc+'),
+          /* Brushed Aluminum Texture */
+          linear-gradient(0deg, #6c6c6c, #a7a7a7 50%, #6c6c6c);
+        background-blend-mode: multiply, normal;
+        background-size: 20px 20px, 100% 100%;
       }
 
       [data-theme="haltech"] {
-        --theme-bg: #0a0a0f;
+        --theme-bg: #111;
         --theme-text-primary: #FFFFFF;
         --theme-text-secondary: #cccccc;
-        --theme-accent-primary: #ff3333;
-        --theme-haltech-red: #ff3333;
-        --theme-haltech-dark-gray: #111111;
-        --theme-haltech-light-gray: #333333;
-        --theme-haltech-silver: #a0a0a0;
-        --theme-needle-color: var(--theme-haltech-red);
+        --theme-accent-primary: #ffc000;
       }
 
       [data-theme="minimalist"] {
@@ -166,8 +174,8 @@
         --theme-text-secondary: #b0b0b0;
         --theme-accent-primary: #FF4500;
         --theme-glow-color: #FF4500;
-        --theme-panel-bg: rgba(90, 90, 90, 0.15);
-        --theme-panel-border: rgba(200, 200, 200, 0.2);
+        --theme-panel-bg: rgba(90, 90, 90, 0.1);
+        --theme-panel-border: rgba(200, 200, 200, 0.15);
         --theme-gauge-bezel: linear-gradient(145deg, #30333b, #202228);
         --theme-gauge-face: radial-gradient(ellipse at center, rgba(230, 230, 230, 0.9) 0%, rgba(200, 200, 200, 0.9) 100%);
         --theme-gauge-text: #1a1a1a;
@@ -176,18 +184,26 @@
       
       .theme-background {
         background-color: var(--theme-bg);
+        background-image: var(--theme-bg-texture);
         box-shadow: inset 0 0 80px 20px var(--theme-ambient-glow-color, transparent);
         transition: box-shadow 0.5s ease-in-out;
       }
       
       .glassmorphism-panel {
-        background-color: rgba(20, 20, 30, 0.6);
+        background-color: var(--theme-panel-bg);
         backdrop-filter: blur(12px) saturate(120%);
         -webkit-backdrop-filter: blur(12px) saturate(120%);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--theme-panel-border);
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
       }
-
+      
+      .haltech-ic7-background {
+        background-color: #2a2a2e;
+        background-image: 
+          linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1) 75%, transparent 75%, transparent),
+          radial-gradient(ellipse at top, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 50%);
+        background-size: 8px 8px, 100% 100%;
+      }
 
       @keyframes subtle-pulse {
         0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px var(--theme-glow-color, #00FFFF)); }
@@ -195,6 +211,24 @@
       }
       .ar-wireframe-animated {
         animation: subtle-pulse 5s ease-in-out infinite;
+      }
+      
+      /* New styles for the 3D Engine Model in Tuning Suite */
+      .engine-3d-container {
+        background: radial-gradient(ellipse at center, rgba(0, 127, 255, 0.1) 0%, transparent 70%);
+        border: 1px solid var(--theme-panel-border);
+        border-radius: 8px;
+        box-shadow: inset 0 0 20px rgba(0, 127, 255, 0.1);
+        overflow: hidden;
+        position: relative;
+      }
+      
+      @keyframes fade-in {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.5s ease-out forwards;
       }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">

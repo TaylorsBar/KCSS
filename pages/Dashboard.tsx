@@ -1,8 +1,7 @@
-
 import React, { useContext } from 'react';
 import { AppearanceContext } from '../contexts/AppearanceContext';
 import RallyThemeDashboard from './dashboards/RallyThemeDashboard';
-import ModernThemeDashboard from './dashboards/ModernThemeDashboard';
+import ModernGaugeDashboard from './dashboards/ModernGaugeDashboard';
 import ClassicThemeDashboard from './dashboards/ClassicThemeDashboard';
 import HaltechDashboard from './dashboards/HaltechDashboard';
 import MinimalistDashboard from './dashboards/MinimalistDashboard';
@@ -15,7 +14,7 @@ const Dashboard: React.FC = () => {
       case 'rally':
         return <RallyThemeDashboard />;
       case 'modern':
-        return <ModernThemeDashboard />;
+        return <ModernGaugeDashboard />;
       case 'classic':
         return <ClassicThemeDashboard />;
       case 'haltech':

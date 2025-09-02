@@ -1,14 +1,13 @@
 import React from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
-import { SensorDataPoint } from '../../types';
-import DigitalGaugeCluster from '../../components/dashboards/rally/DigitalGaugeCluster';
+import RallyGaugeCluster from '../../components/dashboards/rally/DigitalGaugeCluster';
 
 const RallyThemeDashboard: React.FC = () => {
     const { latestData } = useVehicleData();
 
     return (
-        <div className="flex flex-col items-center justify-center h-full w-full bg-transparent text-white p-4 font-sans gap-4">
-            <DigitalGaugeCluster latestData={latestData} />
+        <div className="h-full w-full bg-transparent text-white font-sans p-4 md:p-6 flex items-center justify-center">
+            <RallyGaugeCluster latestData={latestData} />
         </div>
     );
 };

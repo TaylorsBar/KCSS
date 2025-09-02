@@ -1,56 +1,44 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useVehicleData } from '../hooks/useVehicleData';
-import { TuningSuggestion } from '../types';
-import { getTuningSuggestion } from '../services/geminiService';
+import { generateComponentImage, getComponentTuningAnalysis } from '../services/geminiService';
 import EngineDiagram from '../components/tuning/EngineDiagram';
 import TuningSlider from '../components/tuning/TuningSlider';
+import ReactMarkdown from 'react-markdown';
+
 
 const DEFAULT_TUNE = { fuelMap: 0, ignitionTiming: 0, boostPressure: 0 };
+
+// Component list for the inspector
+const MOCK_COMPONENTS = [
+    { id: 'turbo', name: 'Turbocharger' },
+    { id: 'o2-sensor', name: 'O2 Sensor' },
+    { id: 'map-sensor', name: 'MAP Sensor' },
+    { id: 'intake', name: 'Air Intake / Throttle Body' },
+    { id: 'coolant', name: 'Coolant System' },
+    { id: 'oil-filter', name: 'Oil System' },
+];
+
+interface InspectionResult {
+    imageUrl: string | null;
+    analysis: string | null;
+    error: string | null;
+}
 
 const TuningPage: React.FC = () => {
     const { latestData } = useVehicleData();
     const [mode, setMode] = useState<'sandbox' | 'live'>('sandbox');
     const [tuneParams, setTuneParams] = useState(DEFAULT_TUNE);
-    const [aiSuggestion, setAiSuggestion] = useState<TuningSuggestion | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [highlightedPart, setHighlightedPart] = useState<string | null>(null);
 
-    // AI Assistant state
-    const [drivingStyle, setDrivingStyle] = useState('Aggressive Track');
-    const [conditions, setConditions] = useState('Dry, Warm');
+    // AI Inspector state
+    const [selectedComponent, setSelectedComponent] = useState<string>('');
+    const [isInspecting, setIsInspecting] = useState(false);
+    const [inspectionResult, setInspectionResult] = useState<InspectionResult | null>(null);
 
     const handleParamChange = (param: keyof typeof tuneParams, value: number) => {
         setTuneParams(prev => ({ ...prev, [param]: value }));
-        
-        // Highlight engine part on change
-        if (param === 'fuelMap') setHighlightedPart('injectors');
-        else if (param === 'ignitionTiming') setHighlightedPart('spark-plugs');
-        else if (param === 'boostPressure') setHighlightedPart('turbo');
-        
-        // Clear highlight after a short delay
-        setTimeout(() => setHighlightedPart(null), 1000);
-    };
-
-    const handleGenerateAiTune = async () => {
-        setIsGenerating(true);
-        setAiSuggestion(null);
-        try {
-            const suggestion = await getTuningSuggestion(latestData, drivingStyle, conditions);
-            setAiSuggestion(suggestion);
-        } catch (error) {
-            console.error(error);
-            // In a real app, show a toast or error message
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    const loadAiSuggestion = () => {
-        if (aiSuggestion) {
-            setTuneParams(aiSuggestion.suggestedParams);
-        }
     };
 
     const handleWriteToEcu = () => {
@@ -65,6 +53,37 @@ const TuningPage: React.FC = () => {
         // Add visual feedback like a success toast
     };
 
+    useEffect(() => {
+        const inspectComponent = async () => {
+            if (!selectedComponent) return;
+
+            const component = MOCK_COMPONENTS.find(c => c.id === selectedComponent);
+            if (!component) return;
+
+            setIsInspecting(true);
+            setInspectionResult(null);
+
+            try {
+                const [imageUrl, analysis] = await Promise.all([
+                    generateComponentImage(component.name),
+                    getComponentTuningAnalysis(component.name, latestData)
+                ]);
+                setInspectionResult({ imageUrl, analysis, error: null });
+            } catch (error) {
+                console.error("Failed to inspect component:", error);
+                setInspectionResult({ 
+                    imageUrl: null, 
+                    analysis: null, 
+                    error: "Failed to generate AI analysis. Please check your connection." 
+                });
+            } finally {
+                setIsInspecting(false);
+            }
+        };
+
+        inspectComponent();
+    }, [selectedComponent]);
+
     return (
         <div className="flex flex-col lg:flex-row gap-6 h-full">
             {/* Main Tuning Panel */}
@@ -78,7 +97,7 @@ const TuningPage: React.FC = () => {
                 </div>
                 
                 <div className="flex-grow flex flex-col items-center justify-center">
-                    <EngineDiagram highlightedPart={highlightedPart} />
+                    <EngineDiagram />
                 </div>
 
                 <div className="space-y-4 mt-6">
@@ -97,46 +116,49 @@ const TuningPage: React.FC = () => {
 
             </div>
 
-            {/* AI Assistant Panel */}
+            {/* AI Inspector Panel */}
             <div className="w-full lg:w-1/3 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">KC AI Tuning Assistant</h2>
-                <div className="space-y-4 flex-grow">
+                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">AI Component Inspector</h2>
+                <div className="space-y-4 flex-grow flex flex-col">
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Driving Style</label>
-                        <select value={drivingStyle} onChange={e => setDrivingStyle(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200">
-                            <option>Aggressive Track</option>
-                            <option>Spirited Daily</option>
-                            <option>Fuel Economy</option>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Select Component</label>
+                        <select value={selectedComponent} onChange={e => setSelectedComponent(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200">
+                            <option value="" disabled>-- Inspect a part --</option>
+                            {MOCK_COMPONENTS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Conditions</label>
-                        <select value={conditions} onChange={e => setConditions(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200">
-                            <option>Dry, Warm</option>
-                            <option>Wet, Cool</option>
-                            <option>High Altitude</option>
-                        </select>
-                    </div>
-                    <button onClick={handleGenerateAiTune} disabled={isGenerating} className="w-full bg-brand-cyan text-black font-semibold py-2 rounded-md hover:bg-cyan-300 transition-colors shadow-glow-cyan disabled:bg-base-700 disabled:cursor-wait">
-                        {isGenerating ? 'Generating...' : 'Generate AI Tune'}
-                    </button>
                     
-                    {aiSuggestion && (
-                        <div className="mt-4 p-4 bg-base-800/50 rounded-md space-y-3 animate-fade-in">
-                            <div>
-                                <h4 className="font-semibold text-brand-cyan">Predicted Gains:</h4>
-                                <p className="text-sm text-gray-300">{aiSuggestion.analysis.predictedGains}</p>
+                    <div className="flex-grow mt-4 p-4 bg-base-800/50 rounded-md space-y-3 overflow-y-auto">
+                        {!selectedComponent && (
+                             <div className="text-center text-gray-500 h-full flex items-center justify-center">
+                                Select a component to generate a real-time AI analysis.
                             </div>
-                            <div>
-                                <h4 className="font-semibold text-red-400">Potential Risks:</h4>
-                                <p className="text-sm text-gray-300">{aiSuggestion.analysis.potentialRisks}</p>
+                        )}
+                        {isInspecting && (
+                            <div className="space-y-4 animate-pulse">
+                                <div className="w-full h-48 bg-base-700 rounded-md"></div>
+                                <div className="space-y-2">
+                                    <div className="h-4 bg-base-700 rounded w-3/4"></div>
+                                    <div className="h-4 bg-base-700 rounded w-1/2"></div>
+                                    <div className="h-4 bg-base-700 rounded w-5/6"></div>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                        {inspectionResult && (
+                            <div className="animate-fade-in space-y-4">
+                                {inspectionResult.error && <p className="text-red-400">{inspectionResult.error}</p>}
+                                {inspectionResult.imageUrl && (
+                                    <img src={inspectionResult.imageUrl} alt="AI Generated Component" className="w-full h-auto rounded-md border-2 border-brand-cyan/50" />
+                                )}
+                                {inspectionResult.analysis && (
+                                    <div className="prose prose-sm prose-invert max-w-none">
+                                        <ReactMarkdown>{inspectionResult.analysis}</ReactMarkdown>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
-                 {aiSuggestion && (
-                    <button onClick={loadAiSuggestion} className="mt-4 w-full bg-brand-blue text-white font-semibold py-2 rounded-md hover:bg-blue-600 transition-colors">Load AI Suggestion</button>
-                 )}
             </div>
 
             {/* Confirmation Modal */}
