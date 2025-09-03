@@ -39,7 +39,7 @@ const App: React.FC = () => {
                 <Route path="/logbook" element={<MaintenanceLog />} />
                 <Route path="/tuning" element={<TuningPage />} />
                 <Route path="/ai-engine" element={<AIEngine />} />
-                <Route path="/ar-assistant" element={<ARAssistant />} />
+                <Route path="/ar-assistant" element={<ARAssistant latestData={latestData} />} />
                 <Route path="/security" element={<Security />} />
                 <Route path="/hedera" element={<Hedera />} />
                 <Route path="/race-pack" element={<RacePack />} />
