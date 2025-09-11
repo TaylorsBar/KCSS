@@ -18,6 +18,7 @@ import { useVehicleData } from './hooks/useVehicleData';
 import { MOCK_ALERTS } from './components/Alerts'; // Mock alerts for context
 import RacePack from './pages/RacePack';
 import DreamCorsa from './pages/DreamCorsa';
+import Marketplace from './pages/Marketplace';
 
 const App: React.FC = () => {
   const { latestData, hasActiveFault } = useVehicleData();
@@ -39,6 +40,7 @@ const App: React.FC = () => {
                 <Route path="/diagnostics" element={<Diagnostics />} />
                 <Route path="/logbook" element={<MaintenanceLog />} />
                 <Route path="/tuning" element={<TuningPage />} />
+                <Route path="/marketplace" element={<Marketplace />} />
                 <Route path="/ai-engine" element={<AIEngine />} />
                 <Route path="/ar-assistant" element={<ARAssistant latestData={latestData} />} />
                 <Route path="/security" element={<Security />} />

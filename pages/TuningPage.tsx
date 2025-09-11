@@ -132,7 +132,7 @@ const TuningPage: React.FC = () => {
                             <input type="text" value={conditions} onChange={e => setConditions(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200" />
                         </div>
                     </div>
-                    <button onClick={handleGetSuggestion} disabled={isGenerating} className="w-full bg-brand-blue text-white font-semibold py-2 rounded-md hover:bg-blue-600 transition-colors shadow-glow-blue disabled:bg-base-700">
+                    <button onClick={handleGetSuggestion} disabled={isGenerating} className="w-full bg-brand-pink text-black font-semibold py-2 rounded-md hover:bg-fuchsia-500 transition-colors shadow-glow-pink disabled:bg-base-700 disabled:text-gray-400">
                         {isGenerating ? 'Generating Tune...' : "Get KC's Suggestion"}
                     </button>
                     {suggestionError && <p className="text-red-400 mt-2 text-sm">{suggestionError}</p>}

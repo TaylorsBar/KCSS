@@ -201,3 +201,57 @@ export interface DragRaceResult {
   timeTo1_4mile: number | null;
   speedAt1_4mile: number | null;
 }
+
+// Types for Verified Parts Marketplace
+export enum PartCategory {
+    Engine = 'Engine',
+    Suspension = 'Suspension',
+    Brakes = 'Brakes',
+    Exhaust = 'Exhaust',
+    Electronics = 'Electronics',
+    ForcedInduction = 'Forced Induction',
+}
+
+export enum PartCondition {
+    New = 'New',
+    UsedLikeNew = 'Used - Like New',
+    UsedGood = 'Used - Good',
+}
+
+export enum ProvenanceEventType {
+    Minted = 'Minted',
+    Listed = 'Listed',
+    Sold = 'Sold',
+    Installed = 'Installed',
+    Serviced = 'Serviced',
+}
+
+export interface Part {
+    id: string;
+    manufacturer: string;
+    sku: string;
+    serial: string;
+    category: PartCategory;
+    name: string;
+    description: string;
+    imageUrl?: string;
+}
+
+export interface Listing {
+    id: string;
+    part: Part;
+    price: number;
+    currency: 'USD';
+    condition: PartCondition;
+    seller: string;
+    isOemVerified: boolean;
+}
+
+export interface ProvenanceEvent {
+    id: string;
+    type: ProvenanceEventType;
+    actor: string; // e.g., 'Manufacturer', 'KC Speed Shop'
+    timestamp: string;
+    hederaTxId: string;
+    details?: string;
+}
