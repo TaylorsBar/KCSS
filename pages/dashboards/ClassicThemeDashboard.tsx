@@ -15,6 +15,9 @@ const ClassicAuxGauge: React.FC<{ label: string; value: number; unit: string; mi
             <stop offset="0%" stopColor="#1a1a1a" />
             <stop offset="100%" stopColor="#000" />
           </radialGradient>
+          <filter id="classic-needle-shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0.5" dy="1" stdDeviation="1" floodColor="#000000" floodOpacity="0.7"/>
+          </filter>
         </defs>
         <circle cx="50" cy="50" r="48" fill="#444" />
         <circle cx="50" cy="50" r="47" fill="#111" />
@@ -27,10 +30,12 @@ const ClassicAuxGauge: React.FC<{ label: string; value: number; unit: string; mi
         <text x="50" y="82" textAnchor="middle" fill="var(--theme-text-primary)" fontSize="14" className="font-display">{value.toFixed(0)}</text>
         
         {/* Needle */}
-        <g transform={`rotate(${angle} 50 50)`} style={{ transition: 'transform 0.1s ease-out' }}>
-          <path d="M 50 58 L 50 15" stroke="var(--theme-needle-color)" strokeWidth="2" strokeLinecap="round" />
+        <g transform={`rotate(${angle} 50 50)`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-needle-shadow)">
+            <path d="M 49.5 50 L 50 10 L 50.5 50 Z" fill="var(--theme-needle-color)" />
+            <path d="M 49 50 L 50 58 L 51 50 Z" fill="var(--theme-needle-color)" />
         </g>
-        <circle cx="50" cy="50" r="4" fill="#444" />
+        <circle cx="50" cy="50" r="5" fill="#222" stroke="#444" strokeWidth="1"/>
+        <circle cx="50" cy="50" r="2" fill="#111"/>
       </svg>
     </div>
   );
@@ -44,19 +49,19 @@ const ClassicThemeDashboard: React.FC = () => {
   return (
     <div className="flex h-full w-full items-center justify-center p-4 md:p-8 theme-background">
       <div 
-        className="w-full max-w-6xl aspect-[2/1] rounded-lg p-6 shadow-2xl border-2 border-black/50 flex items-center justify-center gap-6 classic-dash-panel"
+        className="w-full max-w-screen-xl aspect-[16/9] rounded-lg p-4 shadow-2xl border-2 border-black/50 flex items-center justify-center gap-12 classic-dash-panel"
         style={{
           boxShadow: 'inset 0 0 20px rgba(0,0,0,0.7), 0 10px 30px rgba(0,0,0,0.5)',
         }}
       >
-        <div className="w-1/4 flex flex-col justify-between h-full py-8 gap-4">
+        <div className="w-1/4 flex flex-col justify-between h-full py-4 gap-4">
             <ClassicAuxGauge label="Fuel Lvl" value={d.fuelUsed} unit="%" min={0} max={100} />
             <ClassicAuxGauge label="Oil Press" value={d.oilPressure * 14.5} unit="psi" min={0} max={100} />
         </div>
         <div className="w-1/2 h-full">
             <ClassicTachometer rpm={d.rpm} speed={d.speed} />
         </div>
-        <div className="w-1/4 flex flex-col justify-between h-full py-8 gap-4">
+        <div className="w-1/4 flex flex-col justify-between h-full py-4 gap-4">
             <ClassicAuxGauge label="Water Temp" value={d.engineTemp} unit="°C" min={40} max={120} />
             <ClassicAuxGauge label="Voltage" value={d.batteryVoltage} unit="V" min={10} max={16} />
         </div>

@@ -17,6 +17,7 @@ import CoPilot from './components/CoPilot';
 import { useVehicleData } from './hooks/useVehicleData';
 import { MOCK_ALERTS } from './components/Alerts'; // Mock alerts for context
 import RacePack from './pages/RacePack';
+import DreamCorsa from './pages/DreamCorsa';
 
 const App: React.FC = () => {
   const { latestData, hasActiveFault } = useVehicleData();
@@ -43,6 +44,7 @@ const App: React.FC = () => {
                 <Route path="/security" element={<Security />} />
                 <Route path="/hedera" element={<Hedera />} />
                 <Route path="/race-pack" element={<RacePack />} />
+                <Route path="/dream-corsa" element={<DreamCorsa />} />
                 <Route path="/accessories" element={<Accessories />} />
                 <Route path="/appearance" element={<Appearance />} />
               </Routes>

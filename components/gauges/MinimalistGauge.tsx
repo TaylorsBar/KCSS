@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
 
@@ -11,9 +10,9 @@ interface MinimalistGaugeProps {
 }
 
 const sizeConfig = {
-    large: { radius: 150, ticks: 9, stroke: 4 },
-    medium: { radius: 120, ticks: 9, stroke: 3 },
-    small: { radius: 50, ticks: 5, stroke: 2 },
+    large: { radius: 220, ticks: 9, stroke: 4 },
+    medium: { radius: 160, ticks: 9, stroke: 3 },
+    small: { radius: 80, ticks: 5, stroke: 2 },
 };
 
 const MinimalistGauge: React.FC<MinimalistGaugeProps> = ({ value, min, max, unit, size }) => {
@@ -68,14 +67,14 @@ const MinimalistGauge: React.FC<MinimalistGaugeProps> = ({ value, min, max, unit
                  {/* Needle */}
                 <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }}>
                     <path 
-                        d={`M ${center} ${center + radius * 0.1} L ${center} ${radius * 0.1}`}
-                        stroke="var(--theme-needle-color)" 
-                        strokeWidth={config.stroke + 1}
-                        strokeLinecap="round" 
+                        d={`M ${center} ${radius * 0.05} L ${center + radius * 0.05} ${center} L ${center} ${center + radius * 0.2} L ${center - radius * 0.05} ${center} Z`}
+                        fill="var(--theme-needle-color)" 
                         filter="url(#minimalist-glow)"
                     />
                 </g>
-                <circle cx={center} cy={center} r={radius * 0.05} fill="#333" />
+                <circle cx={center} cy={center} r={radius * 0.12} fill="#333" />
+                <circle cx={center} cy={center} r={radius * 0.08} fill="#222" />
+                <circle cx={center} cy={center} r={radius * 0.04} fill="var(--theme-needle-color)" />
                 
                 {size !== 'small' &&
                     <foreignObject x={0} y={0} width={radius*2} height={radius*2}>

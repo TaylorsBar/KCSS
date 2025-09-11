@@ -1,27 +1,30 @@
 import React from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
-import { useAnimatedValue } from '../../hooks/useAnimatedValue';
 import ModernGauge from '../../components/gauges/ModernGauge';
 
-const DigitalReadout: React.FC<{ label: string; value: string | number; }> = ({ label, value }) => (
-    <div className="flex flex-col items-start justify-center">
-        <div className="font-display font-bold text-7xl text-[#00ffff]" style={{ textShadow: '0 0 10px #00ffff' }}>
-            {value}
+const SpeedDisplay: React.FC = () => (
+    <div className="flex flex-col items-center justify-center gap-2">
+        <div className="w-24 h-24 bg-black/30 border border-cyan-500/30 rounded-2xl flex items-center justify-center">
+            <svg className="w-16 h-16 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15m11.25-6h-4.5m4.5 0v-4.5m0 4.5L15 9" />
+            </svg>
         </div>
-        <div className="text-xl font-sans text-gray-400 uppercase tracking-widest">{label}</div>
+        <div className="font-sans uppercase text-sm font-bold tracking-wider text-cyan-400/80">SPEED</div>
     </div>
 );
 
 
 const ModernGaugeDashboard: React.FC = () => {
     const { latestData } = useVehicleData();
-    const animatedSpeed = useAnimatedValue(latestData.speed);
 
     return (
-        <div className="flex flex-col items-center justify-center h-full w-full p-4 theme-background gap-8" style={{
-            backgroundImage: "radial-gradient(ellipse at center, rgba(10, 20, 40, 0.4) 0%, rgba(13,16,24,0) 60%), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48ZmVjb21wb3NpdGUgb3BlcmF0b3I9ImluIiBpbjI9IlNvdXJjZUdyYXBoaWMiIHJlc3VsdD0idGV4dHVyZSIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNub2lzZSkiIG9wYWNpdHk9IjAuMSIvPjwvc3ZnPg==')"
-        }}>
-            <div className="w-full flex justify-center items-center gap-16">
+        <div className="flex flex-col items-center justify-center h-full w-full p-4 theme-background" style={{
+            // FIX: Cast style object to React.CSSProperties to allow for custom properties
+            '--theme-bg': '#05080c',
+             backgroundImage: "radial-gradient(ellipse at center, rgba(0, 100, 100, 0.15) 0%, rgba(5,8,12,0) 60%)"
+        } as React.CSSProperties}>
+            <div className="w-full flex justify-center items-center gap-24">
+                <div className="w-64" /> {/* Spacer */}
                 <ModernGauge
                     value={latestData.rpm}
                     min={0}
@@ -29,12 +32,11 @@ const ModernGaugeDashboard: React.FC = () => {
                     label="RPM"
                     size="large"
                 />
-                <DigitalReadout
-                    label="SPEED"
-                    value={animatedSpeed.toFixed(0)}
-                />
+                <div className="w-64">
+                    <SpeedDisplay />
+                </div>
             </div>
-            <div className="w-full max-w-4xl grid grid-cols-2 gap-8 -mt-8">
+            <div className="w-full max-w-4xl grid grid-cols-2 gap-24 -mt-32">
                 <div className="flex justify-end">
                      <ModernGauge
                         value={latestData.turboBoost * 14.5}
@@ -49,7 +51,7 @@ const ModernGaugeDashboard: React.FC = () => {
                         value={latestData.engineLoad}
                         min={0}
                         max={100}
-                        label="THROTTLE %"
+                        label="THROTTLE"
                         size="small"
                     />
                 </div>

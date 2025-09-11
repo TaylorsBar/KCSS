@@ -3,7 +3,7 @@ import { AppearanceContext } from '../contexts/AppearanceContext';
 import RallyThemeDashboard from './dashboards/RallyThemeDashboard';
 import ModernGaugeDashboard from './dashboards/ModernGaugeDashboard';
 import ClassicThemeDashboard from './dashboards/ClassicThemeDashboard';
-import HaltechDashboard from './dashboards/HaltechDashboard';
+import LiveTuning from './LiveTuning';
 import MinimalistDashboard from './dashboards/MinimalistDashboard';
 
 const Dashboard: React.FC = () => {
@@ -18,7 +18,7 @@ const Dashboard: React.FC = () => {
       case 'classic':
         return <ClassicThemeDashboard />;
       case 'haltech':
-        return <HaltechDashboard />;
+        return <LiveTuning />;
       case 'minimalist':
         return <MinimalistDashboard />;
       default:

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
 import { SensorDataPoint } from '../../types';
@@ -15,7 +14,7 @@ const MinimalistDashboard: React.FC = () => {
         <div className="flex h-full w-full items-center justify-center p-4 md:p-8 theme-background">
             <div className="w-full h-full max-w-7xl max-h-[800px] relative">
                 {/* Floating Panels */}
-                <div className="absolute top-[5%] left-[15%] w-[40%] h-[55%]">
+                <div className="absolute top-[5%] left-[2%] w-[48%] h-[65%]">
                      <MinimalistGauge 
                         value={d.speed}
                         min={0}
@@ -24,7 +23,7 @@ const MinimalistDashboard: React.FC = () => {
                         size="large"
                     />
                 </div>
-                 <div className="absolute top-[50%] left-[5%] w-[30%] h-[40%]">
+                 <div className="absolute top-[60%] left-[0%] w-[38%] h-[40%]">
                     <MinimalistGauge 
                         value={d.rpm}
                         min={0}
@@ -34,7 +33,7 @@ const MinimalistDashboard: React.FC = () => {
                     />
                 </div>
 
-                <div className="absolute top-[5%] right-[5%] w-[35%] h-[60%]">
+                <div className="absolute top-[2%] right-[0%] w-[48%] h-[55%]">
                      <InfoPanel title="NAVIGATION">
                        <div className="p-2 h-full w-full">
                             <Map lat={d.latitude} lon={d.longitude} />
@@ -42,7 +41,7 @@ const MinimalistDashboard: React.FC = () => {
                     </InfoPanel>
                 </div>
                 
-                <div className="absolute bottom-[5%] left-[38%] w-[35%] h-[30%]">
+                <div className="absolute bottom-[0%] right-[25%] w-[45%] h-[35%]">
                      <InfoPanel title="BATTERY & RANGE">
                          <div className="flex items-center justify-center h-full gap-8 px-4">
                             <div className="text-6xl font-display font-bold text-white" style={{ textShadow: '0 0 8px #fff'}}>272<span className="text-2xl ml-2">mi</span></div>
@@ -55,7 +54,7 @@ const MinimalistDashboard: React.FC = () => {
                     </InfoPanel>
                 </div>
 
-                 <div className="absolute top-[68%] right-[10%] w-[20%] h-[25%]">
+                 <div className="absolute bottom-[2%] right-[0%] w-[22%] h-[30%]">
                      <InfoPanel title="CLIMATE">
                          <div className="flex items-center justify-center h-full gap-2">
                              <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M19.95,10.28v-.05a2,2,0,0,0-1.8-2l-1.45-.2A4.33,4.33,0,0,0,13,4.36a4.5,4.5,0,0,0-4.44,4.78,4.3,4.3,0,0,0-1.44.52l-1.28.64a2,2,0,0,0-1,1.75v.05a2,2,0,0,0,1.8,2l1.45.2a4.33,4.33,0,0,0,3.67,3.67l.2,1.45a2,2,0,0,0,2,1.8h.05a2,2,0,0,0,2-1.8l.2-1.45a4.33,4.33,0,0,0,3.15-3.15l1.45-.2a2,2,0,0,0,1.8-2Z"/></svg>

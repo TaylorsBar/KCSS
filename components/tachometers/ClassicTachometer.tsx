@@ -37,6 +37,9 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            <filter id="classic-tacho-needle-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.7"/>
+            </filter>
         </defs>
         
         {/* Bezel & Face */}
@@ -92,11 +95,13 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
         </foreignObject>
 
         {/* RPM Needle */}
-        <g transform={`rotate(${rpmAngle} 200 200)`} style={{ transition: 'transform 0.1s ease-out' }}>
-            <path d="M 200 220 L 200 45" stroke="var(--theme-needle-color)" strokeWidth="4" strokeLinecap="round" />
+        <g transform={`rotate(${rpmAngle} 200 200)`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-tacho-needle-shadow)">
+            <path d="M 199 200 L 200 30 L 201 200 Z" fill="var(--theme-needle-color)" />
+            <path d="M 198 200 L 200 230 L 202 200 Z" fill="var(--theme-needle-color)" />
         </g>
-        <circle cx="200" cy="200" r="15" fill="#444" stroke="#111" strokeWidth="2" />
-        <circle cx="200" cy="200" r="8" fill="#111" />
+        <circle cx="200" cy="200" r="18" fill="#444" stroke="#111" strokeWidth="2" />
+        <circle cx="200" cy="200" r="10" fill="#222" />
+        <circle cx="200" cy="200" r="4" fill="#111" />
       </svg>
     </div>
   );

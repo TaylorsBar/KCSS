@@ -189,3 +189,15 @@ export interface Leaderboard {
     quarterMileTime: LeaderboardEntry | null;
     quarterMileSpeed: LeaderboardEntry | null;
 }
+
+// Types for Drag Strip
+export interface DragRaceResult {
+  reactionTime: number | null;
+  timeTo60ft: number | null;
+  timeTo330ft: number | null;
+  timeTo1_8mile: number | null;
+  speedAt1_8mile: number | null;
+  timeTo1000ft: number | null;
+  timeTo1_4mile: number | null;
+  speedAt1_4mile: number | null;
+}

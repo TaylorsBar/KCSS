@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IntentAction, ComponentHotspot, VoiceCommandIntent, SensorDataPoint } from '../types';
-import { getVoiceCommandIntent, generateComponentImage } from '../services/geminiService';
+import { getVoiceCommandIntent, generateComponentImage, getComponentTuningAnalysis } from '../services/geminiService';
 import MicrophoneIcon from '../components/icons/MicrophoneIcon';
 import { MOCK_LOGS } from './MaintenanceLog';
+import ReactMarkdown from 'react-markdown';
+
 
 // @ts-ignore
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -30,9 +32,8 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
     const [highlightedComponent, setHighlightedComponent] = useState<string | null>(null);
     const [assistantMessage, setAssistantMessage] = useState("Activate the microphone and ask a question, like 'Show me the failing O2 sensor.'");
 
-    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-    const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-    const [imageError, setImageError] = useState<string | null>(null);
+    const [isInspecting, setIsInspecting] = useState(false);
+    const [inspectionResult, setInspectionResult] = useState<{imageUrl: string | null, analysis: string | null, error: string | null} | null>(null);
 
     const getLiveDataForComponent = (componentId: string | null): string | null => {
         if (!componentId || !latestData) return null;
@@ -87,6 +88,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
                 break;
             case IntentAction.HideComponent:
                 setHighlightedComponent(null);
+                setInspectionResult(null); // Also clear inspection
                 setAssistantMessage("Highlights cleared. What's next?");
                 break;
             default:
@@ -95,14 +97,41 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
     };
     
     useEffect(() => {
-        if (highlightedComponent) {
-            const componentData = MOCK_HOTSPOTS.find(h => h.id === highlightedComponent);
-            const liveData = getLiveDataForComponent(highlightedComponent);
-            if (componentData) {
-                setAssistantMessage(`Highlighting the ${componentData.name}. Status: ${componentData.status}. ${liveData || ''}`);
+        const inspectComponent = async () => {
+            if (!highlightedComponent) {
+                setInspectionResult(null);
+                return;
             }
-        }
+    
+            const componentData = MOCK_HOTSPOTS.find(h => h.id === highlightedComponent);
+            if (!componentData) return;
+            
+            const liveData = getLiveDataForComponent(highlightedComponent);
+            setAssistantMessage(`Analyzing the ${componentData.name}... Status: ${componentData.status}. ${liveData || ''}`);
+    
+            setIsInspecting(true);
+            setInspectionResult(null);
+    
+            try {
+                const [imageUrl, analysis] = await Promise.all([
+                    generateComponentImage(componentData.name),
+                    getComponentTuningAnalysis(componentData.name, latestData)
+                ]);
+                setInspectionResult({ imageUrl, analysis, error: null });
+                setAssistantMessage(`Analysis for ${componentData.name} complete.`);
+            } catch (error) {
+                console.error(error);
+                const errorMessage = "Sorry, I couldn't generate the analysis for that component.";
+                setInspectionResult({ imageUrl: null, analysis: null, error: errorMessage });
+                setAssistantMessage(errorMessage);
+            } finally {
+                setIsInspecting(false);
+            }
+        };
+    
+        inspectComponent();
     }, [highlightedComponent, latestData]);
+
 
     const handleListen = () => {
         if (!recognition) {
@@ -135,31 +164,6 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
             processCommand(currentTranscript);
         };
     }, []);
-
-    const handleGenerateImage = async () => {
-        if (!highlightedComponent) return;
-
-        const componentData = MOCK_HOTSPOTS.find(h => h.id === highlightedComponent);
-        if (!componentData) return;
-        
-        setIsGeneratingImage(true);
-        setGeneratedImageUrl(null);
-        setImageError(null);
-        setAssistantMessage(`Generating a diagram for the ${componentData.name}...`);
-        
-        try {
-            const imageUrl = await generateComponentImage(componentData.name);
-            setGeneratedImageUrl(imageUrl);
-            setAssistantMessage(`Diagram for ${componentData.name} generated successfully.`);
-        } catch (error) {
-            console.error(error);
-            const errorMessage = "Sorry, I couldn't generate the diagram. Please try again.";
-            setImageError(errorMessage);
-            setAssistantMessage(errorMessage);
-        } finally {
-            setIsGeneratingImage(false);
-        }
-    };
 
     return (
         <div className="flex flex-col lg:flex-row gap-6 h-full p-4">
@@ -213,7 +217,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
                 )}
             </div>
 
-            {/* Right Panel: Assistant and Image */}
+            {/* Right Panel: Assistant and Inspector */}
             <div className="w-full lg:w-1/3 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col">
                 <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">KC Voice Assistant</h2>
                 <div className="flex-grow flex flex-col justify-between">
@@ -228,17 +232,26 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
                         {isListening && <p className="text-sm text-gray-400 mt-2">Listening...</p>}
                     </div>
 
-                    <div className="flex-grow mt-4 p-4 bg-base-800/50 rounded-md space-y-3 overflow-y-auto min-h-[200px]">
-                        <h3 className="font-semibold text-gray-400">Component Diagram</h3>
-                        {isGeneratingImage && <p className="text-gray-400">Generating diagram...</p>}
-                        {imageError && <p className="text-red-400">{imageError}</p>}
-                        {generatedImageUrl && <img src={generatedImageUrl} alt="Generated component" className="w-full h-auto rounded-md border-2 border-brand-cyan/50" />}
-                        {!isGeneratingImage && !generatedImageUrl && <p className="text-gray-500">Highlight a component and click below to generate a detailed diagram.</p>}
+                    <div className="flex-grow mt-4 p-2 bg-base-800/50 rounded-md space-y-3 overflow-y-auto min-h-[200px]">
+                        <h3 className="font-semibold text-gray-400 px-2">Component Inspector</h3>
+                        {isInspecting ? (
+                            <div className="text-center text-gray-400 p-4">Analyzing component...</div>
+                        ) : inspectionResult ? (
+                            <div className="animate-fade-in space-y-2">
+                                {inspectionResult.error && <p className="text-red-400 p-2">{inspectionResult.error}</p>}
+                                {inspectionResult.imageUrl && <img src={inspectionResult.imageUrl} alt="Generated component" className="w-full h-auto rounded-md border-2 border-brand-cyan/50" />}
+                                {inspectionResult.analysis && (
+                                    <div className="prose prose-sm prose-invert max-w-none p-2">
+                                        <ReactMarkdown>{inspectionResult.analysis}</ReactMarkdown>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center text-gray-500 h-full flex items-center justify-center p-4">
+                                Highlight a component with your voice to see an AI analysis.
+                            </div>
+                        )}
                     </div>
-
-                    <button onClick={handleGenerateImage} disabled={!highlightedComponent || isGeneratingImage} className="w-full mt-4 bg-brand-blue text-white font-semibold py-2 rounded-md hover:bg-blue-600 transition-colors disabled:bg-base-700">
-                        {isGeneratingImage ? 'Generating...' : 'Generate Diagram'}
-                    </button>
                 </div>
             </div>
         </div>

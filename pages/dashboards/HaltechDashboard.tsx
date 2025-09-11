@@ -1,115 +1,63 @@
-
 import React from 'react';
+import { useVehicleData } from '../../hooks/useVehicleData';
+import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import HaltechGauge from '../../components/tachometers/HaltechGauge';
+
+const DigitalReadout: React.FC<{ label: string; value: string; unit: string }> = ({ label, value, unit }) => (
+    <div className="bg-[var(--theme-haltech-dark-gray)] p-2 rounded-md text-center border border-[var(--theme-haltech-light-gray)]">
+        <div className="text-sm font-sans text-[var(--theme-text-secondary)] uppercase">{label}</div>
+        <div className="font-mono text-3xl font-bold text-white tracking-wider">{value}</div>
+        <div className="text-xs text-[var(--theme-text-secondary)]">{unit}</div>
+    </div>
+);
 
 const HaltechDashboard: React.FC = () => {
-
-    const SvgDefs = () => (
-        <defs>
-            <radialGradient id="ic7-bezel-grad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                <stop offset="90%" stopColor="#222" />
-                <stop offset="98%" stopColor="#666" />
-                <stop offset="100%" stopColor="#333" />
-            </radialGradient>
-            <radialGradient id="ic7-bezel-inner-sheen" cx="50%" cy="50%" r="50%" fx="50%" fy="30%">
-                <stop offset="90%" stopColor="transparent" />
-                <stop offset="100%" stopColor="rgba(255,255,255,0.1)" />
-            </radialGradient>
-            <linearGradient id="ic7-display-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1a1a1a" />
-                <stop offset="100%" stopColor="#0a0a0a" />
-            </linearGradient>
-             <linearGradient id="ic7-housing-grad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#252525" />
-                <stop offset="50%" stopColor="#383838" />
-                <stop offset="100%" stopColor="#252525" />
-            </linearGradient>
-        </defs>
-    );
-
-    const SideDisplayCluster = ({ transform }: { transform?: string }) => {
-        const displays = [
-            { y: 80, height: 80 },
-            { y: 180, height: 80 },
-            { y: 280, height: 80 },
-            { y: 380, height: 80 },
-        ];
-        return (
-            <g transform={transform}>
-                {/* Main Housing Shape */}
-                <path 
-                    d="M 320 60 C 310 60, 280 90, 280 150 L 280 450 C 280 510, 310 540, 320 540 L 40 540 L 40 60 Z"
-                    fill="url(#ic7-housing-grad)"
-                    stroke="#111"
-                    strokeWidth="2"
-                />
-                <path 
-                    d="M 315 65 C 305 65, 285 95, 285 150 L 285 450 C 285 505, 305 535, 315 535 L 45 535 L 45 65 Z"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.05)"
-                />
-                
-                {displays.map((disp, i) => (
-                    <g key={i} transform={`translate(60, ${disp.y})`}>
-                        {/* Display Frame */}
-                        <rect x="0" y="0" width="220" height={disp.height} rx="5" fill="#111" />
-                        {/* Display Screen */}
-                        <rect x="5" y="5" width="210" height={disp.height - 10} rx="3" fill="url(#ic7-display-grad)" />
-                         {/* Icon Area */}
-                        <rect x="5" y="5" width="40" height={disp.height - 10} rx="3" fill="#2a2a2e" />
-                    </g>
-                ))}
-            </g>
-        );
-    };
-
-    const BottomRightDisplays = () => (
-        <g transform="translate(680, 370)">
-            {/* Housing for the cluster */}
-            <path d="M 0 0 H 160 V 10 L 170 20 V 110 L 160 120 H 0 L -10 110 V 10 Z" fill="#222" />
-            
-            {/* Top two small displays */}
-            <rect x="5" y="5" width="70" height="50" rx="3" fill="url(#ic7-display-grad)" stroke="#111" />
-            <rect x="85" y="5" width="70" height="50" rx="3" fill="url(#ic7-display-grad)" stroke="#111" />
-            
-            {/* Bottom large display */}
-            <rect x="5" y="65" width="150" height="50" rx="3" fill="url(#ic7-display-grad)" stroke="#111" />
-        </g>
-    );
+    const { latestData } = useVehicleData();
+    
+    // Animated values for smoother display
+    const oilPressure = useAnimatedValue(latestData.oilPressure);
+    const fuelPressure = useAnimatedValue(latestData.fuelPressure);
+    const engineTemp = useAnimatedValue(latestData.engineTemp);
+    const inletAirTemp = useAnimatedValue(latestData.inletAirTemp);
+    const batteryVoltage = useAnimatedValue(latestData.batteryVoltage);
 
     return (
-        <div className="flex h-full w-full items-center justify-center p-4 theme-background bg-[#111]">
-            <svg viewBox="0 0 1200 600" className="w-full max-w-6xl font-sans">
-                <SvgDefs />
-
-                {/* Left and Right Side Displays */}
-                <SideDisplayCluster />
-                <SideDisplayCluster transform="translate(1200, 0) scale(-1, 1)" />
-
-                {/* Main Bezel */}
-                <circle cx="600" cy="300" r="280" fill="url(#ic7-bezel-grad)" />
-                <circle cx="600" cy="300" r="275" fill="#1a1a1a" />
-                <circle cx="600" cy="300" r="255" fill="#333" />
-                <circle cx="600" cy="300" r="250" fill="url(#ic7-bezel-grad)" />
-                <circle cx="600" cy="300" r="248" fill="#111" />
-                <circle cx="600" cy="300" r="245" fill="url(#ic7-bezel-inner-sheen)" />
-
-                {/* Central Display */}
-                <circle cx="600" cy="300" r="245" fill="black" />
-
-                {/* Logos */}
-                <g transform="translate(600, 250)">
-                    <rect x="-45" y="-30" width="90" height="40" rx="5" fill="none" stroke="white" strokeWidth="2" />
-                    <text x="0" y="0" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="32" fontWeight="bold">
-                        iC-7
-                    </text>
-                </g>
-                 <text x="600" y="320" textAnchor="middle" dominantBaseline="middle" fill="var(--theme-haltech-yellow)" fontFamily="Orbitron, sans-serif" fontStyle="italic" fontWeight="900" fontSize="56" stroke="#000" strokeWidth="1">
-                    Haltech
-                </text>
-                
-                {/* Bottom Right Inset Displays */}
-                <BottomRightDisplays />
-            </svg>
+        <div className="flex flex-col h-full w-full bg-[var(--theme-bg)] p-4 gap-4 theme-background items-center justify-center haltech-ic7-background">
+            <div className="w-full max-w-7xl flex items-center justify-center gap-4">
+                <HaltechGauge
+                    value={latestData.turboBoost}
+                    min={-1}
+                    max={2}
+                    redlineStart={1.5}
+                    label="MAP"
+                    unit="bar"
+                    size="small"
+                />
+                <HaltechGauge
+                    value={latestData.rpm}
+                    min={0}
+                    max={8000}
+                    redlineStart={7000}
+                    label="RPM"
+                    size="large"
+                />
+                <HaltechGauge
+                    value={latestData.speed}
+                    min={0}
+                    max={240}
+                    redlineStart={200}
+                    label="SPEED"
+                    unit="km/h"
+                    size="small"
+                />
+            </div>
+            <div className="w-full max-w-7xl grid grid-cols-5 gap-4 mt-4">
+                <DigitalReadout label="Oil Pressure" value={oilPressure.toFixed(1)} unit="bar" />
+                <DigitalReadout label="Fuel Pressure" value={fuelPressure.toFixed(1)} unit="bar" />
+                <DigitalReadout label="Coolant Temp" value={engineTemp.toFixed(0)} unit="°C" />
+                <DigitalReadout label="Air Temp" value={inletAirTemp.toFixed(0)} unit="°C" />
+                <DigitalReadout label="Battery" value={batteryVoltage.toFixed(1)} unit="V" />
+            </div>
         </div>
     );
 };

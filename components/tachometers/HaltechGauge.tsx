@@ -15,7 +15,7 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
     const animatedValue = useAnimatedValue(value);
     
     const isLarge = size === 'large';
-    const radius = isLarge ? 120 : 80;
+    const radius = isLarge ? 150 : 90;
     const center = radius;
     const strokeWidth = isLarge ? 10 : 6;
     const ANGLE_MIN = -150;
@@ -118,10 +118,11 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
 
 
                 {/* Needle */}
-                <g transform={`rotate(${needleAngle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }}>
-                    <path d={`M ${center} ${center + (isLarge ? 15 : 10)} L ${center} ${radius * 0.1}`} stroke="var(--theme-needle-color)" strokeWidth={isLarge ? 3 : 2} strokeLinecap="round" filter="url(#haltech-needle-glow)" />
+                <g transform={`rotate(${needleAngle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#haltech-needle-glow)">
+                    <path d={`M ${center} ${radius * 0.08} L ${center + (isLarge ? 6 : 4)} ${center + (isLarge ? 10 : 7)} L ${center - (isLarge ? 6 : 4)} ${center + (isLarge ? 10 : 7)} Z`} fill="var(--theme-needle-color)" />
                 </g>
-                <circle cx={center} cy={center} r={isLarge ? 8 : 5} fill="#111" stroke="#333" strokeWidth="1" />
+                <circle cx={center} cy={center} r={isLarge ? 12 : 8} fill="#111" stroke="#333" strokeWidth="2" />
+                <circle cx={center} cy={center} r={isLarge ? 5 : 3} fill="#222" />
             </svg>
         </div>
     );
