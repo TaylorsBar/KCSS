@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { HederaRecord, HederaEventType } from '../types';
 
 const MOCK_INITIAL_RECORDS: HederaRecord[] = [
@@ -7,6 +7,26 @@ const MOCK_INITIAL_RECORDS: HederaRecord[] = [
     { id: '2', timestamp: '2024-07-22 11:15:45', eventType: HederaEventType.Tuning, vin: 'JN1AZ00Z9ZT000123', summary: "AI tune 'Track Day' simulated.", hederaTxId: '0.0.12345@1658486145.987654321', dataHash: 'e5f6g7h8...' },
     { id: '3', timestamp: '2024-07-15 09:00:00', eventType: HederaEventType.Maintenance, vin: 'JN1AZ00Z9ZT000123', summary: 'Oil & Filter Change (Verified)', hederaTxId: '0.0.12345@1657875600.555555555', dataHash: 'i9j0k1l2...' },
 ];
+
+const RecordRow = React.memo(({ rec, onVerify, isVerifying, isVerified }: { rec: HederaRecord; onVerify: (id: string) => void; isVerifying: boolean; isVerified: boolean; }) => (
+    <tr className="hover:bg-base-800/40">
+        <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{rec.timestamp}</td>
+        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-200">{rec.eventType}</td>
+        <td className="px-4 py-4 text-sm text-gray-300 max-w-xs truncate" title={rec.summary}>{rec.summary}</td>
+        <td className="px-4 py-4 whitespace-nowrap">
+            {isVerified ? (
+                <span className="inline-flex items-center text-green-400">
+                    <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+                    Verified
+                </span>
+            ) : (
+                <button onClick={() => onVerify(rec.id)} disabled={isVerifying} className="bg-base-700 text-gray-200 px-3 py-1 text-xs font-semibold rounded-md hover:bg-base-600 disabled:opacity-50">
+                    {isVerifying ? 'Verifying...' : 'Verify'}
+                </button>
+            )}
+        </td>
+    </tr>
+));
 
 const Hedera: React.FC = () => {
     const [records, setRecords] = useState<HederaRecord[]>(MOCK_INITIAL_RECORDS);
@@ -46,13 +66,13 @@ const Hedera: React.FC = () => {
         setIsSubmitting(false);
     };
     
-    const handleVerify = async (recordId: string) => {
+    const handleVerify = useCallback(async (recordId: string) => {
         setVerifyingRecordId(recordId);
         // Simulate hash check against DLT
         await new Promise(resolve => setTimeout(resolve, 1000));
         setVerificationStatus(prev => ({ ...prev, [recordId]: 'success' }));
         setVerifyingRecordId(null);
-    };
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -129,23 +149,13 @@ const Hedera: React.FC = () => {
                             </thead>
                             <tbody className="bg-black divide-y divide-base-700/50">
                                 {records.map(rec => (
-                                    <tr key={rec.id} className="hover:bg-base-800/40">
-                                        <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{rec.timestamp}</td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-200">{rec.eventType}</td>
-                                        <td className="px-4 py-4 text-sm text-gray-300 max-w-xs truncate" title={rec.summary}>{rec.summary}</td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            {verificationStatus[rec.id] === 'success' ? (
-                                                 <span className="inline-flex items-center text-green-400">
-                                                    <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
-                                                    Verified
-                                                </span>
-                                            ) : (
-                                                <button onClick={() => handleVerify(rec.id)} disabled={verifyingRecordId === rec.id} className="bg-base-700 text-gray-200 px-3 py-1 text-xs font-semibold rounded-md hover:bg-base-600 disabled:opacity-50">
-                                                    {verifyingRecordId === rec.id ? 'Verifying...' : 'Verify'}
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
+                                    <RecordRow 
+                                        key={rec.id} 
+                                        rec={rec} 
+                                        onVerify={handleVerify} 
+                                        isVerifying={verifyingRecordId === rec.id}
+                                        isVerified={verificationStatus[rec.id] === 'success'}
+                                    />
                                 ))}
                             </tbody>
                         </table>

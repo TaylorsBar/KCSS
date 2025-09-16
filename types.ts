@@ -72,18 +72,28 @@ export interface TimelineEvent {
     details: PredictiveIssue;
 }
 
-// Types for the new AI Tuning Assistant
-export interface TuningSuggestion {
-  suggestedParams: {
-    fuelMap: number;
-    ignitionTiming: number;
-    boostPressure: number;
-  };
-  analysis: {
-    predictedGains: string;
-    potentialRisks: string;
+// For AI Tuning Suggestions from FastAPI
+export interface AiTuningSuggestion {
+  title: string;
+  rationale: string;
+  changes: {
+    key: 'rpmLimit' | 'boostTarget' | 'afrTarget' | string;
+    from: number;
+    to: number;
+  }[];
+  risk: 'low' | 'medium' | 'high';
+}
+
+// For Pre-write Check response
+export interface PrewriteCheckResponse {
+  ok: boolean;
+  reason: string | null;
+  audit: {
+    hash: string;
+    payload: string;
   };
 }
+
 
 // Types for Security Audit Trail
 export enum AuditEvent {

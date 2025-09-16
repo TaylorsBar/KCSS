@@ -11,6 +11,22 @@ const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
     { id: '6', timestamp: '2024-07-21 18:05:11 UTC', event: AuditEvent.Login, description: 'User authenticated successfully.', ipAddress: '203.0.113.25', status: 'Success' },
 ];
 
+const AuditLogRow = React.memo(({ log }: { log: AuditLogEntry }) => (
+    <tr className="hover:bg-base-800/40">
+        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{log.timestamp}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{log.event}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{log.description}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{log.ipAddress}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm">
+            {log.status === 'Success' ? (
+                <span className="text-green-400">{log.status}</span>
+            ) : (
+                <span className="text-red-400">{log.status}</span>
+            )}
+        </td>
+    </tr>
+));
+
 const Security: React.FC = () => {
   return (
     <div className="space-y-6">
@@ -65,19 +81,7 @@ const Security: React.FC = () => {
             </thead>
             <tbody className="bg-black divide-y divide-base-700/50">
               {MOCK_AUDIT_LOGS.map((log) => (
-                <tr key={log.id} className="hover:bg-base-800/40">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{log.timestamp}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{log.event}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{log.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{log.ipAddress}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {log.status === 'Success' ? (
-                      <span className="text-green-400">{log.status}</span>
-                    ) : (
-                      <span className="text-red-400">{log.status}</span>
-                    )}
-                  </td>
-                </tr>
+                <AuditLogRow key={log.id} log={log} />
               ))}
             </tbody>
           </table>

@@ -10,6 +10,31 @@ export const MOCK_LOGS: MaintenanceRecord[] = [
   { id: '5', date: '2024-03-10', service: 'Brake Fluid Flush', notes: 'Completed at dealer.', verified: false, isAiRecommendation: false },
 ];
 
+const LogRow = React.memo(({ log }: { log: MaintenanceRecord }) => (
+    <tr className="hover:bg-base-800/40">
+      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-300">{log.date}</td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+        <div className="flex items-center">
+          {log.isAiRecommendation && <span className="text-brand-cyan mr-2 font-mono text-xs">[AI]</span>}
+          {log.isAiRecommendation ? <span className="text-brand-cyan">{log.service}</span> : log.service}
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{log.notes}</td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm">
+        {log.verified ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-700">
+            <VerifiedIcon className="w-4 h-4 mr-1.5 text-green-400" />
+            Verified
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-700">
+            Pending
+          </span>
+        )}
+      </td>
+    </tr>
+));
+
 
 const MaintenanceLog: React.FC = () => {
   return (
@@ -37,28 +62,7 @@ const MaintenanceLog: React.FC = () => {
             </thead>
             <tbody className="bg-black divide-y divide-base-700/50">
               {MOCK_LOGS.map((log) => (
-                <tr key={log.id} className="hover:bg-base-800/40">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-300">{log.date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                    <div className="flex items-center">
-                      {log.isAiRecommendation && <span className="text-brand-cyan mr-2 font-mono text-xs">[AI]</span>}
-                      {log.isAiRecommendation ? <span className="text-brand-cyan">{log.service}</span> : log.service}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{log.notes}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {log.verified ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-700">
-                        <VerifiedIcon className="w-4 h-4 mr-1.5 text-green-400" />
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-700">
-                        Pending
-                      </span>
-                    )}
-                  </td>
-                </tr>
+                <LogRow key={log.id} log={log} />
               ))}
             </tbody>
           </table>

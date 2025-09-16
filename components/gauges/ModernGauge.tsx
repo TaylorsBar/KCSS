@@ -7,9 +7,11 @@ interface ModernGaugeProps {
     max: number;
     label: string;
     size?: 'large' | 'small';
+    centerValue?: string | number;
+    centerUnit?: string;
 }
 
-const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size = 'large' }) => {
+const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size = 'large', centerValue, centerUnit }) => {
     const animatedValue = useAnimatedValue(value);
 
     const isLarge = size === 'large';
@@ -113,9 +115,9 @@ const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size 
                     <foreignObject x="0" y="0" width={radius*2} height={radius*2}>
                         <div className="flex flex-col items-center justify-center h-full w-full pt-16">
                             <span className="font-display font-bold text-7xl text-[#00ffff] leading-none" style={{textShadow: '0 0 10px #00ffff', fontVariantNumeric: 'tabular-nums'}}>
-                                {Math.round(animatedValue).toString().padStart(3,'\u00A0')}
+                                {centerValue !== undefined ? String(centerValue).padStart(3,'\u00A0') : Math.round(animatedValue).toString().padStart(3,'\u00A0')}
                             </span>
-                            <span className="font-sans text-xl text-[#00ffff] opacity-80 uppercase -mt-2">{label}</span>
+                            <span className="font-sans text-xl text-[#00ffff] opacity-80 uppercase -mt-2">{centerUnit ? centerUnit : label}</span>
                         </div>
                     </foreignObject>
                 }

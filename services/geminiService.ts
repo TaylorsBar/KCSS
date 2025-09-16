@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction } from '../types';
+import { MaintenanceRecord, SensorDataPoint, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -145,114 +145,6 @@ export const getPredictiveAnalysis = async (
       error: "Failed to get predictive analysis.",
       details: error instanceof Error ? error.message : String(error)
     };
-  }
-};
-
-
-const tuningSchema = {
-  type: Type.OBJECT,
-  properties: {
-    suggestedParams: {
-      type: Type.OBJECT,
-      properties: {
-        fuelMap: {
-          type: Type.NUMBER,
-          description: "Fuel Map Enrichment percentage change. Integer. Range: -10 to 10."
-        },
-        ignitionTiming: {
-          type: Type.NUMBER,
-          description: "Ignition Timing Advance in degrees. Integer. Range: -5 to 5."
-        },
-        boostPressure: {
-          type: Type.NUMBER,
-          description: "Boost Pressure increase in PSI. Float. Range: 0 to 8."
-        },
-      },
-      required: ["fuelMap", "ignitionTiming", "boostPressure"],
-    },
-    analysis: {
-      type: Type.OBJECT,
-      properties: {
-        predictedGains: {
-          type: Type.STRING,
-          description: "A summary of the expected performance improvements."
-        },
-        potentialRisks: {
-          type: Type.STRING,
-          description: "A summary of potential risks, trade-offs, or requirements for this tune."
-        }
-      },
-      required: ["predictedGains", "potentialRisks"],
-    }
-  },
-  required: ["suggestedParams", "analysis"],
-};
-
-
-export const getTuningSuggestion = async (
-  liveData: SensorDataPoint,
-  drivingStyle: string,
-  conditions: string
-): Promise<TuningSuggestion> => {
-    if (!isOnline()) {
-        console.log("Offline mode: Returning mock tuning suggestion.");
-        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate generation
-        return {
-            suggestedParams: {
-                fuelMap: 2,
-                ignitionTiming: 1,
-                boostPressure: 0.5,
-            },
-            analysis: {
-                predictedGains: "Offline Mock: A safe, mild improvement in throttle response and mid-range torque.",
-                potentialRisks: "Offline Mock: This is a conservative base map. A full online analysis is required for an optimized and safe tune for your specific conditions."
-            }
-        };
-    }
-
-  const prompt = `
-    You are 'KC', an expert automotive performance tuner for the 'Karapiro Cartel Speed Shop'. Your task is to provide a personalized engine tune recommendation.
-
-    **Vehicle**: 2022 Subaru WRX (Simulated)
-    **Mileage**: 45,000 miles
-
-    **User's Goal**:
-    - Driving Style: ${drivingStyle}
-    - Environmental Conditions: ${conditions}
-
-    **Live Data Snapshot**:
-    - RPM: ${liveData.rpm.toFixed(0)}
-    - Engine Load: ${liveData.engineLoad.toFixed(1)}%
-    - Inlet Air Temp: ${liveData.inletAirTemp.toFixed(1)}°C
-    - Turbo Boost: ${liveData.turboBoost.toFixed(1)} BAR
-
-    **Your Task**:
-    Based on the user's goal and the live data, provide a safe but effective engine tune.
-    1.  **Suggest Parameters**: Recommend specific adjustments for the following parameters. The values should be relative changes from the baseline (0).
-        - \`fuelMap\`: Fuel Map Enrichment (%). A value between -10 and 10.
-        - \`ignitionTiming\`: Ignition Timing Advance (°). A value between -5 and 5.
-        - \`boostPressure\`: Boost Pressure increase (PSI). A value between 0 and 8.
-    2.  **Analyze the Tune**: Briefly explain the performance gains and any potential risks or trade-offs associated with your recommendation. Keep it concise and clear for the user.
-
-    **JSON Output**:
-    Structure your entire response as a single, valid JSON object following the provided schema. Do not add any extra text or markdown formatting.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: tuningSchema,
-      },
-    });
-
-    const cleanedText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanedText) as TuningSuggestion;
-  } catch (error) {
-    console.error("Error fetching tuning suggestion from Gemini:", error);
-    throw new Error("Failed to get tuning suggestion.");
   }
 };
 

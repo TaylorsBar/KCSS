@@ -65,7 +65,7 @@ const MinimalistGauge: React.FC<MinimalistGaugeProps> = ({ value, min, max, unit
                 })}
                 
                  {/* Needle */}
-                <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }}>
+                <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out', willChange: 'transform' } as React.CSSProperties}>
                     <path 
                         d={`M ${center} ${radius * 0.05} L ${center + radius * 0.05} ${center} L ${center} ${center + radius * 0.2} L ${center - radius * 0.05} ${center} Z`}
                         fill="var(--theme-needle-color)" 
@@ -93,4 +93,4 @@ const MinimalistGauge: React.FC<MinimalistGaugeProps> = ({ value, min, max, unit
     );
 };
 
-export default MinimalistGauge;
+export default React.memo(MinimalistGauge);

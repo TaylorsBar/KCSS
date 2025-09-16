@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { SensorDataPoint } from '../types';
 
@@ -49,7 +50,6 @@ export const useDragVehicleData = ({ isLaunched, isNosActive }: { isLaunched: bo
 
             setData(prevData => {
                 const prev = prevData[prevData.length - 1];
-                // FIX: `nosLevel` is a state within this hook, not a property of SensorDataPoint.
                 let { rpm, speed, gear, distance } = prev;
 
                 // NOS Logic
@@ -112,7 +112,7 @@ export const useDragVehicleData = ({ isLaunched, isNosActive }: { isLaunched: bo
 
         return () => clearInterval(interval);
 
-    }, [isLaunched, isNosActive]);
+    }, [isLaunched, isNosActive, nosLevel]);
 
     const reset = () => {
         setData([generateInitialData()]);

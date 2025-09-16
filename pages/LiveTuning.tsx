@@ -22,41 +22,43 @@ const LiveTuning: React.FC = () => {
     const batteryVoltage = useAnimatedValue(latestData.batteryVoltage);
 
     return (
-        <div className="flex flex-col h-full w-full bg-[var(--theme-bg)] p-4 gap-4 theme-background items-center justify-center">
-            <div className="w-full max-w-screen-xl flex items-center justify-center gap-4">
-                <HaltechGauge
-                    value={latestData.turboBoost}
-                    min={-1}
-                    max={2}
-                    redlineStart={1.5}
-                    label="MAP"
-                    unit="bar"
-                    size="small"
-                />
-                <HaltechGauge
-                    value={latestData.rpm}
-                    min={0}
-                    max={8000}
-                    redlineStart={7000}
-                    label="RPM"
-                    size="large"
-                />
-                <HaltechGauge
-                    value={latestData.speed}
-                    min={0}
-                    max={240}
-                    redlineStart={200}
-                    label="SPEED"
-                    unit="km/h"
-                    size="small"
-                />
-            </div>
-            <div className="w-full max-w-screen-xl grid grid-cols-5 gap-4 mt-4">
-                <DigitalReadout label="Oil Pressure" value={oilPressure.toFixed(1)} unit="bar" />
-                <DigitalReadout label="Fuel Pressure" value={fuelPressure.toFixed(1)} unit="bar" />
-                <DigitalReadout label="Coolant Temp" value={engineTemp.toFixed(0)} unit="°C" />
-                <DigitalReadout label="Air Temp" value={inletAirTemp.toFixed(0)} unit="°C" />
-                <DigitalReadout label="Battery" value={batteryVoltage.toFixed(1)} unit="V" />
+        <div className="flex flex-col h-full w-full p-4 gap-4 items-center justify-center">
+            <div className="w-full max-w-screen-xl p-6 rounded-2xl glassmorphism-panel">
+                <div className="w-full flex items-center justify-center gap-4">
+                    <HaltechGauge
+                        value={latestData.turboBoost}
+                        min={-1}
+                        max={2}
+                        redlineStart={1.5}
+                        label="MAP"
+                        unit="bar"
+                        size="small"
+                    />
+                    <HaltechGauge
+                        value={latestData.rpm}
+                        min={0}
+                        max={8000}
+                        redlineStart={7000}
+                        label="RPM"
+                        size="large"
+                    />
+                    <HaltechGauge
+                        value={latestData.speed}
+                        min={0}
+                        max={240}
+                        redlineStart={200}
+                        label="SPEED"
+                        unit="km/h"
+                        size="small"
+                    />
+                </div>
+                <div className="w-full grid grid-cols-5 gap-4 mt-4">
+                    <DigitalReadout label="Oil Pressure" value={oilPressure.toFixed(1)} unit="bar" />
+                    <DigitalReadout label="Fuel Pressure" value={fuelPressure.toFixed(1)} unit="bar" />
+                    <DigitalReadout label="Coolant Temp" value={engineTemp.toFixed(0)} unit="°C" />
+                    <DigitalReadout label="Air Temp" value={inletAirTemp.toFixed(0)} unit="°C" />
+                    <DigitalReadout label="Battery" value={batteryVoltage.toFixed(1)} unit="V" />
+                </div>
             </div>
         </div>
     );

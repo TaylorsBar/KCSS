@@ -7,7 +7,9 @@ const RallyThemeDashboard: React.FC = () => {
 
     return (
         <div className="h-full w-full bg-transparent text-white font-sans p-4 md:p-6 flex items-center justify-center">
-            <RallyGaugeCluster latestData={latestData} />
+            <div className="w-full max-w-5xl p-6 rounded-2xl glassmorphism-panel">
+                <RallyGaugeCluster latestData={latestData} />
+            </div>
         </div>
     );
 };

@@ -118,7 +118,7 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
 
 
                 {/* Needle */}
-                <g transform={`rotate(${needleAngle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#haltech-needle-glow)">
+                <g transform={`rotate(${needleAngle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out', willChange: 'transform' } as React.CSSProperties} filter="url(#haltech-needle-glow)">
                     <path d={`M ${center} ${radius * 0.08} L ${center + (isLarge ? 6 : 4)} ${center + (isLarge ? 10 : 7)} L ${center - (isLarge ? 6 : 4)} ${center + (isLarge ? 10 : 7)} Z`} fill="var(--theme-needle-color)" />
                 </g>
                 <circle cx={center} cy={center} r={isLarge ? 12 : 8} fill="#111" stroke="#333" strokeWidth="2" />
@@ -128,4 +128,4 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
     );
 };
 
-export default HaltechGauge;
+export default React.memo(HaltechGauge);

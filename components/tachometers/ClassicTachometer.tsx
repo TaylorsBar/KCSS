@@ -95,7 +95,7 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
         </foreignObject>
 
         {/* RPM Needle */}
-        <g transform={`rotate(${rpmAngle} 200 200)`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-tacho-needle-shadow)">
+        <g transform={`rotate(${rpmAngle} 200 200)`} style={{ transition: 'transform 0.1s ease-out', willChange: 'transform' } as React.CSSProperties} filter="url(#classic-tacho-needle-shadow)">
             <path d="M 199 200 L 200 30 L 201 200 Z" fill="var(--theme-needle-color)" />
             <path d="M 198 200 L 200 230 L 202 200 Z" fill="var(--theme-needle-color)" />
         </g>
@@ -107,4 +107,4 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
   );
 };
 
-export default ClassicTachometer;
+export default React.memo(ClassicTachometer);

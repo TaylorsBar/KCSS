@@ -141,8 +141,8 @@
         --theme-accent-secondary: #E2E8F0;
         --theme-accent-red: #ef4444;
         --theme-accent-green: #38A169;
-        --theme-panel-bg: transparent;
-        --theme-panel-border: #ef4444;
+        --theme-panel-bg: rgba(30, 25, 20, 0.5);
+        --theme-panel-border: rgba(255, 183, 0, 0.3);
         --theme-gauge-bezel: linear-gradient(145deg, #444, #111);
         --theme-gauge-face: radial-gradient(ellipse at center, #1a1a1a 0%, #000 100%);
         --theme-gauge-text: #f5f5dc;
@@ -151,17 +151,6 @@
         --theme-glow-color: #ffb700;
       }
       
-      .classic-dash-panel {
-        background-color: #111;
-        background-image: 
-          /* Stitched Leather Texture */
-          url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDUwIDUwIj48ZGVmcz48cGF0dGVybiBpZD0icCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNMCA1IEwxMCA1IiBzdHJva2U9InJnYmEoMCwwLDAsMC4yKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PHBhdGggZD0iTTUgMCBMNSAxMCIgc3Ryb2tlPSJyZ2JhKDAsMCwwLDAuMikiIHN0cm9rZS1widthD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjMjIyIi8+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSJ1cmwoI3ApIi8+PC9zdmc+'),
-          /* Brushed Aluminum Texture */
-          linear-gradient(0deg, #6c6c6c, #a7a7a7 50%, #6c6c6c);
-        background-blend-mode: multiply, normal;
-        background-size: 20px 20px, 100% 100%;
-      }
-
       [data-theme="haltech"] {
         --theme-bg: #111;
         --theme-text-primary: #FFFFFF;
@@ -217,6 +206,7 @@
       }
       .ar-wireframe-animated {
         animation: subtle-pulse 5s ease-in-out infinite;
+        will-change: opacity, filter;
       }
       
       /* New styles for the 3D Engine Model in Tuning Suite */
@@ -249,7 +239,11 @@
     "recharts": "https://esm.sh/recharts@^3.1.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
     "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/"
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "jose": "https://aistudiocdn.com/jose@^6.1.0",
+    "next": "https://aistudiocdn.com/next@^15.5.3",
+    "ethers": "https://aistudiocdn.com/ethers@^6.15.0",
+    "@hashgraph/sdk": "https://aistudiocdn.com/@hashgraph/sdk@^2.72.0"
   }
 }
 </script>

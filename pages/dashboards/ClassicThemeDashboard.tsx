@@ -49,7 +49,7 @@ const ClassicThemeDashboard: React.FC = () => {
   return (
     <div className="flex h-full w-full items-center justify-center p-4 md:p-8 theme-background">
       <div 
-        className="w-full max-w-screen-xl aspect-[16/9] rounded-lg p-4 shadow-2xl border-2 border-black/50 flex items-center justify-center gap-12 classic-dash-panel"
+        className="w-full max-w-screen-xl aspect-[16/9] p-4 flex items-center justify-center gap-12 glassmorphism-panel rounded-lg"
         style={{
           boxShadow: 'inset 0 0 20px rgba(0,0,0,0.7), 0 10px 30px rgba(0,0,0,0.5)',
         }}

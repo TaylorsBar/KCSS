@@ -58,7 +58,7 @@ const RallyGaugeCluster: React.FC<{ latestData: SensorDataPoint }> = ({ latestDa
     const animatedSpeed = useAnimatedValue(speed);
 
     return (
-        <div className="h-full w-full max-w-5xl flex flex-col items-center justify-center gap-4">
+        <div className="w-full flex flex-col items-center justify-center gap-4">
             <div className="relative w-full flex items-center justify-center">
                 <RpmLeds rpm={rpm} />
                 <div className="absolute flex flex-col items-center justify-center text-center">
