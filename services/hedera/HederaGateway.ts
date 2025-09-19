@@ -29,7 +29,8 @@ class HederaGateway {
         }
 
         if (options.dryRun) {
-            loggingService.info('[DRY RUN] Would write to Hedera:', message);
+            // FIX: The context argument for loggingService.info must be an object.
+            loggingService.info('[DRY RUN] Would write to Hedera:', { message });
             return {} as HederaTransactionReceipt;
         }
 
@@ -53,7 +54,8 @@ class HederaGateway {
                 return await this.adapter.writeImmutableRecord(item.topicId, item.message);
             } catch (error) {
                 attempts++;
-                loggingService.warn(`Hedera write attempt ${attempts} failed.`, error);
+                // FIX: The caught error is of type 'unknown' and cannot be directly passed as a context object. Wrap it in an object.
+                loggingService.warn(`Hedera write attempt ${attempts} failed.`, { error: String(error) });
                 if (attempts >= maxAttempts) {
                     loggingService.error('Hedera write failed after max attempts.', item);
                     // TODO: Move to a dead-letter queue for manual intervention.

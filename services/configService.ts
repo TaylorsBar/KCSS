@@ -1,6 +1,8 @@
 // TODO: Load these from a secure environment-specific source (e.g., .env file, cloud secret manager)
 const config = {
     suppliers: {
+        enabled: ['repco', 'nz_performance', 'cooldrive', 'carparts2u', 'rockauto', 'carid'], // Control active suppliers
+        retryMax: 3, // Default number of retries for a failed supplier request
         carparts2u: {
             apiKey: process.env.CARPARTS2U_API_KEY || 'cp2u-secret-key',
             baseUrl: 'https://api.carparts2u.com/v1',
@@ -25,6 +27,11 @@ const config = {
             apiKey: process.env.NZPERFORMANCE_API_KEY || 'nz-perf-secret-key',
             baseUrl: 'https://api.nzperformance.co.nz/v1',
             rateLimit: { requests: 20, perSeconds: 60 },
+        },
+        cooldrive: {
+            apiKey: '', // Not applicable for manual adapter
+            baseUrl: 'https://ishop.cooldrive.com.au',
+            rateLimit: { requests: 0, perSeconds: 0 }, // Manual, no rate limit
         },
     },
     hedera: {

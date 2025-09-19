@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { MaintenanceRecord } from '../types';
 import VerifiedIcon from '../components/icons/VerifiedIcon';
+import { pdfService } from '../services/pdfService';
 
 export const MOCK_LOGS: MaintenanceRecord[] = [
   { id: '1', date: '2024-07-15', service: 'Oil & Filter Change', notes: 'Performed by KC SpeedShop. Used Mobil 1 5W-30.', verified: true, isAiRecommendation: false },
@@ -37,6 +39,10 @@ const LogRow = React.memo(({ log }: { log: MaintenanceRecord }) => (
 
 
 const MaintenanceLog: React.FC = () => {
+  const handleGenerateReport = () => {
+    pdfService.generateHealthReport(MOCK_LOGS);
+  };
+    
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -69,7 +75,7 @@ const MaintenanceLog: React.FC = () => {
         </div>
       </div>
        <div className="text-center mt-4">
-        <button className="text-brand-cyan font-semibold hover:underline">
+        <button onClick={handleGenerateReport} className="text-brand-cyan font-semibold hover:underline">
             Generate Vehicle Health Report
         </button>
       </div>

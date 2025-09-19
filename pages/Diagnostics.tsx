@@ -2,6 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { getDiagnosticAnswer } from '../services/geminiService';
+import { pdfService } from '../services/pdfService';
+import { MOCK_ALERTS } from '../components/Alerts';
 import ReactMarkdown from 'react-markdown';
 
 const Diagnostics: React.FC = () => {
@@ -50,12 +52,25 @@ const Diagnostics: React.FC = () => {
       setIsLoading(false);
     }
   };
+  
+  const handleGenerateReport = () => {
+      const lastAiMessage = [...messages].reverse().find(m => m.sender === 'ai')?.text || "No AI analysis available.";
+      pdfService.generateDiagnosticReport(MOCK_ALERTS, lastAiMessage);
+  };
 
   return (
     <div className="flex flex-col h-full bg-black rounded-lg border border-brand-cyan/30 shadow-lg">
-      <div className="p-4 border-b border-brand-cyan/30">
-        <h2 className="text-xl font-bold text-gray-100 font-display">Natural Language Diagnostics</h2>
-        <p className="text-sm text-gray-400">Ask KC for help</p>
+      <div className="p-4 border-b border-brand-cyan/30 flex justify-between items-center">
+        <div>
+            <h2 className="text-xl font-bold text-gray-100 font-display">Natural Language Diagnostics</h2>
+            <p className="text-sm text-gray-400">Ask KC for help</p>
+        </div>
+        <button
+            onClick={handleGenerateReport}
+            className="bg-base-700 text-brand-cyan font-semibold px-4 py-2 rounded-md hover:bg-base-600 transition-colors border border-brand-cyan/50"
+        >
+            Generate PDF Report
+        </button>
       </div>
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-4">

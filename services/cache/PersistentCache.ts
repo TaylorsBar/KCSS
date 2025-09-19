@@ -9,7 +9,8 @@ interface PersistentCacheEntry<T> {
 const { dbName, storeName, defaultTTL } = configService.get('cache').persistent;
 
 export class PersistentCache {
-    private store: LocalForage;
+    // FIX: Cannot find name 'LocalForage'. Use typeof to get the type from the imported object.
+    private store: typeof localforage;
 
     constructor() {
         this.store = localforage.createInstance({

@@ -1,4 +1,4 @@
-export type SupplierId = 'carparts2u' | 'rockauto' | 'carid' | 'repco' | 'nz_performance';
+export type SupplierId = 'carparts2u' | 'rockauto' | 'carid' | 'repco' | 'nz_performance' | 'cooldrive';
 export type Region = 'NZ' | 'AU' | 'US' | 'global';
 export type Currency = 'NZD' | 'AUD' | 'USD';
 
@@ -47,7 +47,8 @@ export interface OrderRequest {
 }
 
 export interface OrderResponse {
-    // TODO: Define order response payload
+    orderId: string;
+    status: 'PENDING' | 'CONFIRMED' | 'FAILED';
 }
 
 export interface ISupplierAdapter {

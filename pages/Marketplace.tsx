@@ -1,8 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
+// FIX: SupplierResult is defined in services/suppliers/types.ts, not the main types file. Updated the import to correct the path.
 import { Listing, PartCategory, PartCondition, ProvenanceEvent, ProvenanceEventType } from '../types';
+import type { SupplierResult } from '../services/suppliers/types';
 import { generateComponentImage } from '../services/geminiService';
+import { pdfService } from '../services/pdfService';
 import VerifiedIcon from '../components/icons/VerifiedIcon';
+import { supplierGateway } from '../services';
 
 // --- MOCK DATA BASED ON USER SPEC ---
 const MOCK_LISTINGS: Listing[] = [
@@ -158,11 +161,63 @@ const PartDetailModal: React.FC<{ listing: Listing; onClose: () => void }> = ({ 
                 </div>
                  <div className="p-4 border-t border-brand-cyan/30 flex justify-end items-center gap-4">
                     <span className="font-mono text-2xl text-white">${listing.price.toLocaleString()}</span>
-                    <button className="bg-brand-blue text-white font-bold py-2 px-6 rounded-md hover:bg-blue-600 transition-colors shadow-glow-blue">
-                        Add to Cart
+                    <button 
+                        onClick={() => pdfService.generateQuote(listing)}
+                        className="bg-brand-blue text-white font-bold py-2 px-6 rounded-md hover:bg-blue-600 transition-colors shadow-glow-blue"
+                    >
+                        Generate Quote
                     </button>
                 </div>
             </div>
+        </div>
+    );
+};
+
+const LiveSearchResults: React.FC<{ results: SupplierResult[], isLoading: boolean }> = ({ results, isLoading }) => {
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center p-8">
+                <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-brand-cyan"></div>
+            </div>
+        );
+    }
+
+    if (results.length === 0) {
+        return <p className="text-gray-500 text-center p-8">No live results found. The CoolDrive iShop page may have opened in a new tab.</p>;
+    }
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-base-700/50">
+                <thead className="bg-base-800/50">
+                    <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Part</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Supplier</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
+                    </tr>
+                </thead>
+                <tbody className="bg-black divide-y divide-base-700/50">
+                    {results.map(result => (
+                        <tr key={`${result.supplierId}-${result.part.sku}`} className="hover:bg-base-800/40">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="font-medium text-white">{result.part.name}</div>
+                                <div className="text-sm text-gray-400">{result.part.manufacturer} ({result.part.sku})</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{result.supplierId.replace('_', ' ')}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-white">
+                                {result.price.amount.toFixed(2)} {result.price.currency}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {result.availability.inStock ? 
+                                    <span className="text-green-400">In Stock ({result.availability.quantity})</span> : 
+                                    <span className="text-red-400">Out of Stock</span>
+                                }
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 };
@@ -172,6 +227,9 @@ const PartDetailModal: React.FC<{ listing: Listing; onClose: () => void }> = ({ 
 
 const Marketplace: React.FC = () => {
     const [selectedPart, setSelectedPart] = useState<Listing | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [liveResults, setLiveResults] = useState<SupplierResult[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     
     const handleSelectPart = (listing: Listing, imageUrl: string | null) => {
         setSelectedPart({
@@ -180,17 +238,61 @@ const Marketplace: React.FC = () => {
         });
     };
 
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!searchQuery.trim() || isSearching) return;
+        
+        setIsSearching(true);
+        setLiveResults([]);
+        try {
+            // Using NZ as default region
+            const results = await supplierGateway.search(searchQuery, { region: 'NZ' });
+            setLiveResults(results);
+        } catch (error) {
+            console.error("Live supplier search failed:", error);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             <div>
-                <h1 className="text-2xl font-bold text-gray-100 font-display">Verified Parts Marketplace</h1>
-                <p className="text-gray-400 mt-1">Authentic performance parts with an immutable history on Hedera.</p>
+                <h1 className="text-2xl font-bold text-gray-100 font-display">Parts &amp; Suppliers</h1>
+                <p className="text-gray-400 mt-1">Search live supplier inventory or browse DLT-verified parts.</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-                {MOCK_LISTINGS.map(listing => (
-                    <PartCard key={listing.id} listing={listing} onSelect={(imageUrl) => handleSelectPart(listing, imageUrl)} />
-                ))}
+            {/* Live Supplier Search Section */}
+            <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">
+                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">Live Supplier Search</h2>
+                <form onSubmit={handleSearch} className="flex items-center gap-3 mb-4">
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="e.g., Bendix brake pads..."
+                        className="flex-1 bg-base-800 border border-base-700 rounded-md px-4 py-2 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-cyan"
+                        disabled={isSearching}
+                    />
+                    <button
+                        type="submit"
+                        disabled={isSearching}
+                        className="bg-brand-cyan text-black font-semibold px-6 py-2 rounded-md disabled:bg-base-700 disabled:cursor-not-allowed hover:bg-cyan-300 transition-colors shadow-glow-cyan"
+                    >
+                        {isSearching ? 'Searching...' : 'Search'}
+                    </button>
+                </form>
+                <LiveSearchResults results={liveResults} isLoading={isSearching} />
+            </div>
+
+             {/* Verified Parts Marketplace Section */}
+            <div>
+                <h2 className="text-xl font-bold text-gray-100 font-display mb-4">Verified Parts Marketplace</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                    {MOCK_LISTINGS.map(listing => (
+                        <PartCard key={listing.id} listing={listing} onSelect={(imageUrl) => handleSelectPart(listing, imageUrl)} />
+                    ))}
+                </div>
             </div>
 
             {selectedPart && <PartDetailModal listing={selectedPart} onClose={() => setSelectedPart(null)} />}

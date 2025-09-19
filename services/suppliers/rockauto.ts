@@ -1,4 +1,4 @@
-import { ISupplierAdapter, SupplierResult, SearchOptions } from './types';
+import { ISupplierAdapter, SupplierResult, SearchOptions, Availability, Price, OrderRequest, OrderResponse, Region } from './types';
 import { configService } from '../configService';
 
 class RockAutoAdapter implements ISupplierAdapter {
@@ -19,7 +19,21 @@ class RockAutoAdapter implements ISupplierAdapter {
         return null;
     }
 
-    // TODO: Implement getAvailability, getPricing, placeOrder methods.
+    // FIX: Implement missing methods to satisfy ISupplierAdapter interface
+    async getAvailability(sku: string, region: Region): Promise<Availability | null> {
+        console.log(`[RockAutoAdapter] Getting availability for SKU: ${sku} in region: ${region}`);
+        return null;
+    }
+
+    async getPricing(sku: string, region: Region): Promise<Price | null> {
+        console.log(`[RockAutoAdapter] Getting pricing for SKU: ${sku} in region: ${region}`);
+        return null;
+    }
+
+    async placeOrder(payload: OrderRequest): Promise<OrderResponse> {
+        console.log(`[RockAutoAdapter] Placing order with payload:`, payload);
+        return { orderId: 'mock-rockauto-order', status: 'PENDING' };
+    }
 }
 
 export const rockautoAdapter = new RockAutoAdapter();

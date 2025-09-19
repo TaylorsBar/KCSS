@@ -1,4 +1,4 @@
-import { ISupplierAdapter, SupplierResult, SearchOptions } from './types';
+import { ISupplierAdapter, SupplierResult, SearchOptions, Availability, Price, OrderRequest, OrderResponse, Region } from './types';
 import { configService } from '../configService';
 
 class CarParts2UAdapter implements ISupplierAdapter {
@@ -19,7 +19,21 @@ class CarParts2UAdapter implements ISupplierAdapter {
         return null;
     }
 
-    // TODO: Implement getAvailability, getPricing, placeOrder methods.
+    // FIX: Implement missing methods to satisfy ISupplierAdapter interface
+    async getAvailability(sku: string, region: Region): Promise<Availability | null> {
+        console.log(`[CarParts2UAdapter] Getting availability for SKU: ${sku} in region: ${region}`);
+        return null;
+    }
+
+    async getPricing(sku: string, region: Region): Promise<Price | null> {
+        console.log(`[CarParts2UAdapter] Getting pricing for SKU: ${sku} in region: ${region}`);
+        return null;
+    }
+
+    async placeOrder(payload: OrderRequest): Promise<OrderResponse> {
+        console.log(`[CarParts2UAdapter] Placing order with payload:`, payload);
+        return { orderId: 'mock-cp2u-order', status: 'PENDING' };
+    }
 }
 
 export const carparts2uAdapter = new CarParts2UAdapter();
