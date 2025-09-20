@@ -39,8 +39,8 @@ const LogRow = React.memo(({ log }: { log: MaintenanceRecord }) => (
 
 
 const MaintenanceLog: React.FC = () => {
-  const handleGenerateReport = () => {
-    pdfService.generateHealthReport(MOCK_LOGS);
+  const handleGenerateReport = async () => {
+    await pdfService.generateHealthReport(MOCK_LOGS);
   };
     
   return (

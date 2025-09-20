@@ -10,10 +10,43 @@ const LOGO_SVG = `<svg viewBox="0 0 220 50" xmlns="http://www.w3.org/2000/svg">
     <g transform="translate(120, 18.5) scale(0.25)"><path d="M50,50 C60,50 65,40 65,35 C65,25 50,25 50,32" class="cw-koru"/></g>
 </svg>`;
 
-const addHeader = (doc: jsPDF) => {
-    // Convert SVG to data URL
+const convertSvgToPng = (svgDataUrl: string, width: number, height: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        // Render at a higher resolution for better quality in the PDF
+        const scale = 2;
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return reject(new Error("Could not get canvas context"));
+        }
+
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = (err) => {
+            reject(err);
+        };
+        img.src = svgDataUrl;
+    });
+};
+
+const addHeader = async (doc: jsPDF) => {
     const logoDataUrl = `data:image/svg+xml;base64,${btoa(LOGO_SVG)}`;
-    doc.addImage(logoDataUrl, 'SVG', 15, 12, 55, 12.5);
+    
+    try {
+        const pngDataUrl = await convertSvgToPng(logoDataUrl, 55, 12.5);
+        doc.addImage(pngDataUrl, 'PNG', 15, 12, 55, 12.5);
+    } catch(error) {
+        console.error("Failed to convert SVG logo to PNG for PDF:", error);
+        // Fallback: if image fails, draw a text title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text('CartelWorx', 15, 20);
+    }
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
@@ -41,10 +74,10 @@ const addFooter = (doc: jsPDF) => {
     }
 };
 
-const generateDiagnosticReport = (alerts: DiagnosticAlert[], aiAnalysis: string) => {
+const generateDiagnosticReport = async (alerts: DiagnosticAlert[], aiAnalysis: string) => {
     const doc = new jsPDF();
     
-    addHeader(doc);
+    await addHeader(doc);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
@@ -81,10 +114,10 @@ const generateDiagnosticReport = (alerts: DiagnosticAlert[], aiAnalysis: string)
     doc.save(`CartelWorx_Diagnostic_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
-const generateHealthReport = (records: MaintenanceRecord[]) => {
+const generateHealthReport = async (records: MaintenanceRecord[]) => {
     const doc = new jsPDF();
     
-    addHeader(doc);
+    await addHeader(doc);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
@@ -111,10 +144,10 @@ const generateHealthReport = (records: MaintenanceRecord[]) => {
     doc.save(`CartelWorx_Health_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
-const generateQuote = (listing: Listing) => {
+const generateQuote = async (listing: Listing) => {
     const doc = new jsPDF();
     
-    addHeader(doc);
+    await addHeader(doc);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);

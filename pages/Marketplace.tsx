@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 // FIX: SupplierResult is defined in services/suppliers/types.ts, not the main types file. Updated the import to correct the path.
 import { Listing, PartCategory, PartCondition, ProvenanceEvent, ProvenanceEventType } from '../types';
@@ -162,7 +163,7 @@ const PartDetailModal: React.FC<{ listing: Listing; onClose: () => void }> = ({ 
                  <div className="p-4 border-t border-brand-cyan/30 flex justify-end items-center gap-4">
                     <span className="font-mono text-2xl text-white">${listing.price.toLocaleString()}</span>
                     <button 
-                        onClick={() => pdfService.generateQuote(listing)}
+                        onClick={async () => await pdfService.generateQuote(listing)}
                         className="bg-brand-blue text-white font-bold py-2 px-6 rounded-md hover:bg-blue-600 transition-colors shadow-glow-blue"
                     >
                         Generate Quote

@@ -53,9 +53,9 @@ const Diagnostics: React.FC = () => {
     }
   };
   
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
       const lastAiMessage = [...messages].reverse().find(m => m.sender === 'ai')?.text || "No AI analysis available.";
-      pdfService.generateDiagnosticReport(MOCK_ALERTS, lastAiMessage);
+      await pdfService.generateDiagnosticReport(MOCK_ALERTS, lastAiMessage);
   };
 
   return (
