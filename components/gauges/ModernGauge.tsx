@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
 
@@ -43,21 +44,34 @@ const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size 
                             <feMergeNode in="SourceGraphic" />
                         </feMerge>
                     </filter>
-                     <radialGradient id="gauge-face-grad" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#151820" />
-                        <stop offset="100%" stopColor="#0d1018" />
-                    </radialGradient>
                      <filter id="needle-shadow" x="-50%" y="-50%" width="200%" height="200%">
                         <feDropShadow dx="1" dy="2" stdDeviation="1" floodColor="#000000" floodOpacity="0.5"/>
+                    </filter>
+                    <pattern id="carbon-pattern" patternUnits="userSpaceOnUse" width="10" height="10">
+                        <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImEiIHgxPSIwIiB4Mj0iMCIgeTE9IjAiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMzYTNhM2EiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyMjIiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iYiIgeDE9IjAiIHgyPSIxIiB5MT0iMCIgeTI9IjAiPjxzdG9vcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM0NDQiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyMjIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9InVybCgjYSkiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHg9IjIwIiBmaWxsPSJ1cmwoI2IpIiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHk9IjIwIiBmaWxsPSJ1cmwoI2IpIiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHg9IjIwIiB5PSIyMCIgZmlsbD0idXJsKCNhKSIvPjwvc3ZnPg==" x="0" y="0" width="10" height="10" />
+                    </pattern>
+                    <radialGradient id="carbon-sheen" cx="50%" cy="30%" r="70%">
+                        <stop offset="0%" stopColor="white" stopOpacity="0.08" />
+                        <stop offset="100%" stopColor="white" stopOpacity="0.0" />
+                    </radialGradient>
+                    <filter id="inner-shadow">
+                        <feOffset dx="0" dy="4" />
+                        <feGaussianBlur stdDeviation="4" result="offset-blur" />
+                        <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+                        <feFlood floodColor="black" floodOpacity="0.7" result="color" />
+                        <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+                        <feComposite operator="over" in="shadow" in2="SourceGraphic" />
                     </filter>
                 </defs>
                 
                 {/* 3D Bezel */}
                 <circle cx={center} cy={center} r={radius} fill="#282828" />
-                <circle cx={center} cy={center} r={radius * 0.95} fill="#111" />
+                <circle cx={center} cy={center} r={radius * 0.95} fill="#111" filter="url(#inner-shadow)" />
                 
                 {/* Face */}
-                <circle cx={center} cy={center} r={radius * 0.9} fill="url(#gauge-face-grad)" />
+                <circle cx={center} cy={center} r={radius * 0.9} fill="url(#carbon-pattern)" />
+                <circle cx={center} cy={center} r={radius * 0.9} fill="url(#carbon-sheen)" />
+
 
                 {/* Ticks & Labels */}
                 {Array.from({ length: numTicks }).map((_, i) => {
@@ -85,13 +99,13 @@ const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size 
                                 )
                             })}
                             
-                            {isMajor && isLarge &&
+                            {isMajor &&
                                 <text
-                                    x={center} y={radius * 0.32}
+                                    x={center} y={isLarge ? radius * 0.32 : radius * 0.4}
                                     textAnchor="middle"
                                     fill="var(--theme-accent-primary)"
-                                    fontSize={isLarge ? "18" : "12"}
-                                    transform={`rotate(180 ${center} ${radius * 0.32})`}
+                                    fontSize={isLarge ? "18" : "14"}
+                                    transform={`rotate(180 ${center} ${isLarge ? radius * 0.32 : radius * 0.4})`}
                                     className="font-sans"
                                     opacity="0.9"
                                 >
@@ -101,6 +115,10 @@ const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size 
                         </g>
                     );
                 })}
+                
+                {/* Glare effect */}
+                <path d={`M ${center - radius*0.7} ${center - radius*0.3} C ${center - radius*0.5} ${center - radius*0.8}, ${center + radius*0.5} ${center - radius*0.8}, ${center + radius*0.7} ${center - radius*0.3}`} fill="rgba(255,255,255,0.05)" />
+
 
                 {/* Needle */}
                 <g transform={`rotate(${needleAngle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#needle-shadow)">
@@ -113,7 +131,7 @@ const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size 
                 {/* Central Display for Large Gauge */}
                 {isLarge &&
                     <foreignObject x="0" y="0" width={radius*2} height={radius*2}>
-                        <div className="flex flex-col items-center justify-center h-full w-full pt-16">
+                        <div className="flex flex-col items-center justify-center h-full w-full pt-16 pl-8">
                             <span className="font-display font-bold text-7xl text-[#00ffff] leading-none" style={{textShadow: '0 0 10px #00ffff', fontVariantNumeric: 'tabular-nums'}}>
                                 {centerValue !== undefined ? String(centerValue).padStart(3,'\u00A0') : Math.round(animatedValue).toString().padStart(3,'\u00A0')}
                             </span>

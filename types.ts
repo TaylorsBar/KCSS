@@ -1,4 +1,3 @@
-
 export interface SensorDataPoint {
   time: number;
   rpm: number;
@@ -23,6 +22,14 @@ export interface SensorDataPoint {
   // For GPS
   latitude: number;
   longitude: number;
+  // For AFR Gauge
+  afr: number;
+  // For Advanced EV Dashboard
+  powerOutputKw?: number;
+  tireFL?: number;
+  tireFR?: number;
+  tireRL?: number;
+  tireRR?: number;
 }
 
 export enum AlertLevel {
@@ -83,6 +90,17 @@ export interface AiTuningSuggestion {
   }[];
   risk: 'low' | 'medium' | 'high';
 }
+
+// For Comprehensive Tuning Suite
+export interface TuningMap {
+  id: 've' | 'ignition' | 'afr';
+  name: string;
+  xAxis: { label: string; values: number[]; unit: string };
+  yAxis: { label: string; values: number[]; unit: string };
+  data: number[][];
+  unit: string;
+}
+
 
 // For Pre-write Check response
 export interface PrewriteCheckResponse {

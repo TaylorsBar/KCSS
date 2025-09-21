@@ -5,10 +5,24 @@ import MicrophoneIcon from '../components/icons/MicrophoneIcon';
 import { MOCK_LOGS } from './MaintenanceLog';
 import ReactMarkdown from 'react-markdown';
 
-
 // @ts-ignore
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+// Component list for the new inspector dropdown, moved from Tuning page
+const inspectorComponents = [
+    { id: 'turbo', name: 'Turbocharger' },
+    { id: 'o2-sensor', name: 'O2 Sensor' },
+    { id: 'map-sensor', name: 'MAP Sensor' },
+    { id: 'alternator', name: 'Alternator' },
+    { id: 'intake', name: 'Air Intake' },
+    { id: 'coolant', name: 'Coolant System' },
+    { id: 'oil-filter', name: 'Oil System' },
+    { id: 'injectors', name: 'Fuel Injectors' },
+    { id: 'intercooler', name: 'Intercooler' },
+    { id: 'wastegate', name: 'Wastegate' },
+    { id: 'ecu', name: 'ECU' },
+];
 
 const MOCK_HOTSPOTS: ComponentHotspot[] = [
     { id: 'o2-sensor', name: 'O2 Sensor', cx: '75%', cy: '70%', status: 'Failing' },
@@ -29,11 +43,13 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
-    const [highlightedComponent, setHighlightedComponent] = useState<string | null>(null);
+    const [selectedComponent, setSelectedComponent] = useState<string | null>(null);
     const [assistantMessage, setAssistantMessage] = useState("Activate the microphone and ask a question, like 'Show me the failing O2 sensor.'");
 
     const [isInspecting, setIsInspecting] = useState(false);
     const [inspectionResult, setInspectionResult] = useState<{imageUrl: string | null, analysis: string | null, error: string | null} | null>(null);
+    const latestDataRef = useRef(latestData);
+    latestDataRef.current = latestData;
 
     const getLiveDataForComponent = (componentId: string | null): string | null => {
         if (!componentId || !latestData) return null;
@@ -62,7 +78,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
     const processCommand = async (command: string) => {
         setIsListening(false);
         setAssistantMessage("Thinking...");
-        setHighlightedComponent(null); // Clear previous highlight
+        setSelectedComponent(null); // Clear previous selection
         const result: VoiceCommandIntent = await getVoiceCommandIntent(command);
 
         if (result.confidence < 0.7) {
@@ -73,9 +89,9 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
         switch (result.intent) {
             case IntentAction.ShowComponent:
                 if (result.component && MOCK_HOTSPOTS.find(h => h.id === result.component)) {
-                    setHighlightedComponent(result.component);
+                    setSelectedComponent(result.component);
                 } else {
-                    setAssistantMessage("I can't seem to find that component.");
+                    setAssistantMessage("I can't seem to find that component on the 3D model.");
                 }
                 break;
             case IntentAction.QueryService:
@@ -87,7 +103,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
                 }
                 break;
             case IntentAction.HideComponent:
-                setHighlightedComponent(null);
+                setSelectedComponent(null);
                 setInspectionResult(null); // Also clear inspection
                 setAssistantMessage("Highlights cleared. What's next?");
                 break;
@@ -98,16 +114,19 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
     
     useEffect(() => {
         const inspectComponent = async () => {
-            if (!highlightedComponent) {
+            if (!selectedComponent) {
                 setInspectionResult(null);
+                setAssistantMessage("Select a component to inspect using voice or the dropdown menu.");
                 return;
             }
     
-            const componentData = MOCK_HOTSPOTS.find(h => h.id === highlightedComponent);
+            const componentData = inspectorComponents.find(c => c.id === selectedComponent);
+            const hotspotData = MOCK_HOTSPOTS.find(h => h.id === selectedComponent);
             if (!componentData) return;
             
-            const liveData = getLiveDataForComponent(highlightedComponent);
-            setAssistantMessage(`Analyzing the ${componentData.name}... Status: ${componentData.status}. ${liveData || ''}`);
+            const liveData = getLiveDataForComponent(selectedComponent);
+            const statusMessage = hotspotData ? `Status: ${hotspotData.status}.` : '';
+            setAssistantMessage(`Analyzing the ${componentData.name}... ${statusMessage} ${liveData || ''}`);
     
             setIsInspecting(true);
             setInspectionResult(null);
@@ -115,7 +134,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
             try {
                 const [imageUrl, analysis] = await Promise.all([
                     generateComponentImage(componentData.name),
-                    getComponentTuningAnalysis(componentData.name, latestData)
+                    getComponentTuningAnalysis(componentData.name, latestDataRef.current)
                 ]);
                 setInspectionResult({ imageUrl, analysis, error: null });
                 setAssistantMessage(`Analysis for ${componentData.name} complete.`);
@@ -130,7 +149,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
         };
     
         inspectComponent();
-    }, [highlightedComponent, latestData]);
+    }, [selectedComponent]);
 
 
     const handleListen = () => {
@@ -188,7 +207,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
                             className="w-full h-full"
                         />
                         {MOCK_HOTSPOTS.map(hotspot => {
-                            const isHighlighted = highlightedComponent === hotspot.id;
+                            const isHighlighted = selectedComponent === hotspot.id;
                             const liveData = getLiveDataForComponent(hotspot.id);
                             
                             const getStatusClasses = (status: 'Normal' | 'Warning' | 'Failing') => {
@@ -219,25 +238,39 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
 
             {/* Right Panel: Assistant and Inspector */}
             <div className="w-full lg:w-1/3 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">KC Voice Assistant</h2>
+                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">KC Assistant & Inspector</h2>
                 <div className="flex-grow flex flex-col justify-between">
-                    <div className="p-4 bg-base-800/50 rounded-md min-h-[100px] text-gray-300">
+                    <div className="p-4 bg-base-800/50 rounded-md min-h-[80px] text-gray-300 mb-4">
                         {assistantMessage}
                     </div>
 
-                    <div className="text-center my-4">
-                        <button onClick={handleListen} disabled={!isConnected || isConnecting} className={`w-20 h-20 rounded-full flex items-center justify-center transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mx-auto ${isListening ? 'bg-red-500' : 'bg-brand-cyan'}`}>
-                            <MicrophoneIcon className="w-10 h-10 text-black" />
+                    <div className="text-center my-2">
+                        <button onClick={handleListen} disabled={!isConnected || isConnecting} className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mx-auto ${isListening ? 'bg-red-500' : 'bg-brand-cyan'}`}>
+                            <MicrophoneIcon className="w-8 h-8 text-black" />
                         </button>
                         {isListening && <p className="text-sm text-gray-400 mt-2">Listening...</p>}
                     </div>
-
-                    <div className="flex-grow mt-4 p-2 bg-base-800/50 rounded-md space-y-3 overflow-y-auto min-h-[200px]">
-                        <h3 className="font-semibold text-gray-400 px-2">Component Inspector</h3>
+                    
+                    <div className="flex-grow mt-4 p-2 bg-base-900 rounded-md space-y-3 overflow-y-auto min-h-[200px] border border-brand-cyan/20">
+                        <label htmlFor="component-select" className="text-sm text-gray-400 px-2">Manual Inspection</label>
+                        <select
+                           id="component-select"
+                           value={selectedComponent || ''}
+                           onChange={e => setSelectedComponent(e.target.value)}
+                           className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-cyan"
+                           disabled={!isConnected}
+                        >
+                            <option value="" disabled>Select a component...</option>
+                            {inspectorComponents.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        
                         {isInspecting ? (
-                            <div className="text-center text-gray-400 p-4">Analyzing component...</div>
+                            <div className="text-center text-gray-400 p-4 flex flex-col items-center justify-center h-48">
+                                <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-10 w-10 animate-spin border-t-brand-cyan"></div>
+                                <span className="mt-4">Analyzing component...</span>
+                            </div>
                         ) : inspectionResult ? (
-                            <div className="animate-fade-in space-y-2">
+                            <div className="animate-fade-in space-y-2 mt-4">
                                 {inspectionResult.error && <p className="text-red-400 p-2">{inspectionResult.error}</p>}
                                 {inspectionResult.imageUrl && <img src={inspectionResult.imageUrl} alt="Generated component" className="w-full h-auto rounded-md border-2 border-brand-cyan/50" />}
                                 {inspectionResult.analysis && (
@@ -248,7 +281,7 @@ const ARAssistant: React.FC<ARAssistantProps> = ({ latestData }) => {
                             </div>
                         ) : (
                             <div className="text-center text-gray-500 h-full flex items-center justify-center p-4">
-                                Highlight a component with your voice to see an AI analysis.
+                                Highlight a component to see an AI analysis.
                             </div>
                         )}
                     </div>

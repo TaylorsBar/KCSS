@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { SensorDataPoint } from '../types';
 
@@ -44,6 +43,12 @@ const generateInitialData = (): SensorDataPoint[] => {
       gForce: 0,
       latitude: DEFAULT_LAT,
       longitude: DEFAULT_LON,
+      afr: 14.7,
+      powerOutputKw: 0,
+      tireFL: 35,
+      tireFR: 35,
+      tireRL: 35,
+      tireRR: 35,
     });
   }
   return data;
@@ -56,6 +61,7 @@ export const useVehicleData = () => {
   const stateTimeout = useRef<number>(0);
   const lastUpdate = useRef<number>(Date.now());
   const [gpsData, setGpsData] = useState<{latitude: number; longitude: number; speed: number | null} | null>(null);
+  const slowLeakTireRef = useRef(35); // Simulate a slow leak in one tire
 
   useEffect(() => {
     let watcherId: number | null = null;
@@ -84,6 +90,10 @@ export const useVehicleData = () => {
       const now = Date.now();
       const deltaTimeSeconds = (now - lastUpdate.current) / 1000.0;
       lastUpdate.current = now;
+      
+      // Update slow leak tire pressure
+      slowLeakTireRef.current -= 0.0005;
+
 
       setData(prevData => {
         const prev = prevData[prevData.length - 1];
@@ -176,6 +186,29 @@ export const useVehicleData = () => {
         const acceleration = (speedMetersPerSecond - prevSpeedMetersPerSecond) / deltaTimeSeconds;
         const gForce = acceleration / 9.81;
 
+        // EV-specific power calculation
+        // Power (kW) = Force (N) * Velocity (m/s) / 1000
+        // Force = Mass (kg) * Acceleration (m/s^2) + Drag Force + Rolling Resistance
+        const vehicleMassKg = 1800;
+        const dragCoefficient = 0.28;
+        const frontalArea = 2.22;
+        const airDensity = 1.225;
+        const rollingResistance = 0.012;
+        
+        const force = (vehicleMassKg * acceleration) + 
+                      (0.5 * dragCoefficient * frontalArea * airDensity * Math.pow(speedMetersPerSecond, 2)) +
+                      (rollingResistance * vehicleMassKg * 9.81);
+        
+        // Positive power is usage, negative is regen
+        let powerOutputKw = (force * speedMetersPerSecond) / 1000;
+        // Cap regen power
+        if (powerOutputKw < 0) {
+            powerOutputKw = Math.max(powerOutputKw, -80); // Cap regen at 80kW
+        } else {
+            powerOutputKw = Math.min(powerOutputKw, 350); // Cap power at 350kW
+        }
+
+
         const distanceThisFrame = speedMetersPerSecond * deltaTimeSeconds;
         const newDistance = distance + distanceThisFrame;
 
@@ -183,6 +216,8 @@ export const useVehicleData = () => {
         const isFaultActive = timeOfDayEffect > 0.7;
         setHasActiveFault(isFaultActive);
         const simulatedFault = isFaultActive ? 5.0 : 0; 
+        const engineLoad = 15 + (rpm - RPM_IDLE) / (RPM_MAX - RPM_IDLE) * 85;
+        const afr = 14.7 - (engineLoad / 100) * 3.5; // Richer under load
         
         const newDataPoint: SensorDataPoint = {
           time: now,
@@ -200,11 +235,17 @@ export const useVehicleData = () => {
           shortTermFuelTrim: 2.0 + (Math.random() - 0.5) * 4 + simulatedFault,
           longTermFuelTrim: Math.min(10, longTermFuelTrim + (simulatedFault > 0 ? 0.01 : -0.005)),
           o2SensorVoltage: 0.1 + (0.5 + Math.sin(now / 500) * 0.4),
-          engineLoad: 15 + (rpm - RPM_IDLE) / (RPM_MAX - RPM_IDLE) * 85,
+          engineLoad,
           distance: newDistance,
           gForce,
           latitude,
           longitude,
+          afr,
+          powerOutputKw,
+          tireFL: 35.0 + (Math.random() - 0.5) * 0.1,
+          tireFR: slowLeakTireRef.current, // The one with the slow leak
+          tireRL: 35.2 + (Math.random() - 0.5) * 0.1,
+          tireRR: 34.9 + (Math.random() - 0.5) * 0.1,
         };
 
         const updatedData = [...prevData, newDataPoint];

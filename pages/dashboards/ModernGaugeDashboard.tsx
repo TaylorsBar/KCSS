@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
 import ModernGauge from '../../components/gauges/ModernGauge';
@@ -26,10 +27,10 @@ const ModernGaugeDashboard: React.FC = () => {
                         size="small"
                     />
                     <ModernGauge
-                        value={latestData.engineLoad}
-                        min={0}
-                        max={100}
-                        label="THROTTLE (%)"
+                        value={latestData.afr}
+                        min={10}
+                        max={18}
+                        label="AFR"
                         size="small"
                     />
                 </div>

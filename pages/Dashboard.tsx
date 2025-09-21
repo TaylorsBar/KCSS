@@ -4,7 +4,7 @@ import RallyThemeDashboard from './dashboards/RallyThemeDashboard';
 import ModernGaugeDashboard from './dashboards/ModernGaugeDashboard';
 import ClassicThemeDashboard from './dashboards/ClassicThemeDashboard';
 import LiveTuning from './LiveTuning';
-import MinimalistDashboard from './dashboards/MinimalistDashboard';
+import AdvancedEvDashboard from './dashboards/MinimalistDashboard';
 
 const Dashboard: React.FC = () => {
   const { theme } = useContext(AppearanceContext);
@@ -20,7 +20,7 @@ const Dashboard: React.FC = () => {
       case 'haltech':
         return <LiveTuning />;
       case 'minimalist':
-        return <MinimalistDashboard />;
+        return <AdvancedEvDashboard />;
       default:
         return <RallyThemeDashboard />;
     }

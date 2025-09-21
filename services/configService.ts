@@ -37,9 +37,9 @@ const config = {
     hedera: {
         network: (process.env.HEDERA_NETWORK || 'mainnet') as 'mainnet' | 'testnet',
         operatorId: process.env.HEDERA_OPERATOR_ID || '0.0.12345', // Placeholder
-        operatorKey: process.env.HEDERA_OPERATOR_KEY || '302e020100300506032b657004220420...', // Placeholder
-        // Topic for non-critical batched events
-        batchTopicId: process.env.HEDERA_BATCH_TOPIC_ID || null,
+        operatorKey: process.env.HEDERA_OPERATOR_KEY || '302e020100300506032b6570042204200000000000000000000000000000000000000000000000000000000000000001', // Placeholder
+        // FIX: Add missing batchTopicId to resolve type error in services/hedera/HederaGateway.ts
+        batchTopicId: process.env.HEDERA_BATCH_TOPIC_ID || '0.0.54321', // Placeholder topic for batching
     },
     cache: {
         memory: {
