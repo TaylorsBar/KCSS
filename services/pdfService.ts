@@ -3,111 +3,151 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DiagnosticAlert, MaintenanceRecord, Listing } from '../types';
 
-// The CartelWorx logo SVG from Sidebar.tsx, optimized for PDF with simplified colors
-const LOGO_SVG = `<svg viewBox="0 0 220 50" xmlns="http://www.w3.org/2000/svg">
-    <style>.cw-text{font-family:Orbitron,sans-serif;font-size:28px;font-weight:900;fill:#1E1E2D;text-anchor:middle}.cw-koru{stroke:#007FFF;stroke-width:10;stroke-linecap:round;fill:none}</style>
+// --- THEME & STYLING ---
+
+const theme = {
+    BG: '#0A0A0F',
+    TEXT_PRIMARY: '#E2E8F0',
+    TEXT_SECONDARY: '#A0AEC0',
+    ACCENT: '#00FFFF',
+    TABLE_HEAD_BG: '#14141E',
+    TABLE_ROW_ALT_BG: '#101015',
+    TABLE_LINE: '#1E1E2D',
+};
+
+// New high-fidelity, dark-theme-friendly logo
+const LOGO_SVG_DARK = `<svg viewBox="0 0 220 50" xmlns="http://www.w3.org/2000/svg">
+    <style>.cw-text{font-family:Orbitron,sans-serif;font-size:28px;font-weight:900;fill:#E0E0E0;text-anchor:middle}.cw-koru{stroke:#00FFFF;stroke-width:10;stroke-linecap:round;fill:none}</style>
     <text x="110" y="32" class="cw-text">CARTELW<tspan dx="-4">O</tspan><tspan dx="4">RX</tspan></text>
     <g transform="translate(120, 18.5) scale(0.25)"><path d="M50,50 C60,50 65,40 65,35 C65,25 50,25 50,32" class="cw-koru"/></g>
 </svg>`;
+
+
+// --- UTILITY FUNCTIONS ---
 
 const convertSvgToPng = (svgDataUrl: string, width: number, height: number): Promise<string> => {
     return new Promise((resolve, reject) => {
         const img = new Image();
         const canvas = document.createElement('canvas');
-        // Render at a higher resolution for better quality in the PDF
-        const scale = 2;
+        const scale = 3; // Render at 3x for high-DPI output
         canvas.width = width * scale;
         canvas.height = height * scale;
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            return reject(new Error("Could not get canvas context"));
-        }
+        if (!ctx) return reject(new Error("Could not get canvas context"));
 
         img.onload = () => {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             resolve(canvas.toDataURL('image/png'));
         };
-        img.onerror = (err) => {
-            reject(err);
-        };
+        img.onerror = (err) => reject(err);
         img.src = svgDataUrl;
     });
 };
 
-const addHeader = async (doc: jsPDF) => {
-    const logoDataUrl = `data:image/svg+xml;base64,${btoa(LOGO_SVG)}`;
-    
+const addPageLayout = async (doc: jsPDF, title: string) => {
+    // Background
+    doc.setFillColor(theme.BG);
+    doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), 'F');
+
+    // Header
+    const logoDataUrl = `data:image/svg+xml;base64,${btoa(LOGO_SVG_DARK)}`;
     try {
         const pngDataUrl = await convertSvgToPng(logoDataUrl, 55, 12.5);
         doc.addImage(pngDataUrl, 'PNG', 15, 12, 55, 12.5);
     } catch(error) {
         console.error("Failed to convert SVG logo to PNG for PDF:", error);
-        // Fallback: if image fails, draw a text title
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
+        doc.setTextColor(theme.TEXT_PRIMARY);
         doc.text('CartelWorx', 15, 20);
     }
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.setTextColor('#1E1E2D');
-    doc.text('Karapiro Cartel Speed Shop', 200, 15, { align: 'right' });
+    doc.setTextColor(theme.ACCENT);
+    doc.text(title, 200, 15, { align: 'right' });
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor('#4A4A4A');
-    doc.text('123 Performance Lane, Karapiro, NZ', 200, 20, { align: 'right' });
-    doc.text('contact@cartelworx.com', 200, 25, { align: 'right' });
+    doc.setTextColor(theme.TEXT_SECONDARY);
+    doc.text('Karapiro Cartel Speed Shop', 200, 20, { align: 'right' });
 
-    doc.setDrawColor('#007FFF');
+    doc.setDrawColor(theme.ACCENT);
+    doc.setLineWidth(0.2);
     doc.line(15, 35, 200, 35);
 };
 
 const addFooter = (doc: jsPDF) => {
     const pageCount = (doc as any).internal.getNumberOfPages();
     doc.setFontSize(8);
-    doc.setTextColor('#888888');
+    doc.setTextColor(theme.TEXT_SECONDARY);
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
+        // Add background to each page in case new pages were added by autoTable
+        doc.setFillColor(theme.BG);
+        doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), 'F');
         doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.getWidth() / 2, 287, { align: 'center' });
-        doc.text('Thank you for choosing Karapiro Cartel Speed Shop.', 15, 287);
+        doc.text(`Report generated: ${new Date().toLocaleString()}`, 15, 287);
     }
 };
 
+const getTableStyles = () => ({
+    headStyles: {
+        fillColor: theme.TABLE_HEAD_BG,
+        textColor: theme.ACCENT,
+        // FIX: The type of 'fontStyle' was inferred as 'string', which is not assignable to type 'FontStyle'. Using 'as const' asserts the literal type 'bold'.
+        fontStyle: 'bold' as const,
+        lineColor: theme.TABLE_LINE,
+        lineWidth: 0.1,
+    },
+    bodyStyles: {
+        textColor: theme.TEXT_PRIMARY,
+        lineColor: theme.TABLE_LINE,
+        lineWidth: 0.1,
+    },
+    alternateRowStyles: {
+        fillColor: theme.TABLE_ROW_ALT_BG,
+    },
+    theme: 'grid' as const,
+    didDrawPage: (data: any) => {
+        // This hook ensures background is drawn on new pages created by autoTable
+        data.doc.setFillColor(theme.BG);
+        data.doc.rect(0, 0, data.doc.internal.pageSize.getWidth(), data.doc.internal.pageSize.getHeight(), 'F');
+    }
+});
+
+// --- PDF GENERATION FUNCTIONS ---
+
 const generateDiagnosticReport = async (alerts: DiagnosticAlert[], aiAnalysis: string) => {
     const doc = new jsPDF();
-    
-    await addHeader(doc);
+    await addPageLayout(doc, 'Diagnostic Report');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
-    doc.setTextColor('#1E1E2D');
+    doc.setTextColor(theme.TEXT_PRIMARY);
     doc.text('Vehicle Diagnostic Report', 15, 50);
-
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Report generated: ${new Date().toLocaleString()}`, 15, 56);
-    doc.text('Vehicle: 2022 Subaru WRX (Simulated)', 15, 62);
+    doc.setTextColor(theme.TEXT_SECONDARY);
+    doc.text('Vehicle: 2022 Subaru WRX (Simulated)', 15, 56);
 
-    // Predictive Alerts Table
     autoTable(doc, {
-        startY: 75,
+        startY: 70,
         head: [['Level', 'Component', 'Message']],
         body: alerts.map(alert => [alert.level, alert.component, alert.message]),
-        headStyles: { fillColor: '#007FFF' },
-        theme: 'grid',
+        ...getTableStyles(),
     });
 
-    // AI Analysis Section
     const lastY = (doc as any).lastAutoTable.finalY || 100;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
+    doc.setTextColor(theme.ACCENT);
     doc.text('KC AI Analysis', 15, lastY + 15);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.setTextColor('#4A4A4A');
-    const splitText = doc.splitTextToSize(aiAnalysis, 180); // 180mm width
+    doc.setTextColor(theme.TEXT_PRIMARY);
+    const splitText = doc.splitTextToSize(aiAnalysis, 180);
     doc.text(splitText, 15, lastY + 22);
 
     addFooter(doc);
@@ -116,19 +156,15 @@ const generateDiagnosticReport = async (alerts: DiagnosticAlert[], aiAnalysis: s
 
 const generateHealthReport = async (records: MaintenanceRecord[]) => {
     const doc = new jsPDF();
-    
-    await addHeader(doc);
+    await addPageLayout(doc, 'Health & Service Report');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
-    doc.setTextColor('#1E1E2D');
+    doc.setTextColor(theme.TEXT_PRIMARY);
     doc.text('Vehicle Health & Service Report', 15, 50);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Report generated: ${new Date().toLocaleString()}`, 15, 56);
 
     autoTable(doc, {
-        startY: 70,
+        startY: 65,
         head: [['Date', 'Service / Recommendation', 'Notes', 'Status']],
         body: records.map(log => [
             log.date,
@@ -136,8 +172,7 @@ const generateHealthReport = async (records: MaintenanceRecord[]) => {
             log.notes,
             log.verified ? 'Verified' : 'Pending',
         ]),
-        headStyles: { fillColor: '#007FFF' },
-        theme: 'grid',
+        ...getTableStyles(),
     });
 
     addFooter(doc);
@@ -146,23 +181,24 @@ const generateHealthReport = async (records: MaintenanceRecord[]) => {
 
 const generateQuote = async (listing: Listing) => {
     const doc = new jsPDF();
-    
-    await addHeader(doc);
+    await addPageLayout(doc, 'Quote');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
-    doc.setTextColor('#1E1E2D');
+    doc.setTextColor(theme.ACCENT);
     doc.text('QUOTE', 15, 50);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
+    doc.setTextColor(theme.TEXT_SECONDARY);
     doc.text(`Quote #: Q-${Date.now().toString().slice(-6)}`, 200, 50, { align: 'right' });
     doc.text(`Date: ${new Date().toLocaleDateString()}`, 200, 56, { align: 'right' });
 
-    // Customer Info (mock)
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(theme.TEXT_PRIMARY);
     doc.text('Bill To:', 15, 70);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(theme.TEXT_SECONDARY);
     doc.text('Customer Name', 15, 76);
     doc.text('123 Customer Street', 15, 82);
 
@@ -176,23 +212,31 @@ const generateQuote = async (listing: Listing) => {
             `$${listing.price.toFixed(2)}`,
             `$${listing.price.toFixed(2)}`,
         ]],
-        headStyles: { fillColor: '#007FFF' },
-        theme: 'grid',
+        ...getTableStyles(),
         didDrawPage: (data) => {
-            // Draw totals
-            const finalY = data.cursor?.y ? data.cursor.y + 10 : 200;
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.text('Total:', 150, finalY, { align: 'right' });
-            doc.text(`$${listing.price.toFixed(2)}`, 200, finalY, { align: 'right' });
+            // Re-apply background and header on new pages
+            addPageLayout(data.doc as jsPDF, 'Quote');
+        },
+        didParseCell: (data) => {
+            // Right-align currency columns
+            if (data.column.index >= 3) {
+                data.cell.styles.halign = 'right';
+            }
         }
     });
 
-    const lastY = (doc as any).lastAutoTable.finalY || 120;
+    const lastY = (doc as any).lastAutoTable.finalY;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(theme.TEXT_PRIMARY);
+    doc.text('Total:', 150, lastY + 15, { align: 'right' });
+    doc.setTextColor(theme.ACCENT);
+    doc.text(`$${listing.price.toFixed(2)}`, 200, lastY + 15, { align: 'right' });
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor('#888888');
-    doc.text('Quote valid for 30 days. Prices are in USD and exclude taxes and shipping.', 15, lastY + 25);
+    doc.setTextColor(theme.TEXT_SECONDARY);
+    doc.text('Quote valid for 30 days. Prices are in USD and exclude taxes and shipping.', 15, 270);
     
     addFooter(doc);
     doc.save(`CartelWorx_Quote_${listing.part.sku}.pdf`);
