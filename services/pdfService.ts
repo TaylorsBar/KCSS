@@ -1,4 +1,5 @@
 
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DiagnosticAlert, MaintenanceRecord, Listing } from '../types';
@@ -79,13 +80,10 @@ const addPageLayout = async (doc: jsPDF, title: string) => {
 
 const addFooter = (doc: jsPDF) => {
     const pageCount = (doc as any).internal.getNumberOfPages();
-    doc.setFontSize(8);
-    doc.setTextColor(theme.TEXT_SECONDARY);
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
-        // Add background to each page in case new pages were added by autoTable
-        doc.setFillColor(theme.BG);
-        doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(theme.TEXT_SECONDARY);
         doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.getWidth() / 2, 287, { align: 'center' });
         doc.text(`Report generated: ${new Date().toLocaleString()}`, 15, 287);
     }
@@ -110,9 +108,9 @@ const getTableStyles = () => ({
     },
     theme: 'grid' as const,
     didDrawPage: (data: any) => {
-        // This hook ensures background is drawn on new pages created by autoTable
-        data.doc.setFillColor(theme.BG);
-        data.doc.rect(0, 0, data.doc.internal.pageSize.getWidth(), data.doc.internal.pageSize.getHeight(), 'F');
+        // This hook is called after a page is drawn.
+        // TODO: For multi-page tables, the header/logo should be re-drawn here.
+        // The background for new pages is not currently handled and will be white.
     }
 });
 
@@ -214,8 +212,14 @@ const generateQuote = async (listing: Listing) => {
         ]],
         ...getTableStyles(),
         didDrawPage: (data) => {
-            // Re-apply background and header on new pages
-            addPageLayout(data.doc as jsPDF, 'Quote');
+            // Re-apply header on new pages if table spans
+            if (data.pageNumber > 1) {
+                // This is async, which can be tricky. For now, we'll just redraw the text parts.
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(theme.ACCENT);
+                doc.text('Quote', 200, 15, { align: 'right' });
+            }
         },
         didParseCell: (data) => {
             // Right-align currency columns

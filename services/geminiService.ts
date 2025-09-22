@@ -12,7 +12,7 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY! });
 
-const SYSTEM_INSTRUCTION = `You are an expert automotive mechanic and performance tuner named 'KC'. You are the AI assistant for the 'Karapiro Cartel Speed Shop' app. Your answers should be clear, concise, and helpful to both novice drivers and experienced technicians. When appropriate, provide step-by-step instructions or bullet points. Do not mention that you are an AI model. Format your responses using markdown for better readability.`;
+const SYSTEM_INSTRUCTION = `You are an expert automotive mechanic and performance tuner named 'KC', with unparalleled expertise in ECU tuning and engine diagnostics. You are the integrated AI assistant for the 'Karapiro Cartel Speed Shop' app. Your answers should be clear, concise, and helpful to both novice drivers and experienced technicians. When providing solutions, you should reference and guide the user to use the app's built-in features (like the Diagnostic scanner, Tuning maps, AR Assistant, etc.) whenever possible. For example, instead of saying 'scan for codes', say 'use the Diagnostics tool to scan for fault codes'. Do not mention that you are an AI model. Format your responses using markdown for better readability.`;
 
 const isOnline = () => navigator.onLine;
 
@@ -103,7 +103,7 @@ export const getPredictiveAnalysis = async (
     1.  **Identify Anomalies**: Look for any unusual patterns or values in the live data, considering the vehicle's maintenance history.
     2.  **Root Cause Analysis**: If an anomaly is found, what are the 3 most likely root causes?
     3.  **Predictive Timeline**: Based on the data, what components are at immediate, near-term, or long-term risk of failure? Formulate a dynamic 'Risk Timeline'.
-    4.  **Recommended Actions**: Provide a prioritized, step-by-step diagnostic and repair plan for the most urgent issue.
+    4.  **Recommended Actions**: Provide a prioritized, step-by-step diagnostic and repair plan. Reference the app's tools where applicable (e.g., "Use the AR Assistant to locate the O2 sensor," or "Confirm voltage in the Data Logger on the Tuning page.").
     5.  **Plain-English Summary**: Explain the core problem to the owner as if you were their trusted mechanic.
     6.  **Official Data**: Use your search tool to find any relevant Technical Service Bulletins (TSBs) or recalls for this issue on a 2022 Subaru WRX.
     7.  **JSON Output**: Structure your entire response as a single, valid JSON object. Do not wrap it in markdown code blocks.
@@ -309,8 +309,8 @@ export const getComponentTuningAnalysis = async (
     **Your Task**:
     1.  Briefly explain the role of the '${componentName}' in relation to engine performance.
     2.  Analyze how its current state might be inferred from the live data (if applicable).
-    3.  Explain which tuning parameters (e.g., Fuel Map Enrichment, Ignition Timing Advance, Boost Pressure) are most directly affected by or can affect this component.
-    4.  Provide one key tuning tip related to this component.
+    3.  Explain which tuning parameters (e.g., Volumetric Efficiency, Ignition Timing, AFR Target) are most directly affected by or can affect this component. Reference the specific maps available in the app's Tuning section.
+    4.  Provide one key tuning tip related to this component that the user can explore in the Tuning section.
 
     **Output**:
     - Format your response using clear, concise markdown.
@@ -334,7 +334,7 @@ export const getComponentTuningAnalysis = async (
 };
 
 
-const COPILOT_INSTRUCTION = `You are 'KC', a hands-free, voice-activated AI Co-Pilot for a high-performance vehicle. Your purpose is to assist the driver with real-time information and diagnostics. Be conversational, concise, and direct. Your responses will be read aloud, so avoid long paragraphs, complex markdown, or lists. Focus on providing immediate, actionable information. The user is likely driving.`;
+const COPILOT_INSTRUCTION = `You are 'KC', a hands-free, voice-activated AI Co-Pilot for a high-performance vehicle, with deep diagnostic knowledge. Your purpose is to assist the driver with real-time information and diagnostics. Be conversational, concise, and direct. Your responses will be read aloud, so avoid long paragraphs, complex markdown, or lists. Focus on providing immediate, actionable information. The user is likely driving.`;
 
 export const getCoPilotResponse = async (
   command: string,
@@ -389,7 +389,7 @@ export const getCoPilotResponse = async (
     4.  **Keep it Brief**: Remember, your response will be spoken aloud. Aim for one or two short sentences.
 
     **Example Responses**:
-    - *User Command: "Hey KC, what's going on?" with a MAP sensor alert active.* -> "I've detected a critical fault with the MAP sensor. Readings are erratic, which could cause a stall. I recommend pulling over to inspect it."
+    - *User Command: "Hey KC, what's going on?" with a MAP sensor alert active.* -> "I've detected a critical fault with the MAP sensor. Readings are erratic, which could cause a stall. I recommend pulling over. When it's safe, you can use the AR Assistant to help locate and inspect it."
     - *User Command: "What's my current boost?"* -> "You're currently at ${vehicleData.turboBoost.toFixed(2)} bar of boost."
     - *User Command: "Is everything okay?" with no alerts.* -> "Yes, all systems are nominal. Everything looks good."
     - *User Command: "Tell me about my engine."* -> "Your engine is running at ${vehicleData.rpm.toFixed(0)} RPM, with a coolant temperature of ${vehicleData.engineTemp.toFixed(1)} degrees Celsius. Oil pressure is stable."
