@@ -1,5 +1,5 @@
 import React from 'react';
-import { SensorDataPoint } from '../../../types';
+import { SensorDataPoint } from '../../../types/index';
 import { useAnimatedValue } from '../../../hooks/useAnimatedValue';
 
 const RPM_MAX = 8000;

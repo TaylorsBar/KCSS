@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
-import { SensorDataPoint } from '../../types';
+import { SensorDataPoint } from '../../types/index';
 import MinimalistGauge from '../../components/gauges/MinimalistGauge';
 import Map from '../../components/Map';
 import PowerChargeMeter from '../../components/ev/PowerChargeMeter';

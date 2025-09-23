@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { getCoPilotResponse } from '../services/geminiService';
-import { SensorDataPoint, DiagnosticAlert } from '../types';
+import { SensorDataPoint, DiagnosticAlert } from '../types/index';
 import MicrophoneIcon from './icons/MicrophoneIcon';
 
 enum CoPilotState {

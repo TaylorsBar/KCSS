@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import { DragRaceResult } from '../../types';
+import { DragRaceResult } from '../../types/index';
 
 interface TimeSlipProps {
     results: DragRaceResult | null;

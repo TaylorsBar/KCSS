@@ -8,7 +8,7 @@ import Sidebar from './components/Sidebar';
 import { AppearanceProvider } from './contexts/AppearanceContext';
 import CoPilot from './components/CoPilot';
 import { useVehicleData } from './hooks/useVehicleData';
-import { MOCK_ALERTS } from './components/Alerts'; // Mock alerts for context
+import { MOCK_ALERTS } from './data/mockAlerts'; // Mock alerts for context
 
 // Lazy load pages for better performance
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));

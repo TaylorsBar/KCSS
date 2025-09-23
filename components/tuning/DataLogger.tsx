@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
 import SensorChart from '../SensorChart';
-import { SensorDataPoint } from '../../types';
+import { SensorDataPoint } from '../../types/index';
 
-const SENSORS_TO_LOG: { key: keyof SensorDataPoint, name: string, color: string }[] = [
+// FIX: Explicitly extract string keys to satisfy React's `key` prop type, which doesn't allow symbols.
+const SENSORS_TO_LOG: { key: Extract<keyof SensorDataPoint, string>, name: string, color: string }[] = [
     { key: 'rpm', name: 'RPM', color: '#FF00FF' },
     { key: 'turboBoost', name: 'Boost (bar)', color: '#00FFFF' },
     { key: 'afr', name: 'AFR', color: '#00FF00' },

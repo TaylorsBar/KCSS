@@ -1,10 +1,12 @@
+
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { useVehicleData } from '../hooks/useVehicleData';
-import { TuningMap } from '../types';
+import { TuningMap } from '../types/index';
 import TuningMapGrid from '../components/tuning/TuningMapGrid';
 import AiTuningAssistant from '../components/tuning/AiTuningAssistant';
 import DataLogger from '../components/tuning/DataLogger';
-import { MOCK_TUNING_MAPS } from '../components/tuning/mockTuningData';
+import { MOCK_TUNING_MAPS } from '../data/mockTuning';
 
 type ActiveMapView = 've' | 'ignition' | 'afr';
 

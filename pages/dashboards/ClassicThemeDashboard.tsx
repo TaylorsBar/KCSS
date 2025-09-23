@@ -1,6 +1,6 @@
 import React from 'react';
 import { useVehicleData } from '../../hooks/useVehicleData';
-import { SensorDataPoint } from '../../types';
+import { SensorDataPoint } from '../../types/index';
 import ClassicTachometer from '../../components/tachometers/ClassicTachometer';
 
 const ClassicAuxGauge: React.FC<{ label: string; value: number; unit: string; min: number; max: number }> = ({ label, value, unit, min, max }) => {

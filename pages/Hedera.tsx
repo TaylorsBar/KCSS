@@ -1,12 +1,8 @@
 
-import React, { useState, useCallback } from 'react';
-import { HederaRecord, HederaEventType } from '../types';
 
-const MOCK_INITIAL_RECORDS: HederaRecord[] = [
-    { id: '1', timestamp: '2024-07-22 14:35:12', eventType: HederaEventType.Diagnostic, vin: 'JN1AZ00Z9ZT000123', summary: 'Critical alert: ABS Modulator Failure Predicted.', hederaTxId: '0.0.12345@1658498112.123456789', dataHash: 'a1b2c3d4...' },
-    { id: '2', timestamp: '2024-07-22 11:15:45', eventType: HederaEventType.Tuning, vin: 'JN1AZ00Z9ZT000123', summary: "AI tune 'Track Day' simulated.", hederaTxId: '0.0.12345@1658486145.987654321', dataHash: 'e5f6g7h8...' },
-    { id: '3', timestamp: '2024-07-15 09:00:00', eventType: HederaEventType.Maintenance, vin: 'JN1AZ00Z9ZT000123', summary: 'Oil & Filter Change (Verified)', hederaTxId: '0.0.12345@1657875600.555555555', dataHash: 'i9j0k1l2...' },
-];
+import React, { useState, useCallback } from 'react';
+import { HederaRecord, HederaEventType } from '../types/index';
+import { MOCK_INITIAL_RECORDS } from '../data/mockDlt';
 
 const RecordRow = React.memo(({ rec, onVerify, isVerifying, isVerified }: { rec: HederaRecord; onVerify: (id: string) => void; isVerifying: boolean; isVerified: boolean; }) => (
     <tr className="hover:bg-base-800/40">
@@ -108,7 +104,8 @@ const Hedera: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">Event Type</label>
                             <select value={eventType} onChange={e => setEventType(e.target.value as HederaEventType)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200">
-                                {Object.values(HederaEventType).map(type => <option key={type} value={type}>{type}</option>)}
+                                {/* FIX: Explicitly type the iterator variable to help with type inference. */}
+                                {Object.values(HederaEventType).map((type: string) => <option key={type} value={type}>{type}</option>)}
                             </select>
                         </div>
                         <div>

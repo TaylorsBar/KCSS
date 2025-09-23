@@ -1,5 +1,7 @@
+
+
 import React, { useState } from 'react';
-import { SensorDataPoint, AiTuningSuggestion } from '../../types';
+import { SensorDataPoint, AiTuningSuggestion } from '../../types/index';
 import { getAiSuggestions } from '../../services/apiService';
 
 interface AiTuningAssistantProps {

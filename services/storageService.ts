@@ -1,5 +1,5 @@
-
-import { SavedRaceSession, Leaderboard } from '../types';
+// FIX: Corrected import path to explicitly reference the index file within the types directory.
+import { SavedRaceSession, Leaderboard } from '../types/index';
 
 const SESSIONS_KEY = 'cartelworx_race_sessions';
 const LEADERBOARD_KEY = 'cartelworx_leaderboard';

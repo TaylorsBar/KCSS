@@ -1,3 +1,4 @@
+
 import { ISupplierAdapter, SupplierResult, SearchOptions, Availability, Price, OrderRequest, OrderResponse, Region } from './types';
 import { configService } from '../configService';
 

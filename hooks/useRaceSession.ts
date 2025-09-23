@@ -1,7 +1,8 @@
 
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useVehicleData } from './useVehicleData';
-import { SensorDataPoint, LapTime, RaceSession } from '../types';
+import { SensorDataPoint, LapTime, RaceSession } from '../types/index';
 
 const QUARTER_MILE_METERS = 402.336;
 

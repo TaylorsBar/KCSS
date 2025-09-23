@@ -1,5 +1,7 @@
+
+
 import React, { useState, useMemo } from 'react';
-import { TuningMap } from '../../types';
+import { TuningMap } from '../../types/index';
 
 interface TuningMapGridProps {
     map: TuningMap;

@@ -1,10 +1,11 @@
 
+
 import React, { useState } from 'react';
 import RiskTimeline from '../components/RiskTimeline';
 import { useVehicleData } from '../hooks/useVehicleData';
 import { getPredictiveAnalysis } from '../services/geminiService';
-import { MOCK_LOGS } from './MaintenanceLog'; // Use mock logs for context
-import { TimelineEvent } from '../types';
+import { MOCK_LOGS } from '../data/mockMaintenance'; // Use mock logs for context
+import { TimelineEvent } from '../types/index';
 
 const AIEngine: React.FC = () => {
     const [isConnecting, setIsConnecting] = useState(false);

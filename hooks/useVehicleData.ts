@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { SensorDataPoint } from '../types';
+import { SensorDataPoint } from '../types/index';
 
 enum VehicleState {
   IDLE,

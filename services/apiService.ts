@@ -1,4 +1,6 @@
-import { AiTuningSuggestion, PrewriteCheckResponse } from '../types';
+
+
+import { AiTuningSuggestion, PrewriteCheckResponse } from '../types/index';
 
 /**
  * Simulates calling the FastAPI backend for AI tuning suggestions.

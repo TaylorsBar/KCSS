@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { TimelineEvent, AlertLevel } from '../types';
+import { TimelineEvent, AlertLevel } from '../types/index';
 
 const MOCK_EVENTS: TimelineEvent[] = [
     {

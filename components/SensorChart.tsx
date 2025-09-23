@@ -1,7 +1,8 @@
 
+
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SensorDataPoint } from '../types';
+import { SensorDataPoint } from '../types/index';
 
 interface SensorChartProps {
   data: SensorDataPoint[];

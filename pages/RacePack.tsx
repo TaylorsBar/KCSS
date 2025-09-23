@@ -1,8 +1,9 @@
 
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRaceSession } from '../hooks/useRaceSession';
 import * as storage from '../services/storageService';
-import { SavedRaceSession, Leaderboard, GpsPoint, LapTime, DragRaceResult } from '../types';
+import { SavedRaceSession, Leaderboard, GpsPoint, LapTime, DragRaceResult } from '../types/index';
 import Map from '../components/Map';
 import RouteMap from '../components/RouteMap';
 import HistoryIcon from '../components/icons/HistoryIcon';

@@ -1,9 +1,10 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage } from '../types';
+import { ChatMessage } from '../types/index';
 import { getDiagnosticAnswer } from '../services/geminiService';
 import { pdfService } from '../services/pdfService';
-import { MOCK_ALERTS } from '../components/Alerts';
+import { MOCK_ALERTS } from '../data/mockAlerts';
 import ReactMarkdown from 'react-markdown';
 
 const Diagnostics: React.FC = () => {

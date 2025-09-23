@@ -1,5 +1,7 @@
+
+
 import { useState, useEffect, useRef } from 'react';
-import { SensorDataPoint } from '../types';
+import { SensorDataPoint } from '../types/index';
 
 const UPDATE_INTERVAL_MS = 20; // 50Hz
 const MAX_DATA_POINTS = 1000; // Store enough data for a full 1/4 mile run
@@ -8,7 +10,6 @@ const RPM_MAX = 8000;
 const GEAR_RATIOS = [0, 3.8, 2.2, 1.5, 1.1, 0.9, 0.7]; // Aggressive ratios
 const SHIFT_RPM = 7500;
 
-// FIX: Added missing 'afr' property to meet SensorDataPoint interface requirements.
 const generateInitialData = (): SensorDataPoint => ({
     time: performance.now(),
     rpm: RPM_IDLE,
@@ -83,7 +84,6 @@ export const useDragVehicleData = ({ isLaunched, isNosActive }: { isLaunched: bo
                 // Drag cars run rich under load to prevent knock and cool cylinders.
                 const afr = 14.7 - (engineLoad / 100) * 4.0;
 
-                // FIX: Added missing 'afr' property to meet SensorDataPoint interface requirements.
                 const newDataPoint: SensorDataPoint = {
                     time: now,
                     rpm,

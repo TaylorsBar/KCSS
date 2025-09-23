@@ -1,8 +1,9 @@
 
 
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { DiagnosticAlert, MaintenanceRecord, Listing } from '../types';
+import { DiagnosticAlert, MaintenanceRecord, Listing } from '../types/index';
 
 // --- THEME & STYLING ---
 
