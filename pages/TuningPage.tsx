@@ -32,7 +32,8 @@ const TuningPage: React.FC = () => {
             {/* Left Sidebar: Map Selection */}
             <div className="w-48 flex-shrink-0 bg-black p-4 rounded-lg border border-brand-cyan/30 flex flex-col gap-2">
                  <h2 className="text-lg font-bold text-gray-100 font-display border-b border-brand-cyan/30 pb-2 mb-2">Maps</h2>
-                 {Object.values(tuningMaps).map(map => (
+                 {/* FIX: Explicitly type map to resolve properties correctly. */}
+                 {Object.values(tuningMaps).map((map: TuningMap) => (
                      <button
                         key={map.id}
                         onClick={() => setActiveMapView(map.id)}
