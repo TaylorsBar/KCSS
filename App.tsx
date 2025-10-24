@@ -1,70 +1,67 @@
 
-import React, { Suspense } from 'react';
-// FIX: The project uses react-router-dom v7 (via importmap), but the code was written for v5.
-// Updating imports and syntax to be compatible with v7.
-// 'Switch' is replaced by 'Routes', and `component` prop is replaced by `element`.
+
+import React, { useState } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import Dashboard from './pages/Dashboard';
+import Diagnostics from './pages/Diagnostics';
+import MaintenanceLog from './pages/MaintenanceLog';
+import TuningPage from './pages/TuningPage';
+import AIEngine from './pages/AIEngine';
+import Security from './pages/Security';
+import ARAssistant from './pages/ARAssistant';
+import Hedera from './pages/Hedera';
+import Appearance from './pages/Appearance';
+import Accessories from './pages/Accessories';
 import { AppearanceProvider } from './contexts/AppearanceContext';
 import CoPilot from './components/CoPilot';
-import { useVehicleData } from './hooks/useVehicleData';
-import { MOCK_ALERTS } from './data/mockAlerts'; // Mock alerts for context
-
-// Lazy load pages for better performance
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const Diagnostics = React.lazy(() => import('./pages/Diagnostics'));
-const MaintenanceLog = React.lazy(() => import('./pages/MaintenanceLog'));
-const TuningPage = React.lazy(() => import('./pages/TuningPage'));
-const AIEngine = React.lazy(() => import('./pages/AIEngine'));
-const Security = React.lazy(() => import('./pages/Security'));
-const ARAssistant = React.lazy(() => import('./pages/ARAssistant'));
-const Hedera = React.lazy(() => import('./pages/Hedera'));
-const Appearance = React.lazy(() => import('./pages/Appearance'));
-const Accessories = React.lazy(() => import('./pages/Accessories'));
-const RacePack = React.lazy(() => import('./pages/RacePack'));
-const DreamCorsa = React.lazy(() => import('./pages/DreamCorsa'));
-const Marketplace = React.lazy(() => import('./pages/Marketplace'));
-
-const LoadingSpinner: React.FC = () => (
-  <div className="w-full h-full flex items-center justify-center bg-transparent">
-    <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 animate-spin border-t-brand-cyan"></div>
-  </div>
-);
+import { MOCK_ALERTS } from './components/Alerts'; // Mock alerts for context
+import RacePack from './pages/RacePack';
+import { useVehicleStore } from './store/useVehicleStore';
 
 const App: React.FC = () => {
-  const { latestData, hasActiveFault } = useVehicleData();
+  const { latestData, hasActiveFault } = useVehicleStore(state => ({
+    latestData: state.latestData,
+    hasActiveFault: state.hasActiveFault,
+  }));
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Filter alerts based on the active fault state from the simulation
-  const activeAlerts = hasActiveFault 
-    ? MOCK_ALERTS.filter(alert => alert.isFaultRelated) 
-    : [];
+  // Determine which alerts are currently active
+  const activeAlerts = MOCK_ALERTS.filter(alert => {
+    // Non-fault-related alerts are always considered active for this mock.
+    if (!alert.isFaultRelated) {
+      return true;
+    }
+    // Fault-related alerts are only active if the fault is currently simulated.
+    return hasActiveFault;
+  });
+
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed(prev => !prev);
+  };
 
   return (
     <AppearanceProvider>
       <HashRouter>
         <div className="flex h-screen bg-black text-gray-200">
-          <Sidebar />
+          <Sidebar isCollapsed={isSidebarCollapsed} onToggle={handleToggleSidebar} />
           <div className="flex-1 flex flex-col overflow-hidden relative">
-            <main className="flex-1 overflow-x-hidden overflow-y-auto theme-background carbon-background">
-              <Suspense fallback={<LoadingSpinner />}>
-                {/* FIX: Use Routes instead of Switch for react-router-dom v7 */}
+            <main className="flex-1 overflow-hidden carbon-background p-4">
+              <div className="h-full w-full rounded-lg border-2 border-[var(--theme-accent-primary)] shadow-glow-theme overflow-y-auto">
                 <Routes>
-                  {/* FIX: Use `element` prop for v7 */}
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/diagnostics" element={<Diagnostics />} />
                   <Route path="/logbook" element={<MaintenanceLog />} />
                   <Route path="/tuning" element={<TuningPage />} />
-                  <Route path="/marketplace" element={<Marketplace />} />
                   <Route path="/ai-engine" element={<AIEngine />} />
-                  <Route path="/ar-assistant" element={<ARAssistant latestData={latestData} />} />
+                  <Route path="/ar-assistant" element={<ARAssistant />} />
                   <Route path="/security" element={<Security />} />
                   <Route path="/hedera" element={<Hedera />} />
                   <Route path="/race-pack" element={<RacePack />} />
-                  <Route path="/dream-corsa" element={<DreamCorsa />} />
                   <Route path="/accessories" element={<Accessories />} />
                   <Route path="/appearance" element={<Appearance />} />
                 </Routes>
-              </Suspense>
+              </div>
             </main>
             <CoPilot latestVehicleData={latestData} activeAlerts={activeAlerts} />
           </div>

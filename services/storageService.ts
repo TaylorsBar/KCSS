@@ -1,5 +1,4 @@
-// FIX: Corrected import path to explicitly reference the index file within the types directory.
-import { SavedRaceSession, Leaderboard } from '../types/index';
+import { SavedRaceSession, Leaderboard } from '../types';
 
 const SESSIONS_KEY = 'cartelworx_race_sessions';
 const LEADERBOARD_KEY = 'cartelworx_leaderboard';
@@ -27,11 +26,25 @@ export const saveSession = (session: SavedRaceSession): void => {
 export const getLeaderboard = (): Leaderboard => {
     try {
         const data = localStorage.getItem(LEADERBOARD_KEY);
-        const defaults: Leaderboard = { zeroToHundred: null, quarterMileTime: null, quarterMileSpeed: null };
+        const defaults: Leaderboard = {
+            zeroToHundredKmh: null,
+            zeroToSixtyMph: null,
+            sixtyToHundredThirtyMph: null,
+            hundredToTwoHundredKmh: null,
+            quarterMileTime: null,
+            quarterMileSpeed: null,
+        };
         return data ? { ...defaults, ...JSON.parse(data) } : defaults;
     } catch (error) {
         console.error("Failed to load leaderboard:", error);
-        return { zeroToHundred: null, quarterMileTime: null, quarterMileSpeed: null };
+        return {
+            zeroToHundredKmh: null,
+            zeroToSixtyMph: null,
+            sixtyToHundredThirtyMph: null,
+            hundredToTwoHundredKmh: null,
+            quarterMileTime: null,
+            quarterMileSpeed: null,
+        };
     }
 };
 
@@ -40,9 +53,24 @@ export const updateLeaderboard = (session: SavedRaceSession): void => {
         const board = getLeaderboard();
         const date = new Date().toISOString();
 
-        if (session.zeroToHundredTime) {
-            if (!board.zeroToHundred || session.zeroToHundredTime < board.zeroToHundred.value) {
-                board.zeroToHundred = { value: session.zeroToHundredTime, date };
+        if (session.zeroToHundredKmhTime) {
+            if (!board.zeroToHundredKmh || session.zeroToHundredKmhTime < board.zeroToHundredKmh.value) {
+                board.zeroToHundredKmh = { value: session.zeroToHundredKmhTime, date };
+            }
+        }
+        if (session.zeroToSixtyMphTime) {
+            if (!board.zeroToSixtyMph || session.zeroToSixtyMphTime < board.zeroToSixtyMph.value) {
+                board.zeroToSixtyMph = { value: session.zeroToSixtyMphTime, date };
+            }
+        }
+        if (session.sixtyToHundredThirtyMphTime) {
+            if (!board.sixtyToHundredThirtyMph || session.sixtyToHundredThirtyMphTime < board.sixtyToHundredThirtyMph.value) {
+                board.sixtyToHundredThirtyMph = { value: session.sixtyToHundredThirtyMphTime, date };
+            }
+        }
+        if (session.hundredToTwoHundredKmhTime) {
+            if (!board.hundredToTwoHundredKmh || session.hundredToTwoHundredKmhTime < board.hundredToTwoHundredKmh.value) {
+                board.hundredToTwoHundredKmh = { value: session.hundredToTwoHundredKmhTime, date };
             }
         }
         if (session.quarterMileTime) {

@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
-import { AppearanceContext, Theme, AccentMaterial, LEDMode } from '../contexts/AppearanceContext';
+import { AppearanceContext, Theme, AccentMaterial, LEDMode, UnitSystem } from '../contexts/AppearanceContext';
 
 const themes: { id: Theme; name: string; description: string }[] = [
     { id: 'rally', name: 'World Rally', description: 'High-contrast, functional display for intense conditions.' },
-    { id: 'modern', name: 'Modern Performance', description: 'Sleek, futuristic interface with radial data readouts.' },
+    { id: 'modern', name: 'Modern Performance', description: 'Photo-realistic gauge with brushed metal and carbon fiber accents.' },
     { id: 'classic', name: 'E-Tuner Pro', description: 'Professional tuner interface with a red-on-black aesthetic.' },
     { id: 'haltech', name: 'Pro Tuner', description: 'Yellow-on-black professional racing display.' },
     { id: 'minimalist', name: 'Minimalist EV', description: 'Clean, modern interface with a frosted glass aesthetic.' },
@@ -38,14 +38,39 @@ const ledModes: { id: LEDMode, name: string }[] = [
     { id: 'music', name: 'Music Sync' },
 ];
 
+const unitSystems: { id: UnitSystem, name: string }[] = [
+    { id: 'metric', name: 'Metric (km/h)' },
+    { id: 'imperial', name: 'Imperial (mph)' },
+];
+
 const Appearance: React.FC = () => {
-    const { theme, setTheme, accentMaterial, setAccentMaterial, ledSettings, setLedSettings } = useContext(AppearanceContext);
+    const { 
+        theme, setTheme, 
+        accentMaterial, setAccentMaterial, 
+        ledSettings, setLedSettings,
+        unitSystem, setUnitSystem
+    } = useContext(AppearanceContext);
 
     return (
         <div className="space-y-8">
             <div>
                 <h1 className="text-2xl font-bold text-gray-100 font-display">Appearance Settings</h1>
                 <p className="text-gray-400 mt-1">Customize the look and feel of your dashboard and cabin.</p>
+            </div>
+
+             <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">
+                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-6 font-display">Units</h2>
+                <div className="flex gap-4">
+                    {unitSystems.map(u => (
+                        <button
+                            key={u.id}
+                            onClick={() => setUnitSystem(u.id)}
+                            className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors w-40 ${unitSystem === u.id ? 'bg-brand-cyan text-black' : 'bg-base-700 text-gray-300 hover:bg-base-600'}`}
+                        >
+                            {u.name}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">

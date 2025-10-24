@@ -1,69 +1,67 @@
 import React from 'react';
-import { useVehicleData } from '../../hooks/useVehicleData';
-import { SensorDataPoint } from '../../types/index';
-import ClassicTachometer from '../../components/tachometers/ClassicTachometer';
-
-const ClassicAuxGauge: React.FC<{ label: string; value: number; unit: string; min: number; max: number }> = ({ label, value, unit, min, max }) => {
-  const valueRatio = (Math.max(min, Math.min(value, max)) - min) / (max - min);
-  const angle = -120 + valueRatio * 240;
-
-  return (
-    <div className="w-full aspect-square relative">
-      <svg viewBox="0 0 100 100">
-        <defs>
-          <radialGradient id="classic-aux-face">
-            <stop offset="0%" stopColor="#1a1a1a" />
-            <stop offset="100%" stopColor="#000" />
-          </radialGradient>
-          <filter id="classic-needle-shadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0.5" dy="1" stdDeviation="1" floodColor="#000000" floodOpacity="0.7"/>
-          </filter>
-        </defs>
-        <circle cx="50" cy="50" r="48" fill="#444" />
-        <circle cx="50" cy="50" r="47" fill="#111" />
-        <circle cx="50" cy="50" r="44" fill="url(#classic-aux-face)" />
-        {/* Ticks */}
-        {[-120, -60, 0, 60, 120].map(a => (
-          <line key={a} x1="50" y1="10" x2="50" y2="16" stroke="var(--theme-text-secondary)" strokeWidth="1.5" transform={`rotate(${a} 50 50)`} />
-        ))}
-        <text x="50" y="70" textAnchor="middle" fill="var(--theme-text-secondary)" fontSize="8" className="font-sans uppercase font-bold">{label}</text>
-        <text x="50" y="82" textAnchor="middle" fill="var(--theme-text-primary)" fontSize="14" className="font-display">{value.toFixed(0)}</text>
-        
-        {/* Needle */}
-        <g transform={`rotate(${angle} 50 50)`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-needle-shadow)">
-            <path d="M 49.5 50 L 50 10 L 50.5 50 Z" fill="var(--theme-needle-color)" />
-            <path d="M 49 50 L 50 58 L 51 50 Z" fill="var(--theme-needle-color)" />
-        </g>
-        <circle cx="50" cy="50" r="5" fill="#222" stroke="#444" strokeWidth="1"/>
-        <circle cx="50" cy="50" r="2" fill="#111"/>
-      </svg>
-    </div>
-  );
-};
-
+import { useVehicleStore } from '../../store/useVehicleStore';
+import { useUnitConversion } from '../../hooks/useUnitConversion';
+import ClassicGauge from '../../components/gauges/ClassicGauge';
 
 const ClassicThemeDashboard: React.FC = () => {
-  const { latestData } = useVehicleData();
-  const d: SensorDataPoint = latestData;
+  const latestData = useVehicleStore(state => state.latestData);
+  const { convertSpeed, getSpeedUnit, unitSystem } = useUnitConversion();
+  const d = latestData;
+
+  const speedConfig = unitSystem === 'imperial'
+    ? { max: 180, unit: 'mph', warn: 150, red: 170 }
+    : { max: 280, unit: 'km/h', warn: 245, red: 280 };
+
+  // Invert fuelUsed to get fuelLevel
+  const fuelLevel = Math.max(0, 100 - d.fuelUsed);
 
   return (
     <div className="flex h-full w-full items-center justify-center p-4 md:p-8 theme-background">
       <div 
-        className="w-full max-w-screen-xl aspect-[16/9] p-4 flex items-center justify-center gap-12 glassmorphism-panel rounded-lg"
+        className="w-full max-w-6xl aspect-video rounded-lg p-6 shadow-2xl border-2 border-black/50 flex flex-col items-center justify-center gap-4 classic-wood-panel"
         style={{
-          boxShadow: 'inset 0 0 20px rgba(0,0,0,0.7), 0 10px 30px rgba(0,0,0,0.5)',
+          boxShadow: 'inset 0 0 30px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.5)',
         }}
       >
-        <div className="w-1/4 flex flex-col justify-between h-full py-4 gap-4">
-            <ClassicAuxGauge label="Fuel Lvl" value={d.fuelUsed} unit="%" min={0} max={100} />
-            <ClassicAuxGauge label="Oil Press" value={d.oilPressure * 14.5} unit="psi" min={0} max={100} />
+        <div className="w-full flex-grow flex items-center justify-center gap-6">
+          <div className="w-1/2 h-full">
+            <ClassicGauge
+              label="RPM"
+              value={d.rpm}
+              min={0}
+              max={8000}
+              unit="x1000"
+              size="large"
+              warningValue={7000}
+              redlineValue={8000}
+            />
+          </div>
+           <div className="w-1/2 h-full">
+            <ClassicGauge
+              label="Speed"
+              value={convertSpeed(d.speed)}
+              min={0}
+              max={speedConfig.max}
+              unit={speedConfig.unit}
+              size="large"
+              warningValue={speedConfig.warn}
+              redlineValue={speedConfig.red}
+            />
+          </div>
         </div>
-        <div className="w-1/2 h-full">
-            <ClassicTachometer rpm={d.rpm} speed={d.speed} />
-        </div>
-        <div className="w-1/4 flex flex-col justify-between h-full py-4 gap-4">
-            <ClassicAuxGauge label="Water Temp" value={d.engineTemp} unit="°C" min={40} max={120} />
-            <ClassicAuxGauge label="Voltage" value={d.batteryVoltage} unit="V" min={10} max={16} />
+        <div className="w-full flex-shrink-0 flex justify-around items-center gap-6 px-8">
+            <div className="w-1/4 h-full">
+                <ClassicGauge label="Fuel" value={fuelLevel} min={0} max={100} unit="%" size="small" dangerZone="low" redlineValue={15} warningValue={30} />
+            </div>
+             <div className="w-1/4 h-full">
+                <ClassicGauge label="Oil Press" value={d.oilPressure * 14.5} min={0} max={100} unit="PSI" size="small" dangerZone="low" redlineValue={20} warningValue={35} />
+            </div>
+             <div className="w-1/4 h-full">
+                <ClassicGauge label="Water Temp" value={d.engineTemp} min={40} max={120} unit="°C" size="small" coldZoneEndValue={60} warningValue={95} redlineValue={120} />
+            </div>
+             <div className="w-1/4 h-full">
+                <ClassicGauge label="Voltage" value={d.batteryVoltage} min={10} max={16} unit="V" size="small" warningValue={12} redlineValue={15} />
+            </div>
         </div>
       </div>
     </div>

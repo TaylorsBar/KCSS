@@ -1,5 +1,11 @@
 
+
+
 import React, { createContext, useState, useEffect, useMemo } from 'react';
+// FIX: Re-export UnitSystem so other modules can import it from this context file.
+// Use an alias `TUnitSystem` for internal use to avoid naming conflicts.
+import type { UnitSystem as TUnitSystem } from '../types';
+export type { UnitSystem } from '../types';
 
 export type Theme = 'rally' | 'modern' | 'classic' | 'haltech' | 'minimalist';
 export type AccentMaterial = 'cyan' | 'brushed-brass' | 'satin-brass' | 'antique-brass' | 'carbon-fiber';
@@ -22,6 +28,8 @@ interface AppearanceContextProps {
   setLedSettings: (settings: Partial<LEDSettings>) => void;
   copilotAudioOutput: CopilotAudioOutput;
   setCopilotAudioOutput: (output: CopilotAudioOutput) => void;
+  unitSystem: TUnitSystem;
+  setUnitSystem: (system: TUnitSystem) => void;
 }
 
 const defaultLedSettings: LEDSettings = {
@@ -40,6 +48,8 @@ export const AppearanceContext = createContext<AppearanceContextProps>({
   setLedSettings: () => {},
   copilotAudioOutput: 'phone',
   setCopilotAudioOutput: () => {},
+  unitSystem: 'metric',
+  setUnitSystem: () => {},
 });
 
 export const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -55,6 +65,9 @@ export const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   });
   const [copilotAudioOutput, setCopilotAudioOutputState] = useState<CopilotAudioOutput>(() => {
     return (localStorage.getItem('vehicle-copilot-audio') as CopilotAudioOutput) || 'phone';
+  });
+  const [unitSystem, setUnitSystemState] = useState<TUnitSystem>(() => {
+    return (localStorage.getItem('vehicle-unit-system') as TUnitSystem) || 'metric';
   });
 
   useEffect(() => {
@@ -86,6 +99,10 @@ export const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     localStorage.setItem('vehicle-copilot-audio', copilotAudioOutput);
   }, [copilotAudioOutput]);
 
+  useEffect(() => {
+    localStorage.setItem('vehicle-unit-system', unitSystem);
+  }, [unitSystem]);
+
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
   };
@@ -102,6 +119,10 @@ export const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setCopilotAudioOutputState(newOutput);
   }
 
+  const setUnitSystem = (newSystem: TUnitSystem) => {
+    setUnitSystemState(newSystem);
+  };
+
   const value = useMemo(() => ({
     theme,
     setTheme,
@@ -110,8 +131,10 @@ export const AppearanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     ledSettings,
     setLedSettings,
     copilotAudioOutput,
-    setCopilotAudioOutput
-  }), [theme, accentMaterial, ledSettings, copilotAudioOutput]);
+    setCopilotAudioOutput,
+    unitSystem,
+    setUnitSystem,
+  }), [theme, accentMaterial, ledSettings, copilotAudioOutput, unitSystem]);
 
   return (
     <AppearanceContext.Provider value={value}>

@@ -1,28 +1,12 @@
 
+import React, { useState } from 'react';
+import { HederaRecord, HederaEventType } from '../types';
 
-import React, { useState, useCallback } from 'react';
-import { HederaRecord, HederaEventType } from '../types/index';
-import { MOCK_INITIAL_RECORDS } from '../data/mockDlt';
-
-const RecordRow = React.memo(({ rec, onVerify, isVerifying, isVerified }: { rec: HederaRecord; onVerify: (id: string) => void; isVerifying: boolean; isVerified: boolean; }) => (
-    <tr className="hover:bg-base-800/40">
-        <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{rec.timestamp}</td>
-        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-200">{rec.eventType}</td>
-        <td className="px-4 py-4 text-sm text-gray-300 max-w-xs truncate" title={rec.summary}>{rec.summary}</td>
-        <td className="px-4 py-4 whitespace-nowrap">
-            {isVerified ? (
-                <span className="inline-flex items-center text-green-400">
-                    <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
-                    Verified
-                </span>
-            ) : (
-                <button onClick={() => onVerify(rec.id)} disabled={isVerifying} className="bg-base-700 text-gray-200 px-3 py-1 text-xs font-semibold rounded-md hover:bg-base-600 disabled:opacity-50">
-                    {isVerifying ? 'Verifying...' : 'Verify'}
-                </button>
-            )}
-        </td>
-    </tr>
-));
+const MOCK_INITIAL_RECORDS: HederaRecord[] = [
+    { id: '1', timestamp: '2024-07-22 14:35:12', eventType: HederaEventType.Diagnostic, vin: 'JN1AZ00Z9ZT000123', summary: 'Critical alert: ABS Modulator Failure Predicted.', hederaTxId: '0.0.12345@1658498112.123456789', dataHash: 'a1b2c3d4...' },
+    { id: '2', timestamp: '2024-07-22 11:15:45', eventType: HederaEventType.Tuning, vin: 'JN1AZ00Z9ZT000123', summary: "AI tune 'Track Day' simulated.", hederaTxId: '0.0.12345@1658486145.987654321', dataHash: 'e5f6g7h8...' },
+    { id: '3', timestamp: '2024-07-15 09:00:00', eventType: HederaEventType.Maintenance, vin: 'JN1AZ00Z9ZT000123', summary: 'Oil & Filter Change (Verified)', hederaTxId: '0.0.12345@1657875600.555555555', dataHash: 'i9j0k1l2...' },
+];
 
 const Hedera: React.FC = () => {
     const [records, setRecords] = useState<HederaRecord[]>(MOCK_INITIAL_RECORDS);
@@ -62,13 +46,13 @@ const Hedera: React.FC = () => {
         setIsSubmitting(false);
     };
     
-    const handleVerify = useCallback(async (recordId: string) => {
+    const handleVerify = async (recordId: string) => {
         setVerifyingRecordId(recordId);
         // Simulate hash check against DLT
         await new Promise(resolve => setTimeout(resolve, 1000));
         setVerificationStatus(prev => ({ ...prev, [recordId]: 'success' }));
         setVerifyingRecordId(null);
-    }, []);
+    };
 
     return (
         <div className="space-y-6">
@@ -104,8 +88,7 @@ const Hedera: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">Event Type</label>
                             <select value={eventType} onChange={e => setEventType(e.target.value as HederaEventType)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200">
-                                {/* FIX: Explicitly type the iterator variable to help with type inference. */}
-                                {Object.values(HederaEventType).map((type: string) => <option key={type} value={type}>{type}</option>)}
+                                {Object.values(HederaEventType).map(type => <option key={type} value={type}>{type}</option>)}
                             </select>
                         </div>
                         <div>
@@ -146,13 +129,23 @@ const Hedera: React.FC = () => {
                             </thead>
                             <tbody className="bg-black divide-y divide-base-700/50">
                                 {records.map(rec => (
-                                    <RecordRow 
-                                        key={rec.id} 
-                                        rec={rec} 
-                                        onVerify={handleVerify} 
-                                        isVerifying={verifyingRecordId === rec.id}
-                                        isVerified={verificationStatus[rec.id] === 'success'}
-                                    />
+                                    <tr key={rec.id} className="hover:bg-base-800/40">
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{rec.timestamp}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-200">{rec.eventType}</td>
+                                        <td className="px-4 py-4 text-sm text-gray-300 max-w-xs truncate" title={rec.summary}>{rec.summary}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap">
+                                            {verificationStatus[rec.id] === 'success' ? (
+                                                 <span className="inline-flex items-center text-green-400">
+                                                    <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+                                                    Verified
+                                                </span>
+                                            ) : (
+                                                <button onClick={() => handleVerify(rec.id)} disabled={verifyingRecordId === rec.id} className="bg-base-700 text-gray-200 px-3 py-1 text-xs font-semibold rounded-md hover:bg-base-600 disabled:opacity-50">
+                                                    {verifyingRecordId === rec.id ? 'Verifying...' : 'Verify'}
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
                                 ))}
                             </tbody>
                         </table>

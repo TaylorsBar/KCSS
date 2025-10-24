@@ -1,5 +1,8 @@
+
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useUnitConversion } from '../../hooks/useUnitConversion';
 
 interface ClassicTachometerProps {
   rpm: number;
@@ -7,8 +10,9 @@ interface ClassicTachometerProps {
 }
 
 const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => {
+  const { convertSpeed, getSpeedUnit } = useUnitConversion();
   const animatedRpm = useAnimatedValue(rpm);
-  const animatedSpeed = useAnimatedValue(speed);
+  const animatedSpeed = useAnimatedValue(convertSpeed(speed));
   
   const RPM_MAX = 8000;
   const ANGLE_MIN = -150;
@@ -17,7 +21,7 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
   const rpmValueRatio = (Math.max(0, Math.min(animatedRpm, RPM_MAX))) / rpmRange;
   const rpmAngle = ANGLE_MIN + rpmValueRatio * (ANGLE_MAX - ANGLE_MIN);
 
-  const SPEED_MAX = 280;
+  const SPEED_MAX = getSpeedUnit() === 'mph' ? 175 : 280;
   const speedValueRatio = (Math.max(0, Math.min(animatedSpeed, SPEED_MAX))) / SPEED_MAX;
   const speedAngle = ANGLE_MIN + speedValueRatio * (ANGLE_MAX - ANGLE_MIN);
 
@@ -36,9 +40,6 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
-            </filter>
-            <filter id="classic-tacho-needle-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.7"/>
             </filter>
         </defs>
         
@@ -74,7 +75,7 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
 
         {/* Speed Ticks */}
         {Array.from({ length: 15 }).map((_, i) => {
-            const tickValue = i * 20;
+            const tickValue = i * (SPEED_MAX / 14);
             const tickRatio = tickValue / SPEED_MAX;
             const tickAngle = ANGLE_MIN + tickRatio * (ANGLE_MAX - ANGLE_MIN);
             const isMajor = i % 2 === 0;
@@ -89,22 +90,20 @@ const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => 
         {/* Digital Speed & Gear */}
         <foreignObject x="125" y="250" width="150" height="80">
             <div className="flex flex-col items-center justify-center text-center w-full h-full">
-                <div className="font-display font-bold text-6xl text-white" style={{textShadow: '0 0 5px #fff'}}>{speed.toFixed(0)}</div>
-                <div className="font-sans text-lg text-gray-400 -mt-2">km/h</div>
+                <div className="font-display font-bold text-6xl text-white" style={{textShadow: '0 0 5px #fff'}}>{animatedSpeed.toFixed(0)}</div>
+                <div className="font-sans text-lg text-gray-400 -mt-2">{getSpeedUnit()}</div>
             </div>
         </foreignObject>
 
         {/* RPM Needle */}
-        <g transform={`rotate(${rpmAngle} 200 200)`} style={{ transition: 'transform 0.1s ease-out', willChange: 'transform' } as React.CSSProperties} filter="url(#classic-tacho-needle-shadow)">
-            <path d="M 199 200 L 200 30 L 201 200 Z" fill="var(--theme-needle-color)" />
-            <path d="M 198 200 L 200 230 L 202 200 Z" fill="var(--theme-needle-color)" />
+        <g transform={`rotate(${rpmAngle} 200 200)`} style={{ transition: 'transform 0.1s ease-out' }}>
+            <path d="M 200 220 L 200 45" stroke="var(--theme-needle-color)" strokeWidth="4" strokeLinecap="round" />
         </g>
-        <circle cx="200" cy="200" r="18" fill="#444" stroke="#111" strokeWidth="2" />
-        <circle cx="200" cy="200" r="10" fill="#222" />
-        <circle cx="200" cy="200" r="4" fill="#111" />
+        <circle cx="200" cy="200" r="15" fill="#444" stroke="#111" strokeWidth="2" />
+        <circle cx="200" cy="200" r="8" fill="#111" />
       </svg>
     </div>
   );
 };
 
-export default React.memo(ClassicTachometer);
+export default ClassicTachometer;

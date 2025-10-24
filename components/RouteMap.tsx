@@ -1,6 +1,6 @@
+
 import React from 'react';
-// FIX: Corrected import path to explicitly reference the index file within the types directory.
-import { GpsPoint } from '../types/index';
+import { GpsPoint } from '../types';
 
 interface RouteMapProps {
     path: GpsPoint[];

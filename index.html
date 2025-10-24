@@ -23,11 +23,11 @@
               'sans': ['Inter', 'sans-serif'],
               'mono': ['Roboto Mono', 'monospace'],
               'display': ['Orbitron', 'sans-serif'],
+              'classic': ['Bebas Neue', 'sans-serif'],
             },
             boxShadow: {
               'glow-cyan': '0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #007FFF',
               'glow-blue': '0 0 5px #007FFF, 0 0 10px #007FFF',
-              'glow-pink': '0 0 5px #FF00FF, 0 0 10px #FF00FF',
               'glow-red': '0 0 5px #FF0000, 0 0 10px #FF0000',
               'glow-theme': '0 0 8px var(--theme-glow-color), 0 0 12px var(--theme-glow-color)',
             }
@@ -82,7 +82,6 @@
         --theme-glow-color: #cd9575;
         --theme-accent-material-bg: linear-gradient(145deg, #6b4f3a, #a57d54);
       }
-      /* New High-Fidelity Carbon Fiber Background */
       [data-material="carbon-fiber"] {
         --theme-accent-color: #E0E0E0;
         --theme-glow-color: #E0E0E0;
@@ -90,8 +89,14 @@
       }
       .carbon-background {
         background-color: #050505;
-        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImEiIHgxPSIwIiB4Mj0iMCIgeTE9IjAiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMzYTNhM2EiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyMjIiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iYiIgeDE9IjAiIHgyPSIxIiB5MT0iMCIgeTI9IjAiPjxzdG9vcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM0NDQiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyMjIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9InVybCgjYSkiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHg9IjIwIiBmaWxsPSJ1cmwoI2IpIiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHk9IjIwIiBmaWxsPSJ1cmwoI2IpIiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHg9IjIwIiB5PSIyMCIgZmlsbD0idXJsKCNhKSIvPjwvc3ZnPg==');
-        background-size: 10px;
+        background-image: 
+          linear-gradient(115deg, rgba(255,255,255,0.03) 25%, transparent 25%),
+          linear-gradient(115deg, transparent 75%, rgba(255,255,255,0.03) 75%),
+          linear-gradient(45deg, rgba(255,255,255,0.03) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.03) 75%),
+          linear-gradient(115deg, #111 49.9%, #222 50%),
+          linear-gradient(45deg, #111 49.9%, #222 50%);
+        background-size: 16px 16px;
         position: relative;
       }
       .carbon-background::after {
@@ -111,7 +116,7 @@
         --theme-accent-secondary: #FFFFFF;
         --theme-accent-red: #E53E3E;
         --theme-accent-green: #38A169;
-        --theme-panel-bg: rgba(10, 15, 20, 0.5);
+        --theme-panel-bg: rgba(10, 15, 20, 0.6);
         --theme-panel-border: rgba(0, 161, 255, 0.4);
         --theme-gauge-bezel: var(--theme-accent-material-bg, #1A202C);
         --theme-gauge-face: #0A0A0F;
@@ -124,13 +129,25 @@
         --theme-bg: #0d1018;
         --theme-text-primary: #e0e8f0;
         --theme-text-secondary: #8295a8;
-        --theme-accent-primary: #00ffff;
+        --theme-accent-primary: #FF00FF;
         --theme-accent-secondary: #8295a8;
         --theme-accent-red: #ff4d4d;
+        --theme-accent-yellow: #F3FF00;
         --theme-panel-bg: rgba(10, 10, 15, 0.5);
         --theme-panel-border: #4A5568;
-        --theme-glow-color: #00ffff;
+        --theme-glow-color: #FF00FF;
         --theme-bg-texture: radial-gradient(ellipse at center, rgba(10, 20, 40, 0.4) 0%, rgba(13,16,24,0) 60%);
+      }
+
+      .neon-yellow-border {
+        border: 2px solid #F3FF00;
+        box-shadow: 
+          0 0 3px #fff,
+          0 0 5px #F3FF00,
+          0 0 10px #F3FF00,
+          0 0 20px #F3FF00,
+          inset 0 0 5px rgba(243, 255, 0, 0.5);
+        border-radius: 1rem;
       }
 
       [data-theme="classic"] {
@@ -141,8 +158,8 @@
         --theme-accent-secondary: #E2E8F0;
         --theme-accent-red: #ef4444;
         --theme-accent-green: #38A169;
-        --theme-panel-bg: rgba(30, 25, 20, 0.5);
-        --theme-panel-border: rgba(255, 183, 0, 0.3);
+        --theme-panel-bg: transparent;
+        --theme-panel-border: #ef4444;
         --theme-gauge-bezel: linear-gradient(145deg, #444, #111);
         --theme-gauge-face: radial-gradient(ellipse at center, #1a1a1a 0%, #000 100%);
         --theme-gauge-text: #f5f5dc;
@@ -151,20 +168,32 @@
         --theme-glow-color: #ffb700;
       }
       
+      .classic-wood-panel {
+        background-color: #3a2517;
+        background-image:
+          /* Wood grain */
+          repeating-linear-gradient(92deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 1px, transparent 1px, transparent 20px),
+          repeating-linear-gradient(178deg, rgba(0,0,0,0.05), rgba(0,0,0,0.05) 1px, transparent 1px, transparent 20px),
+          /* Burl texture */
+          url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJ3Ij48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii4wMiAuMDciIHR5cGU9ImZyYWN0YWxOb2lzZSIgbnVtT2N0YXZlcz0iMyIgc2VlZD0iMCIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjxmZUNvbG9yTWF0cml4IHR5cGU9InNhdHVyYXRlIiB2YWx1ZXM9IjAiLz48ZmVDb21wb25lbnRUcmFuc2Zlcj48ZmVGdW5jUiB0eXBlPSJsaW5lYXIiIHNsb3BlPSIuMyIgYW1wbGl0dWRlPSIzIiBpbnRlcmNlcHQ9Ii0uMiIvPjxmZUZ1bmNHIHR5cGU9ImxpbmVhciIgc2xvcGU9Ii4zIiBhbXBsaXR1ZGU9IjMiIGludGVyY2VwdD0iLS4yIi8+PGZlRnVuY0IgdHlwZT0ibGluZWFyIiBzbG9wZT0iLjMiIGFtcGxpdHVkZT0iMyIgaW50ZXJjZXB0PSItLjIiLz48L2ZlQ29tcG9uZW50VHJhbnNmZXI+PC9maWx0ZXI+PHBhdGggZD0iTTAgMGgzMDB2MzAwaDB6IiBmaWx0ZXI9InVybCgjdykiIG9wYWNpdHk9Ii4zIi8+PC9zdmc+');
+        background-blend-mode: color-burn, screen, normal;
+        box-shadow: inset 0 0 50px rgba(0,0,0,0.7);
+      }
+
       [data-theme="haltech"] {
         --theme-bg: #111;
         --theme-text-primary: #FFFFFF;
         --theme-text-secondary: #cccccc;
-        --theme-accent-primary: #f7b500;
-        --theme-needle-color: #ff0000;
+        --theme-accent-primary: #F3FF00;
+        --theme-needle-color: #F3FF00;
         --theme-haltech-dark-gray: #2a2a2e;
         --theme-haltech-light-gray: #4a4a4e;
         --theme-haltech-red: #e12828;
-        --theme-haltech-yellow: #f7b500;
+        --theme-haltech-yellow: #F3FF00;
       }
 
       [data-theme="minimalist"] {
-        --theme-bg: #2d3038;
+        --theme-bg: transparent;
         --theme-text-primary: #FFFFFF;
         --theme-text-secondary: #b0b0b0;
         --theme-accent-primary: #FF4500;
@@ -186,8 +215,8 @@
       
       .glassmorphism-panel {
         background-color: var(--theme-panel-bg);
-        backdrop-filter: blur(12px) saturate(120%);
-        -webkit-backdrop-filter: blur(12px) saturate(120%);
+        backdrop-filter: blur(16px) saturate(140%);
+        -webkit-backdrop-filter: blur(16px) saturate(140%);
         border: 1px solid var(--theme-panel-border);
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
       }
@@ -206,10 +235,8 @@
       }
       .ar-wireframe-animated {
         animation: subtle-pulse 5s ease-in-out infinite;
-        will-change: opacity, filter;
       }
       
-      /* New styles for the 3D Engine Model in Tuning Suite */
       .engine-3d-container {
         background: radial-gradient(ellipse at center, rgba(0, 127, 255, 0.1) 0%, transparent 70%);
         border: 1px solid var(--theme-panel-border);
@@ -229,7 +256,7 @@
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
   <script type="importmap">
 {
   "imports": {
@@ -240,15 +267,7 @@
     "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
     "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "jose": "https://aistudiocdn.com/jose@^6.1.0",
-    "next": "https://aistudiocdn.com/next@^15.5.3",
-    "ethers": "https://aistudiocdn.com/ethers@^6.15.0",
-    "@hashgraph/sdk": "https://aistudiocdn.com/@hashgraph/sdk@^2.72.0",
-    "jspdf": "https://esm.sh/jspdf@^2.5.1",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^3.8.2",
-    "@testing-library/react": "https://aistudiocdn.com/@testing-library/react@^16.3.0",
-    "@testing-library/jest-dom": "https://aistudiocdn.com/@testing-library/jest-dom@^6.8.0",
-    "vitest": "https://aistudiocdn.com/vitest@^3.2.4"
+    "zustand": "https://esm.sh/zustand@^4.5.4"
   }
 }
 </script>

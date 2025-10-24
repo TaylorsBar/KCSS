@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
 
@@ -7,7 +9,7 @@ interface HaltechGaugeProps {
     max: number;
     redlineStart: number;
     label: string;
-    unit?: string;
+    unit: string;
     size: 'large' | 'small';
 }
 
@@ -15,7 +17,7 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
     const animatedValue = useAnimatedValue(value);
     
     const isLarge = size === 'large';
-    const radius = isLarge ? 150 : 90;
+    const radius = isLarge ? 120 : 80;
     const center = radius;
     const strokeWidth = isLarge ? 10 : 6;
     const ANGLE_MIN = -150;
@@ -51,10 +53,9 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
         <div className="relative flex flex-col items-center justify-center">
             <svg width={radius * 2} height={radius * 2} viewBox={`0 0 ${radius * 2} ${radius * 2}`}>
                 <defs>
-                    <radialGradient id="haltech-bezel-grad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                        <stop offset="0%" stopColor="#888" />
-                        <stop offset="95%" stopColor="#111" />
-                        <stop offset="100%" stopColor="#444" />
+                    <radialGradient id="haltech-bezel-grad" cx="50%" cy="50%" r="50%" fx="60%" fy="60%">
+                        <stop offset="85%" stopColor="var(--theme-haltech-yellow)" />
+                        <stop offset="100%" stopColor="#b38b00" />
                     </radialGradient>
                     <filter id="haltech-needle-glow">
                         <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -80,14 +81,14 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
                             <line
                                 x1={center} y1={radius * 0.1}
                                 x2={center} y2={radius * 0.2}
-                                stroke={isRed ? 'var(--theme-haltech-red)' : 'var(--theme-haltech-light-gray)'}
+                                stroke={isRed ? 'var(--theme-haltech-red)' : 'var(--theme-haltech-yellow)'}
                                 strokeWidth={isLarge ? 2 : 1.5}
                             />
                             { (isLarge || i % 2 === 0) &&
                                 <text
                                     x={center} y={radius * 0.3}
                                     textAnchor="middle"
-                                    fill={isRed ? 'var(--theme-haltech-red)' : 'white'}
+                                    fill={isRed ? 'var(--theme-haltech-red)' : 'var(--theme-haltech-yellow)'}
                                     fontSize={isLarge ? "12" : "10"}
                                     transform={`rotate(180 ${center} ${radius*0.3})`}
                                     className="font-sans"
@@ -110,7 +111,7 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
                 {/* Center Digital Displays */}
                 <foreignObject x={center * 0.5} y={center * 1.2} width={center} height={center * 0.6}>
                     <div className="flex flex-col items-center justify-center text-center text-white w-full h-full">
-                         <span className={`font-mono font-bold tracking-wider ${isLarge ? 'text-4xl' : 'text-2xl'}`}>{animatedValue.toFixed(unit === 'bar' ? 2 : 0)}</span>
+                         <span className={`font-mono font-bold tracking-wider text-[var(--theme-haltech-yellow)] ${isLarge ? 'text-4xl' : 'text-2xl'}`}>{animatedValue.toFixed(unit === 'bar' ? 2 : 0)}</span>
                          <span className={`font-sans uppercase text-sm ${isLarge ? 'text-base' : 'text-sm'}`}>{unit}</span>
                     </div>
                 </foreignObject>
@@ -118,14 +119,13 @@ const HaltechGauge: React.FC<HaltechGaugeProps> = ({ value, min, max, redlineSta
 
 
                 {/* Needle */}
-                <g transform={`rotate(${needleAngle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out', willChange: 'transform' } as React.CSSProperties} filter="url(#haltech-needle-glow)">
-                    <path d={`M ${center} ${radius * 0.08} L ${center + (isLarge ? 6 : 4)} ${center + (isLarge ? 10 : 7)} L ${center - (isLarge ? 6 : 4)} ${center + (isLarge ? 10 : 7)} Z`} fill="var(--theme-needle-color)" />
+                <g transform={`rotate(${needleAngle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }}>
+                    <path d={`M ${center} ${center + (isLarge ? 15 : 10)} L ${center} ${radius * 0.1}`} stroke="var(--theme-needle-color)" strokeWidth={isLarge ? 3 : 2} strokeLinecap="round" filter="url(#haltech-needle-glow)" />
                 </g>
-                <circle cx={center} cy={center} r={isLarge ? 12 : 8} fill="#111" stroke="#333" strokeWidth="2" />
-                <circle cx={center} cy={center} r={isLarge ? 5 : 3} fill="#222" />
+                <circle cx={center} cy={center} r={isLarge ? 8 : 5} fill="#111" stroke="#333" strokeWidth="1" />
             </svg>
         </div>
     );
 };
 
-export default React.memo(HaltechGauge);
+export default HaltechGauge;

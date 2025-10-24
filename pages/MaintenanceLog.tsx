@@ -1,42 +1,17 @@
-
-
 import React from 'react';
-import { MaintenanceRecord } from '../types/index';
+import { MaintenanceRecord } from '../types';
 import VerifiedIcon from '../components/icons/VerifiedIcon';
-import { pdfService } from '../services/pdfService';
-import { MOCK_LOGS } from '../data/mockMaintenance';
 
-const LogRow = React.memo(({ log }: { log: MaintenanceRecord }) => (
-    <tr className="hover:bg-base-800/40">
-      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-300">{log.date}</td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-        <div className="flex items-center">
-          {log.isAiRecommendation && <span className="text-brand-cyan mr-2 font-mono text-xs">[AI]</span>}
-          {log.isAiRecommendation ? <span className="text-brand-cyan">{log.service}</span> : log.service}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{log.notes}</td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm">
-        {log.verified ? (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-700">
-            <VerifiedIcon className="w-4 h-4 mr-1.5 text-green-400" />
-            Verified
-          </span>
-        ) : (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-700">
-            Pending
-          </span>
-        )}
-      </td>
-    </tr>
-));
+export const MOCK_LOGS: MaintenanceRecord[] = [
+  { id: '1', date: '2024-07-15', service: 'Oil & Filter Change', notes: 'Performed by KC SpeedShop. Used Mobil 1 5W-30.', verified: true, isAiRecommendation: false },
+  { id: '2', date: '2024-06-28', service: 'Replace Air Filter', notes: 'Airflow sensor detected reduced intake. Recommended replacement.', verified: true, isAiRecommendation: true },
+  { id: '3', date: '2024-06-01', service: 'Tire Rotation', notes: 'Standard 5,000-mile service.', verified: true, isAiRecommendation: false },
+  { id: '4', date: '2024-05-20', service: 'Inspect O2 Sensor', notes: 'System predicted potential O2 sensor degradation based on response times.', verified: false, isAiRecommendation: true },
+  { id: '5', date: '2024-03-10', service: 'Brake Fluid Flush', notes: 'Completed at dealer.', verified: false, isAiRecommendation: false },
+];
 
 
 const MaintenanceLog: React.FC = () => {
-  const handleGenerateReport = async () => {
-    await pdfService.generateHealthReport(MOCK_LOGS);
-  };
-    
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -62,14 +37,35 @@ const MaintenanceLog: React.FC = () => {
             </thead>
             <tbody className="bg-black divide-y divide-base-700/50">
               {MOCK_LOGS.map((log) => (
-                <LogRow key={log.id} log={log} />
+                <tr key={log.id} className="hover:bg-base-800/40">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-300">{log.date}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                    <div className="flex items-center">
+                      {log.isAiRecommendation && <span className="text-brand-cyan mr-2 font-mono text-xs">[AI]</span>}
+                      {log.isAiRecommendation ? <span className="text-brand-cyan">{log.service}</span> : log.service}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{log.notes}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {log.verified ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-700">
+                        <VerifiedIcon className="w-4 h-4 mr-1.5 text-green-400" />
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-700">
+                        Pending
+                      </span>
+                    )}
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
        <div className="text-center mt-4">
-        <button onClick={handleGenerateReport} className="text-brand-cyan font-semibold hover:underline">
+        <button className="text-brand-cyan font-semibold hover:underline">
             Generate Vehicle Health Report
         </button>
       </div>

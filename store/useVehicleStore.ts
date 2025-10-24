@@ -1,8 +1,7 @@
+import { create } from 'zustand';
+import { SensorDataPoint, TimelineEvent } from '../types';
 
-import { useState, useEffect, useRef } from 'react';
-import { SensorDataPoint } from '../types';
-
-enum VehicleState {
+enum VehicleSimState {
   IDLE,
   ACCELERATING,
   CRUISING,
@@ -10,12 +9,11 @@ enum VehicleState {
 }
 
 const UPDATE_INTERVAL_MS = 20; // 50Hz for high precision
-const MAX_DATA_POINTS = 500; // Store more data for race analysis
+const MAX_DATA_POINTS = 500;
 const RPM_IDLE = 800;
 const RPM_MAX = 8000;
 const SPEED_MAX = 280;
 const GEAR_RATIOS = [0, 3.6, 2.1, 1.4, 1.0, 0.8, 0.6];
-
 const DEFAULT_LAT = -37.88; // Karapiro, NZ
 const DEFAULT_LON = 175.55;
 
@@ -49,20 +47,45 @@ const generateInitialData = (): SensorDataPoint[] => {
   return data;
 };
 
-export const useVehicleData = () => {
-  const [data, setData] = useState<SensorDataPoint[]>(generateInitialData);
-  const [hasActiveFault, setHasActiveFault] = useState(false);
-  const vehicleState = useRef<VehicleState>(VehicleState.IDLE);
-  const stateTimeout = useRef<number>(0);
-  const lastUpdate = useRef<number>(Date.now());
-  const gpsDataRef = useRef<{latitude: number; longitude: number; speed: number | null} | null>(null);
+interface VehicleState {
+  data: SensorDataPoint[];
+  latestData: SensorDataPoint;
+  hasActiveFault: boolean;
+  timelineEvents: TimelineEvent[];
+}
 
-  useEffect(() => {
-    let watcherId: number | null = null;
-    if ('geolocation' in navigator) {
+interface VehicleActions {
+  setTimelineEvents: (events: TimelineEvent[]) => void;
+}
+
+const initialData = generateInitialData();
+const initialState: VehicleState = {
+  data: initialData,
+  latestData: initialData[initialData.length - 1],
+  hasActiveFault: false,
+  timelineEvents: [],
+};
+
+export const useVehicleStore = create<VehicleState & VehicleActions>((set, get) => ({
+  ...initialState,
+  setTimelineEvents: (events) => set({ timelineEvents: events }),
+}));
+
+// --- Simulation Logic ---
+let vehicleState = VehicleSimState.IDLE;
+let stateTimeout = 0;
+let lastUpdate = Date.now();
+let gpsDataRef: {latitude: number; longitude: number; speed: number | null} | null = null;
+let watcherId: number | null = null;
+let intervalId: number | null = null;
+
+const startSimulation = () => {
+    if (intervalId) return; // Already running
+
+    if ('geolocation' in navigator && !watcherId) {
       watcherId = navigator.geolocation.watchPosition(
         (position) => {
-          gpsDataRef.current = {
+          gpsDataRef = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             speed: position.coords.speed, // meters per second
@@ -70,34 +93,32 @@ export const useVehicleData = () => {
         },
         (error) => {
           console.warn(`Geolocation error: ${error.message} (Code: ${error.code})`);
-          gpsDataRef.current = null; // Fallback to simulation
+          gpsDataRef = null;
         },
         {
           enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 10000, // Increased timeout to 10 seconds
+          maximumAge: 0, // Force fresh data for high accuracy
+          timeout: 10000,
         }
       );
     }
 
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const deltaTimeSeconds = (now - lastUpdate.current) / 1000.0;
-      lastUpdate.current = now;
+    intervalId = window.setInterval(() => {
+        const now = Date.now();
+        const deltaTimeSeconds = (now - lastUpdate) / 1000.0;
+        lastUpdate = now;
 
-      setData(prevData => {
+        const prevData = useVehicleStore.getState().data;
         const prev = prevData[prevData.length - 1];
         let { rpm, speed, gear, longTermFuelTrim, distance, latitude, longitude } = prev;
 
-        const currentGpsData = gpsDataRef.current;
+        const currentGpsData = gpsDataRef;
 
-        // GPS Mode (if data is available)
         if (currentGpsData && currentGpsData.speed !== null) {
             speed = currentGpsData.speed * 3.6; // m/s to km/h
             latitude = currentGpsData.latitude;
             longitude = currentGpsData.longitude;
 
-            // Determine gear based on speed
             if (speed < 20) gear = 1;
             else if (speed < 40) gear = 2;
             else if (speed < 70) gear = 3;
@@ -105,55 +126,52 @@ export const useVehicleData = () => {
             else if (speed < 130) gear = 5;
             else gear = 6;
             
-            // Determine RPM based on speed and gear
             if (speed > 1) {
                 rpm = RPM_IDLE + (1500 * (gear-1)) + (speed % 30) * 100;
             } else {
                 rpm = RPM_IDLE;
                 gear = 1;
             }
-
-        // Simulation Mode
         } else {
-            if (now > stateTimeout.current) {
+             if (now > stateTimeout) {
               const rand = Math.random();
-              switch (vehicleState.current) {
-                case VehicleState.IDLE:
-                  vehicleState.current = VehicleState.ACCELERATING;
-                  stateTimeout.current = now + (5000 + Math.random() * 5000);
+              switch (vehicleState) {
+                case VehicleSimState.IDLE:
+                  vehicleState = VehicleSimState.ACCELERATING;
+                  stateTimeout = now + (5000 + Math.random() * 5000);
                   break;
-                case VehicleState.ACCELERATING:
-                  vehicleState.current = rand > 0.5 ? VehicleState.CRUISING : VehicleState.BRAKING;
-                  stateTimeout.current = now + (8000 + Math.random() * 10000);
+                case VehicleSimState.ACCELERATING:
+                  vehicleState = rand > 0.5 ? VehicleSimState.CRUISING : VehicleSimState.BRAKING;
+                  stateTimeout = now + (8000 + Math.random() * 10000);
                   break;
-                case VehicleState.CRUISING:
-                  vehicleState.current = rand > 0.6 ? VehicleState.ACCELERATING : (rand > 0.3 ? VehicleState.BRAKING : VehicleState.CRUISING);
-                  stateTimeout.current = now + (5000 + Math.random() * 8000);
+                case VehicleSimState.CRUISING:
+                  vehicleState = rand > 0.6 ? VehicleSimState.ACCELERATING : (rand > 0.3 ? VehicleSimState.BRAKING : VehicleSimState.CRUISING);
+                  stateTimeout = now + (5000 + Math.random() * 8000);
                   break;
-                case VehicleState.BRAKING:
-                  vehicleState.current = rand > 0.3 ? VehicleState.IDLE : VehicleState.ACCELERATING;
-                  stateTimeout.current = now + (3000 + Math.random() * 3000);
+                case VehicleSimState.BRAKING:
+                  vehicleState = rand > 0.3 ? VehicleSimState.IDLE : VehicleSimState.ACCELERATING;
+                  stateTimeout = now + (3000 + Math.random() * 3000);
                   break;
               }
             }
 
-            switch (vehicleState.current) {
-              case VehicleState.IDLE:
+            switch (vehicleState) {
+              case VehicleSimState.IDLE:
                 rpm += (RPM_IDLE - rpm) * 0.1;
                 speed *= 0.98;
                 if (speed < 5) gear = 1;
                 break;
-              case VehicleState.ACCELERATING:
+              case VehicleSimState.ACCELERATING:
                 if (rpm > 4500 && gear < 6) {
                   gear++;
                   rpm *= 0.6;
                 }
                 rpm += (RPM_MAX / (gear * 15)) * (1 - rpm/RPM_MAX) + Math.random() * 50;
                 break;
-              case VehicleState.CRUISING:
+              case VehicleSimState.CRUISING:
                 rpm += (2500 - rpm) * 0.05 + (Math.random() - 0.5) * 100;
                 break;
-              case VehicleState.BRAKING:
+              case VehicleSimState.BRAKING:
                 if (rpm < 2000 && gear > 1) {
                     gear--;
                     rpm *= 1.2;
@@ -165,12 +183,11 @@ export const useVehicleData = () => {
              speed = (rpm / (GEAR_RATIOS[gear] * 300)) * (1 - (1/gear)) * 10;
         }
 
-
         rpm = Math.max(RPM_IDLE, Math.min(rpm, RPM_MAX));
         speed = Math.max(0, Math.min(speed, SPEED_MAX));
         if (speed < 1) {
             speed = 0;
-            if(!currentGpsData) vehicleState.current = VehicleState.IDLE;
+            if(!currentGpsData) vehicleState = VehicleSimState.IDLE;
         }
 
         const speedMetersPerSecond = speed * (1000 / 3600);
@@ -183,8 +200,6 @@ export const useVehicleData = () => {
 
         const timeOfDayEffect = Math.sin(now / 20000);
         const isFaultActive = timeOfDayEffect > 0.7;
-        setHasActiveFault(isFaultActive);
-        const simulatedFault = isFaultActive ? 5.0 : 0; 
         
         const newDataPoint: SensorDataPoint = {
           time: now,
@@ -194,13 +209,13 @@ export const useVehicleData = () => {
           fuelUsed: prev.fuelUsed + (rpm / RPM_MAX) * 0.005,
           inletAirTemp: 25 + (speed / SPEED_MAX) * 20,
           batteryVoltage: 13.8 + (rpm > 1000 ? 0.2 : 0) - (Math.random() * 0.1) - (isFaultActive ? 0.5 : 0),
-          engineTemp: 90 + (rpm / RPM_MAX) * 15 + (simulatedFault > 0 ? 5 : 0),
+          engineTemp: 90 + (rpm / RPM_MAX) * 15 + (isFaultActive ? 5 : 0),
           fuelTemp: 20 + (speed / SPEED_MAX) * 10,
           turboBoost: -0.8 + (rpm / RPM_MAX) * 2.8 * (gear / 6),
           fuelPressure: 3.5 + (rpm / RPM_MAX) * 2,
           oilPressure: 1.5 + (rpm / RPM_MAX) * 5.0 - (isFaultActive ? 0.5 : 0),
-          shortTermFuelTrim: 2.0 + (Math.random() - 0.5) * 4 + simulatedFault,
-          longTermFuelTrim: Math.min(10, longTermFuelTrim + (simulatedFault > 0 ? 0.01 : -0.005)),
+          shortTermFuelTrim: 2.0 + (Math.random() - 0.5) * 4 + (isFaultActive ? 5 : 0),
+          longTermFuelTrim: Math.min(10, longTermFuelTrim + (isFaultActive ? 0.01 : -0.005)),
           o2SensorVoltage: 0.1 + (0.5 + Math.sin(now / 500) * 0.4),
           engineLoad: 15 + (rpm - RPM_IDLE) / (RPM_MAX - RPM_IDLE) * 85,
           distance: newDistance,
@@ -210,20 +225,13 @@ export const useVehicleData = () => {
         };
 
         const updatedData = [...prevData, newDataPoint];
-        if (updatedData.length > MAX_DATA_POINTS) {
-          return updatedData.slice(updatedData.length - MAX_DATA_POINTS);
-        }
-        return updatedData;
-      });
+        const slicedData = updatedData.length > MAX_DATA_POINTS 
+          ? updatedData.slice(updatedData.length - MAX_DATA_POINTS)
+          : updatedData;
+
+        useVehicleStore.setState({ data: slicedData, latestData: newDataPoint, hasActiveFault: isFaultActive });
     }, UPDATE_INTERVAL_MS);
-
-    return () => {
-      clearInterval(interval);
-      if (watcherId && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watcherId);
-      }
-    };
-  }, []);
-
-  return { data, latestData: data[data.length - 1], hasActiveFault };
 };
+
+// Start the simulation when the store is initialized.
+startSimulation();
