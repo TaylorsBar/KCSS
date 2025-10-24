@@ -1,4 +1,4 @@
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse } from '../types';
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession } from '../types';
 
 // Using a module-level variable to ensure a single worker instance.
 let worker: Worker | undefined;
@@ -70,12 +70,6 @@ function callWorker<T>(type: string, payload: any): Promise<T> {
     });
 }
 
-// Re-implement all exported functions to delegate to the worker.
-// The function signatures and return types remain identical to the original service.
-export const getDiagnosticAnswer = (query: string): Promise<string> => {
-    return callWorker('getDiagnosticAnswer', { query });
-};
-
 export const getPredictiveAnalysis = (
     dataHistory: SensorDataPoint[],
     maintenanceHistory: MaintenanceRecord[]
@@ -124,4 +118,8 @@ export const getRouteScoutResponse = (
     location: { latitude: number; longitude: number }
 ): Promise<GroundedResponse> => {
     return callWorker('getRouteScoutResponse', { query, location });
+};
+
+export const getRaceAnalysis = (session: SavedRaceSession): Promise<string> => {
+    return callWorker('getRaceAnalysis', { session });
 };

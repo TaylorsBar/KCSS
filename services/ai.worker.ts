@@ -1,43 +1,24 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, GroundingChunk } from '../types';
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, SavedRaceSession } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
 if (!API_KEY) {
-  self.postMessage({ type: 'error', error: 'API_KEY is not configured. AI services are unavailable.' });
+  // Post a generic error that the main thread can handle via its timeout mechanism.
+  // A direct postMessage without a requestId won't be caught by the promise handlers.
+  console.error('API_KEY is not configured. AI services are unavailable.');
 }
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
-const SYSTEM_INSTRUCTION = `You are an expert automotive mechanic and performance tuner named 'KC'. You are the AI assistant for the 'Karapiro Cartel Speed Shop' app. Your answers should be clear, concise, and helpful to both novice drivers and experienced technicians. When appropriate, provide step-by-step instructions or bullet points. Do not mention that you are an AI model. Format your responses using markdown for better readability.`;
-
 const isOnline = () => self.navigator.onLine;
-
-const getDiagnosticAnswer = async (query: string): Promise<string> => {
-  if (!ai || !isOnline()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return `I am currently in offline mode. For your query about **"${query}"**, I would typically provide a detailed diagnostic. Please try again when online.`;
-  }
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
-      contents: query,
-      config: { systemInstruction: SYSTEM_INSTRUCTION }
-    });
-    return response.text;
-  } catch (error) {
-    console.error("Error in worker fetching diagnostic answer:", error);
-    return "I'm sorry, I'm having trouble connecting to my diagnostic systems right now.";
-  }
-};
 
 const getPredictiveAnalysis = async (
   dataHistory: SensorDataPoint[],
   maintenanceHistory: MaintenanceRecord[]
 ): Promise<PredictiveAnalysisResult> => {
     if (!ai || !isOnline()) {
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        await new Promise(resolve => setTimeout(resolve, 1200)); // Simulate network latency
         return { 
           timelineEvents: [
             { id: 'offline-1', level: AlertLevel.Warning, title: 'Offline: Mock Spark Plug Wear', timeframe: 'Next 3000 miles',
@@ -60,18 +41,30 @@ const getPredictiveAnalysis = async (
       - **Long Term Fuel Trim Trend**: ${firstPoint.longTermFuelTrim.toFixed(1)}% to ${lastPoint.longTermFuelTrim.toFixed(1)}%.
       - **Oil Pressure Trend**: ${firstPoint.oilPressure.toFixed(1)} to ${lastPoint.oilPressure.toFixed(1)} bar.
     `;
+    
+    const systemInstructionForAnalysis = `You are 'KC', an expert automotive AI mechanic specializing in predictive maintenance for a 2022 Subaru WRX with 45,000 miles. Your task is to analyze vehicle data trends and maintenance history to identify potential future mechanical issues.
+- Analyze trends for anomalies (e.g., rising Long Term Fuel Trim, dropping oil pressure under load).
+- Predict risks to specific components.
+- Categorize the risk timeframe (e.g., 'Immediate', 'Next 1000 miles', 'Next 3 months').
+- Provide a likely root cause based on the provided data.
+- Suggest concrete, actionable steps for the user.
+- Include a simple, plain-English summary of the problem.
+- If possible, suggest relevant Technical Service Bulletin (TSB) numbers.
+- You MUST output a single, valid JSON object matching the provided schema.
+- If no significant issues are found, return a JSON object with an empty "timelineEvents" array.`;
 
-    const prompt = `Analyze vehicle data trends for a 2022 Subaru WRX (45,000 miles).
-    **Data Trend Summary**: ${dataTrendSummary}
-    **Latest Snapshot**: RPM: ${lastPoint.rpm.toFixed(0)}, LTFT: ${lastPoint.longTermFuelTrim.toFixed(1)}%, Oil Pressure: ${lastPoint.oilPressure.toFixed(1)} bar
-    **Maintenance History**: ${JSON.stringify(maintenanceHistory)}
-    **Task**: As 'KC', analyze trends for anomalies (e.g., rising LTFT, dropping oil pressure under load). Predict component risks (categorize timeframe as 'Immediate', 'Next 1000 miles', 'Next 3 months', etc.). Provide a root cause based on the data. Give actionable steps, a plain-English summary, and search for relevant TSBs. Output a single, valid JSON object matching the provided schema. If no issues are found, return an object with an empty "timelineEvents" array.`;
+    const userContent = `
+        **Data Trend Summary**: ${dataTrendSummary}
+        **Latest Snapshot**: RPM: ${lastPoint.rpm.toFixed(0)}, LTFT: ${lastPoint.longTermFuelTrim.toFixed(1)}%, Oil Pressure: ${lastPoint.oilPressure.toFixed(1)} bar
+        **Maintenance History**: ${JSON.stringify(maintenanceHistory)}
+    `;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-pro",
-      contents: prompt,
+      contents: userContent,
       config: {
+        systemInstruction: systemInstructionForAnalysis,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -93,12 +86,15 @@ const getPredictiveAnalysis = async (
                       recommendedActions: { type: Type.ARRAY, items: { type: Type.STRING } },
                       plainEnglishSummary: { type: Type.STRING },
                       tsbs: { type: Type.ARRAY, items: { type: Type.STRING }, nullable: true },
-                    }
+                    },
+                    required: ["component", "rootCause", "recommendedActions", "plainEnglishSummary"],
                   }
-                }
+                },
+                 required: ["id", "level", "title", "timeframe", "details"],
               }
             }
-          }
+          },
+           required: ["timelineEvents"],
         }
       },
     });
@@ -295,18 +291,55 @@ const getRouteScoutResponse = async (query: string, location: { latitude: number
     }
 };
 
+const getRaceAnalysis = async (session: SavedRaceSession): Promise<string> => {
+    if (!ai) return "AI Race Coach is unavailable.";
+    
+    const systemInstructionForRaceCoach = `You are 'KC', a world-class AI race engineer and driver coach. Analyze the provided race session data for a skilled enthusiast driver. Your analysis should be insightful, actionable, and encouraging.
+- Start with a positive, high-level summary of the session.
+- Identify the best lap and explain what made it fast (e.g., "Your best lap was Lap 3. You carried excellent speed through the chicane.").
+- Pinpoint 1-2 key areas for improvement. Be specific and use data (e.g., "On your slower laps, it looks like you were braking a little too early for Turn 5, costing you a few tenths. Try using the 100m board as your braking marker.").
+- Analyze performance benchmarks (0-60, 1/4 mile etc.) and comment on them.
+- Conclude with an encouraging remark and a suggestion for the next session.
+- Format your response using markdown for clear readability with headings and bullet points.`;
+    
+    // Sanitize and summarize data to send to the model
+    const sessionSummary = {
+        totalTime: session.totalTime,
+        maxSpeed: session.maxSpeed,
+        lapTimes: session.lapTimes,
+        benchmarks: {
+            "0-100km/h": session.zeroToHundredKmhTime,
+            "0-60mph": session.zeroToSixtyMphTime,
+            "1/4 Mile Time": session.quarterMileTime,
+            "1/4 Mile Speed": session.quarterMileSpeed,
+        }
+    };
+
+    const userContent = `Please analyze this race session data and provide coaching feedback:\n${JSON.stringify(sessionSummary, null, 2)}`;
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            contents: userContent,
+            config: { systemInstruction: systemInstructionForRaceCoach }
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error in worker fetching race analysis:", error);
+        return "I'm sorry, I encountered an error while analyzing your session data.";
+    }
+};
+
+
 self.onmessage = async (e: MessageEvent) => {
     const { type, payload, requestId } = e.data;
-    if (!API_KEY) {
-        self.postMessage({ type: 'error', command: type, error: 'API_KEY is not configured.', requestId });
+    if (!API_KEY || !ai) {
+        self.postMessage({ type: 'error', command: type, error: 'AI worker is not initialized. API_KEY might be missing.', requestId });
         return;
     }
     try {
         let result;
         switch (type) {
-            case 'getDiagnosticAnswer':
-                result = await getDiagnosticAnswer(payload.query);
-                break;
             case 'getPredictiveAnalysis':
                 result = await getPredictiveAnalysis(payload.dataHistory, payload.maintenanceHistory);
                 break;
@@ -330,6 +363,9 @@ self.onmessage = async (e: MessageEvent) => {
                 break;
             case 'getRouteScoutResponse':
                 result = await getRouteScoutResponse(payload.query, payload.location);
+                break;
+            case 'getRaceAnalysis':
+                result = await getRaceAnalysis(payload.session);
                 break;
             default:
                 throw new Error(`Unknown worker command: ${type}`);

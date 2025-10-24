@@ -1,15 +1,16 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRaceSession } from '../hooks/useRaceSession';
 import * as storage from '../services/storageService';
-import { SavedRaceSession, Leaderboard, GpsPoint, LapTime } from '../types';
+import { SavedRaceSession, Leaderboard } from '../types';
+import { getRaceAnalysis } from '../services/geminiService';
+import ReactMarkdown from 'react-markdown';
 import Map from '../components/Map';
 import RouteMap from '../components/RouteMap';
 import HistoryIcon from '../components/icons/HistoryIcon';
 import TrophyIcon from '../components/icons/TrophyIcon';
 import StopwatchIcon from '../components/icons/StopwatchIcon';
 import GpsIcon from '../components/icons/GpsIcon';
+import EngineIcon from '../components/icons/EngineIcon';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { useUnitConversion } from '../hooks/useUnitConversion';
 import SessionComparison from '../components/SessionComparison';
@@ -50,7 +51,7 @@ const RacePack: React.FC = () => {
     const [activeTab, setActiveTab] = useState('live');
     const { session, startSession, stopSession, recordLap } = useRaceSession();
     const latestData = useVehicleStore(state => state.latestData);
-    const { convertSpeed, getSpeedUnit, getDistanceUnit } = useUnitConversion();
+    const { convertSpeed, getSpeedUnit } = useUnitConversion();
     
     const [isSummaryVisible, setIsSummaryVisible] = useState(false);
     const [sessionToSave, setSessionToSave] = useState<SavedRaceSession | null>(null);
@@ -58,6 +59,8 @@ const RacePack: React.FC = () => {
     const [leaderboard, setLeaderboard] = useState<Leaderboard>({ zeroToHundredKmh: null, zeroToSixtyMph: null, sixtyToHundredThirtyMph: null, hundredToTwoHundredKmh: null, quarterMileTime: null, quarterMileSpeed: null });
     const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
     const sessionsForComparison = useMemo(() => savedSessions.filter(s => selectedForCompare.includes(s.id)), [savedSessions, selectedForCompare]);
+    const [analysisResult, setAnalysisResult] = useState<{ session: SavedRaceSession | null; analysis: string | null; isLoading: boolean; error?: string }>({ session: null, analysis: null, isLoading: false });
+
 
     useEffect(() => {
         setSavedSessions(storage.getSavedSessions());
@@ -113,6 +116,17 @@ const RacePack: React.FC = () => {
             return newSelection.length > 2 ? newSelection.slice(1) : newSelection;
         });
     };
+    
+    const handleAnalyzeSession = async (sessionToAnalyze: SavedRaceSession) => {
+        setAnalysisResult({ session: sessionToAnalyze, analysis: null, isLoading: true });
+        try {
+            const result = await getRaceAnalysis(sessionToAnalyze);
+            setAnalysisResult({ session: sessionToAnalyze, analysis: result, isLoading: false });
+        } catch (e) {
+            const errorMsg = e instanceof Error ? e.message : "An unknown error occurred.";
+            setAnalysisResult({ session: sessionToAnalyze, analysis: null, isLoading: false, error: errorMsg });
+        }
+    };
 
     const renderLiveSession = () => (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -167,31 +181,31 @@ const RacePack: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-1 bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
                     <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-2 font-display">Saved Sessions</h2>
-                    <p className="text-xs text-gray-500 mb-2">Select up to two sessions to compare.</p>
+                    <p className="text-xs text-gray-500 mb-2">Select sessions to compare or analyze.</p>
                     <div className="space-y-2 h-[60vh] overflow-y-auto">
                         {savedSessions.length > 0 ? savedSessions.map(s => (
-                            <div key={s.id} onClick={() => handleCompareSelect(s.id)} className={`w-full text-left p-3 rounded-md transition-colors cursor-pointer flex items-center gap-3 ${selectedForCompare.includes(s.id) ? 'bg-brand-blue/80' : 'bg-base-800/50 hover:bg-base-800'}`}>
-                                <input type="checkbox" readOnly checked={selectedForCompare.includes(s.id)} className="form-checkbox h-5 w-5 bg-base-700 border-base-600 text-brand-blue focus:ring-brand-blue" />
-                                <div>
-                                    <p className="font-semibold text-white">{s.date}</p>
-                                    <p className="text-xs text-gray-400">{s.lapTimes.length} Laps - {formatTime(s.totalTime)}</p>
+                            <div key={s.id} className={`w-full text-left p-3 rounded-md transition-colors ${selectedForCompare.includes(s.id) ? 'bg-brand-blue/80' : 'bg-base-800/50'}`}>
+                                <div className="flex items-start gap-3">
+                                    <input type="checkbox" onChange={() => handleCompareSelect(s.id)} checked={selectedForCompare.includes(s.id)} className="form-checkbox h-5 w-5 bg-base-700 border-base-600 text-brand-blue focus:ring-brand-blue mt-1" />
+                                    <div>
+                                        <p className="font-semibold text-white">{s.date}</p>
+                                        <p className="text-xs text-gray-400">{s.lapTimes.length} Laps - {formatTime(s.totalTime)}</p>
+                                         <button onClick={() => handleAnalyzeSession(s)} className="mt-2 text-xs bg-brand-cyan/80 text-black px-2 py-1 rounded hover:bg-brand-cyan font-semibold flex items-center gap-1">
+                                            <EngineIcon className="w-4 h-4" /> AI Race Coach
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )) : <p className="text-gray-500 text-center pt-10">No saved sessions.</p>}
                     </div>
                 </div>
                 <div className="md:col-span-2 bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
-                    <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-2 font-display">Session Details</h2>
-                    {(sessionsForComparison.length > 0) ? (
-                         <div className="space-y-3">
-                           <StatCard title="Total Time" value={formatTime(sessionsForComparison[0].totalTime)} />
-                           <StatCard title="Max Speed" value={`${convertSpeed(sessionsForComparison[0].maxSpeed).toFixed(0)} ${getSpeedUnit()}`} />
-                           <StatCard title="Distance" value={`${(sessionsForComparison[0].distance / 1000).toFixed(2)} km`} />
-                        </div>
-                    ) : <p className="text-gray-500 text-center pt-10">Select a session to view details.</p>}
+                    <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-2 font-display">Session Comparison</h2>
+                    {sessionsForComparison.length === 2 ? (
+                         <SessionComparison sessions={[sessionsForComparison[0], sessionsForComparison[1]]} />
+                    ) : <p className="text-gray-500 text-center pt-10">Select two sessions to compare details.</p>}
                 </div>
             </div>
-            {sessionsForComparison.length === 2 && <SessionComparison sessions={[sessionsForComparison[0], sessionsForComparison[1]]} />}
         </div>
     );
     
@@ -267,6 +281,32 @@ const RacePack: React.FC = () => {
                          <div className="flex justify-end gap-4 mt-6">
                             <button onClick={() => setIsSummaryVisible(false)} className="px-6 py-2 rounded-md bg-base-700 text-white font-semibold hover:bg-base-600">Discard</button>
                             <button onClick={handleSaveSession} className="px-6 py-2 rounded-md bg-brand-blue text-white font-semibold hover:bg-blue-600">Save Session</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+             {analysisResult.session && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setAnalysisResult({ session: null, analysis: null, isLoading: false })}>
+                    <div className="w-full max-w-2xl bg-base-900 rounded-lg border border-brand-cyan shadow-lg p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-start">
+                             <div>
+                                <h2 className="text-2xl font-bold font-display text-brand-cyan">AI Race Coach Analysis</h2>
+                                <p className="text-gray-400 mb-4 text-sm">Session from: {analysisResult.session.date}</p>
+                            </div>
+                             <button onClick={() => setAnalysisResult({ session: null, analysis: null, isLoading: false })} className="text-gray-400 hover:text-white">&times;</button>
+                        </div>
+                         <div className="h-[60vh] overflow-y-auto pr-2">
+                            {analysisResult.isLoading ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-brand-cyan"></div>
+                                </div>
+                            ) : analysisResult.error ? (
+                                <div className="text-red-400 bg-red-900/20 p-4 rounded-md">{analysisResult.error}</div>
+                            ) : (
+                                <div className="prose prose-invert max-w-none">
+                                    <ReactMarkdown>{analysisResult.analysis || ''}</ReactMarkdown>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import GaugeIcon from './icons/GaugeIcon';
@@ -37,9 +36,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   return (
     <div className={`carbon-background border-r border-black/50 flex flex-col shadow-inner z-10 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
       <div className="flex items-center justify-center h-24 py-4 border-b border-black/50 overflow-hidden">
-        <div className={`font-display font-black leading-tight text-center whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'text-2xl' : 'text-4xl'}`}>
-            <span className="text-white tracking-tighter">{isCollapsed ? 'C' : 'CARTEL'}</span>
-            <span className="text-[var(--theme-accent-primary)]">{isCollapsed ? 'W' : 'WORXX'}</span>
+        <div className={`flex items-center justify-center font-classic transition-all duration-300 ${isCollapsed ? 'text-4xl' : 'text-5xl'}`}>
+            <span className="text-gray-300 tracking-tighter">C</span>
+            <span className="text-[var(--theme-accent-primary)] tracking-normal">W</span>
         </div>
       </div>
       <nav className={`flex-1 py-4 space-y-2 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-4'}`}>
@@ -68,10 +67,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       </nav>
 
       <div className="p-2 border-t border-black/50 mt-auto">
-        <div className={`text-center py-2 transition-all duration-200 ease-in-out overflow-hidden ${isCollapsed ? 'opacity-0 max-h-0' : 'opacity-100 max-h-12'}`}>
-            <div className="font-classic text-sm tracking-[0.2em] text-gray-400 whitespace-nowrap">KARAPIRO CARTEL</div>
-            <div className="font-mono text-[10px] text-gray-500 whitespace-nowrap">STATEHIGHWAY SPEEDSHOP</div>
-        </div>
         <button
           onClick={onToggle}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}

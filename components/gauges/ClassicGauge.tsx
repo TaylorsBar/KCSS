@@ -15,9 +15,32 @@ interface ClassicGaugeProps {
 }
 
 const sizeConfig = {
-    large: { radius: 200, ticks: 9, stroke: 3, font: 20, valueFont: 60, unitFont: 20, labelFont: 16 },
-    small: { radius: 100, ticks: 5, stroke: 2, font: 14, valueFont: 28, unitFont: 12, labelFont: 10 },
+    large: { radius: 200, ticks: 9, stroke: 3, font: 20, valueFont: 36, unitFont: 14, labelFont: 16 },
+    small: { radius: 100, ticks: 5, stroke: 2, font: 14, valueFont: 24, unitFont: 10, labelFont: 10 },
 };
+
+const Needle: React.FC<{ angle: number; radius: number; center: number }> = ({ angle, radius, center }) => {
+    const scale = radius / 200;
+    const points = "200,215 199,160 201,130 199,100 201,70 200,40";
+    const scaledPoints = points.split(' ').map(p => {
+        const [x, y] = p.split(',').map(Number);
+        const translatedX = (x - 200) * scale + center;
+        const translatedY = (y - 200) * scale + center;
+        return `${translatedX},${translatedY}`;
+    }).join(' ');
+
+    return (
+        <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }}>
+            {/* Shadow/underlayer */}
+            <polyline points={scaledPoints} fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth={6 * scale} strokeLinecap="round" strokeLinejoin="round" filter="url(#classic-needle-shadow)" />
+            {/* Main needle */}
+            <polyline points={scaledPoints} fill="none" stroke={"var(--theme-needle-color)"} strokeWidth={3 * scale} strokeLinecap="round" strokeLinejoin="round" />
+             {/* Highlight */}
+            <polyline points={scaledPoints} fill="none" stroke={"#FFFF00"} strokeWidth={1 * scale} strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+    );
+};
+
 
 const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, unit, size, coldZoneEndValue, warningValue, redlineValue, dangerZone = 'high' }) => {
     const animatedValue = useAnimatedValue(value);
@@ -34,7 +57,24 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
 
     const tickValue = (i: number) => min + (i / (config.ticks - 1)) * (max - min);
     
-    const displayValue = unit === 'x1000' ? (animatedValue / 1000).toFixed(1) : animatedValue.toFixed(unit === '%' || unit === 'V' || unit === 'PSI' ? 0 : 1);
+    const displayValue = unit === 'x1000' ? (animatedValue / 1000).toFixed(1) : animatedValue.toFixed(0);
+    
+    const getBacklightStyle = () => {
+        let inRedline = false;
+        let inWarning = false;
+
+        if (dangerZone === 'low') {
+            if (redlineValue && animatedValue <= redlineValue) inRedline = true;
+            else if (warningValue && animatedValue <= warningValue) inWarning = true;
+        } else {
+            if (redlineValue && animatedValue >= redlineValue) inRedline = true;
+            else if (warningValue && animatedValue >= warningValue) inWarning = true;
+        }
+
+        if (inRedline) return { fill: 'var(--theme-accent-red)', opacity: 0.35, filter: 'url(#classic-glow-red)' };
+        if (inWarning) return { fill: 'var(--theme-accent-primary)', opacity: 0.25, filter: 'url(#classic-glow-yellow)' };
+        return { fill: 'transparent', opacity: 0 };
+    };
 
     return (
         <div className="relative w-full h-full filter drop-shadow-lg">
@@ -57,6 +97,12 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                     <filter id="classic-needle-shadow">
                         <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.6"/>
                     </filter>
+                    <filter id="classic-glow-yellow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="15" result="coloredBlur" />
+                    </filter>
+                     <filter id="classic-glow-red" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="20" result="coloredBlur" />
+                    </filter>
                 </defs>
                 
                 {/* Bezel & Face */}
@@ -64,37 +110,14 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                 <circle cx={center} cy={center} r={radius * 0.95} fill="#111" />
                 <circle cx={center} cy={center} r={radius * 0.9} fill="url(#classic-face-grad)" />
                 
+                {/* Dynamic Backlight */}
+                <circle cx={center} cy={center} r={radius * 0.88} {...getBacklightStyle()} style={{ transition: 'fill 0.3s, opacity 0.3s' }} />
+
                 {/* Ticks & Numbers */}
                 {Array.from({ length: config.ticks }).map((_, i) => {
                     const tv = tickValue(i);
                     const isCold = coldZoneEndValue !== undefined && tv <= coldZoneEndValue;
-                    
-                    let isWarning: boolean, isRedline: boolean;
-                    
-                    if (label === 'Voltage' && warningValue !== undefined && redlineValue !== undefined) {
-                        isRedline = tv < warningValue || tv > redlineValue;
-                        isWarning = false;
-                    } else if (dangerZone === 'low') {
-                        isRedline = redlineValue !== undefined && tv <= redlineValue;
-                        isWarning = warningValue !== undefined && tv <= warningValue && !isRedline;
-                    } else { // dangerZone === 'high'
-                        isRedline = redlineValue !== undefined && tv >= redlineValue;
-                        isWarning = warningValue !== undefined && tv >= warningValue && !isRedline;
-                    }
-
-                    const getTickColor = () => {
-                        if (isRedline) return 'var(--theme-accent-red)';
-                        if (isWarning) return '#facc15'; // yellow-400
-                        if (isCold) return '#60a5fa'; // blue-400
-                        return 'var(--theme-text-secondary)';
-                    };
-
-                     const getNumberFill = () => {
-                        if (isRedline) return 'var(--theme-accent-red)';
-                        if (isWarning) return '#facc15'; // yellow-400
-                        return 'var(--theme-text-primary)';
-                    };
-
+                    const getNumberFill = () => 'var(--theme-text-primary)';
                     const tickAngle = ANGLE_MIN + (i / (config.ticks - 1)) * angleRange;
                     const textAngle = tickAngle + 90;
                     const textX = center + radius * 0.7 * Math.cos(textAngle * Math.PI / 180);
@@ -103,7 +126,7 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                     return (
                         <g key={`tick-${i}`}>
                             <g transform={`rotate(${tickAngle} ${center} ${center})`}>
-                                <line x1={center} y1={radius * 0.1} x2={center} y2={radius * 0.2} stroke={getTickColor()} strokeWidth={config.stroke} />
+                                <line x1={center} y1={radius * 0.1} x2={center} y2={radius * 0.2} stroke={isCold ? '#60a5fa' : 'var(--theme-text-secondary)'} strokeWidth={config.stroke} />
                             </g>
                              <text
                                 x={textX} y={textY}
@@ -119,13 +142,13 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                 })}
 
                 {/* Labels and Digital Readout */}
-                <text x={center} y={center - radius * 0.3} textAnchor="middle" fill="var(--theme-text-secondary)" fontSize={config.labelFont * 1.5} className="font-sans uppercase font-bold">{label}</text>
-                 <foreignObject x={0} y={center + radius * 0.1} width={radius*2} height={radius*0.6}>
+                <text x={center} y={center - radius * 0.4} textAnchor="middle" fill="var(--theme-text-secondary)" fontSize={config.labelFont * 1.5} className="font-sans uppercase font-bold">{label}</text>
+                 <foreignObject x={0} y={center - radius * 0.2} width={radius*2} height={radius*0.6}>
                      <div className="flex flex-col items-center justify-center text-center w-full h-full">
                         <div 
-                           className="font-display font-bold" 
+                           className="font-mono font-bold" 
                            style={{
-                                color: 'white',
+                                color: 'var(--theme-text-primary)',
                                 fontSize: `${config.valueFont}px`, 
                                 textShadow: `0 0 8px rgba(255,255,255,0.7)`
                             }}
@@ -137,18 +160,11 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                 </foreignObject>
 
                 {/* Needle */}
-                <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-needle-shadow)">
-                    <path 
-                        d={`M ${center} ${center + radius * 0.1} L ${center} ${radius * 0.15}`}
-                        stroke="#facc15" // yellow-400
-                        strokeWidth={config.stroke + 2}
-                        strokeLinecap="round"
-                    />
-                </g>
+                <Needle angle={angle} radius={radius} center={center} />
                 
                 {/* Pivot */}
-                <circle cx={center} cy={center} r={radius * (size === 'large' ? 0.12 : 0.08)} fill="var(--theme-accent-red)" />
-                <circle cx={center} cy={center} r={radius * (size === 'large' ? 0.06 : 0.04)} fill="#000" />
+                <circle cx={center} cy={center} r={radius * (size === 'large' ? 0.08 : 0.06)} fill="#333" stroke="#111" strokeWidth="2" />
+                <circle cx={center} cy={center} r={radius * (size === 'large' ? 0.04 : 0.03)} fill="#111" />
 
 
                 {/* Glare */}

@@ -15,26 +15,10 @@ import Appearance from './pages/Appearance';
 import Accessories from './pages/Accessories';
 import { AppearanceProvider } from './contexts/AppearanceContext';
 import CoPilot from './components/CoPilot';
-import { MOCK_ALERTS } from './components/Alerts'; // Mock alerts for context
 import RacePack from './pages/RacePack';
-import { useVehicleStore } from './store/useVehicleStore';
 
 const App: React.FC = () => {
-  const { latestData, hasActiveFault } = useVehicleStore(state => ({
-    latestData: state.latestData,
-    hasActiveFault: state.hasActiveFault,
-  }));
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  // Determine which alerts are currently active
-  const activeAlerts = MOCK_ALERTS.filter(alert => {
-    // Non-fault-related alerts are always considered active for this mock.
-    if (!alert.isFaultRelated) {
-      return true;
-    }
-    // Fault-related alerts are only active if the fault is currently simulated.
-    return hasActiveFault;
-  });
 
   const handleToggleSidebar = () => {
     setIsSidebarCollapsed(prev => !prev);
@@ -63,7 +47,7 @@ const App: React.FC = () => {
                 </Routes>
               </div>
             </main>
-            <CoPilot latestVehicleData={latestData} activeAlerts={activeAlerts} />
+            <CoPilot />
           </div>
         </div>
       </HashRouter>

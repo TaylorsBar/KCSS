@@ -10,7 +10,7 @@ const ClassicThemeDashboard: React.FC = () => {
 
   const speedConfig = unitSystem === 'imperial'
     ? { max: 180, unit: 'mph', warn: 150, red: 170 }
-    : { max: 280, unit: 'km/h', warn: 245, red: 280 };
+    : { max: 280, unit: 'km/h', warn: 245, red: 270 };
 
   // Invert fuelUsed to get fuelLevel
   const fuelLevel = Math.max(0, 100 - d.fuelUsed);
@@ -18,7 +18,7 @@ const ClassicThemeDashboard: React.FC = () => {
   return (
     <div className="flex h-full w-full items-center justify-center p-4 md:p-8 theme-background">
       <div 
-        className="w-full max-w-6xl aspect-video rounded-lg p-6 shadow-2xl border-2 border-black/50 flex flex-col items-center justify-center gap-4 classic-wood-panel"
+        className="w-full max-w-6xl aspect-video rounded-2xl p-6 shadow-2xl flex flex-col items-center justify-center gap-4 classic-wood-panel neon-yellow-border"
         style={{
           boxShadow: 'inset 0 0 30px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.5)',
         }}
@@ -32,8 +32,8 @@ const ClassicThemeDashboard: React.FC = () => {
               max={8000}
               unit="x1000"
               size="large"
-              warningValue={7000}
-              redlineValue={8000}
+              warningValue={6000}
+              redlineValue={7000}
             />
           </div>
            <div className="w-1/2 h-full">
@@ -57,7 +57,7 @@ const ClassicThemeDashboard: React.FC = () => {
                 <ClassicGauge label="Oil Press" value={d.oilPressure * 14.5} min={0} max={100} unit="PSI" size="small" dangerZone="low" redlineValue={20} warningValue={35} />
             </div>
              <div className="w-1/4 h-full">
-                <ClassicGauge label="Water Temp" value={d.engineTemp} min={40} max={120} unit="°C" size="small" coldZoneEndValue={60} warningValue={95} redlineValue={120} />
+                <ClassicGauge label="Water Temp" value={d.engineTemp} min={40} max={120} unit="°C" size="small" coldZoneEndValue={60} warningValue={100} redlineValue={110} />
             </div>
              <div className="w-1/4 h-full">
                 <ClassicGauge label="Voltage" value={d.batteryVoltage} min={10} max={16} unit="V" size="small" warningValue={12} redlineValue={15} />
