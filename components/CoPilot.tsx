@@ -66,18 +66,29 @@ const CoPilot: React.FC = () => {
     handleAiResponse(response);
   }, [latestData, activeAlerts, handleAiResponse]);
 
-  const { isListening, transcript, startListening, stopListening, hasSupport } = useSpeechRecognition(processCommand);
+  const { isListening, startListening, stopListening, hasSupport, error: speechError } = useSpeechRecognition(processCommand);
 
+  useEffect(() => {
+    if (speechError) {
+      setState(CoPilotState.Idle);
+      setIsOpen(true);
+      if (speechError === 'not-allowed') {
+        setAiResponse("Microphone access is required for Co-Pilot. Please enable it in your browser settings and try again.");
+      } else {
+        setAiResponse(`A speech recognition error occurred: ${speechError}.`);
+      }
+    }
+  }, [speechError]);
+  
   useEffect(() => {
     if (isListening) {
         setState(CoPilotState.Listening);
     } else if (state === CoPilotState.Listening) {
-        // This handles cases where listening stops without a result (e.g., timeout)
-        if (!transcript) {
-            setState(CoPilotState.Idle);
-        }
+        // This handles cases where listening stops without a result (e.g., timeout or user cancels)
+        // and it's not an error case (which is handled by the speechError useEffect).
+        setState(CoPilotState.Idle);
     }
-  }, [isListening, state, transcript]);
+  }, [isListening, state]);
   
   useEffect(() => {
     if (!isSpeaking && state === CoPilotState.Speaking) {

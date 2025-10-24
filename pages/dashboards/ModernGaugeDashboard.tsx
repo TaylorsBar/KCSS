@@ -3,6 +3,7 @@ import { useVehicleStore } from '../../store/useVehicleStore';
 import { useUnitConversion } from '../../hooks/useUnitConversion';
 import CarbonTachometer from '../../components/tachometers/CarbonTachometer';
 import AuxGauge from '../../components/gauges/AuxGauge';
+import ShiftLight from '../../components/ShiftLight';
 
 const ModernGaugeDashboard: React.FC = () => {
     const latestData = useVehicleStore(state => state.latestData);
@@ -29,12 +30,15 @@ const ModernGaugeDashboard: React.FC = () => {
                 <AuxGauge label="A/F" value={afr} min={10} max={20} unit="ratio" />
                 <AuxGauge label="VOLTS" value={latestData.batteryVoltage} min={11} max={15} unit="v" />
             </div>
-            <CarbonTachometer 
-                rpm={latestData.rpm} 
-                speed={speed}
-                gear={latestData.speed < 1 ? 0 : latestData.gear}
-                speedUnit={speedUnit}
-            />
+            <div className="relative flex-shrink-0">
+                <CarbonTachometer 
+                    rpm={latestData.rpm} 
+                    speed={speed}
+                    gear={latestData.speed < 1 ? 0 : latestData.gear}
+                    speedUnit={speedUnit}
+                />
+                <ShiftLight rpm={latestData.rpm} />
+            </div>
         </div>
     );
 };

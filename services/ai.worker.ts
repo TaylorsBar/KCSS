@@ -1,12 +1,16 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type } from "https://esm.sh/@google/genai@^1.12.0";
 import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, SavedRaceSession } from '../types';
 
-const API_KEY = process.env.API_KEY;
+// Safely access the API key. In a web worker, `process` might not be defined.
+// The execution environment is expected to provide this value.
+const API_KEY = (typeof process !== 'undefined' && process.env && process.env.API_KEY)
+    ? process.env.API_KEY
+    : undefined;
+
 
 if (!API_KEY) {
-  // Post a generic error that the main thread can handle via its timeout mechanism.
-  // A direct postMessage without a requestId won't be caught by the promise handlers.
-  console.error('API_KEY is not configured. AI services are unavailable.');
+  // This log helps in debugging if the key isn't injected correctly into the worker's scope.
+  console.error('AI Worker: API_KEY is not configured. AI services are unavailable.');
 }
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;

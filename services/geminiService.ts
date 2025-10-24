@@ -7,10 +7,10 @@ let requestIdCounter = 0;
 
 function getWorker(): Worker {
     if (!worker) {
-        // FIX: Replaced `new URL('./ai.worker.ts', import.meta.url)` with an absolute path
-        // from `window.location.origin` to prevent "Invalid URL" errors in certain environments.
-        const workerUrl = new URL('services/ai.worker.ts', window.location.origin);
-        worker = new Worker(workerUrl, {
+        // The path to the worker must be absolute from the root of the domain (e.g., /services/ai.worker.ts)
+        // to avoid cross-origin issues when the app is hosted in a sandboxed environment.
+        // Using a relative path like './services/ai.worker.ts' can be resolved incorrectly by the browser.
+        worker = new Worker('/services/ai.worker.ts', {
             type: 'module'
         });
 

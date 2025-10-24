@@ -6,6 +6,7 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 export const useSpeechRecognition = (onResult: (transcript: string) => void) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -30,6 +31,7 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
 
     recognition.onerror = (event: any) => {
       console.error(`Speech recognition error: ${event.error}`);
+      setError(event.error);
       setIsListening(false);
     };
 
@@ -48,6 +50,7 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
 
   const startListening = () => {
     if (recognitionRef.current && !isListening) {
+      setError(null); // Clear previous errors on start
       recognitionRef.current.start();
     }
   };
@@ -63,6 +66,7 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
     transcript,
     startListening,
     stopListening,
+    error,
     hasSupport: !!SpeechRecognition
   };
 };

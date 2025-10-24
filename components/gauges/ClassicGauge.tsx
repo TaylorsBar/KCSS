@@ -19,29 +19,6 @@ const sizeConfig = {
     small: { radius: 100, ticks: 5, stroke: 2, font: 14, valueFont: 24, unitFont: 10, labelFont: 10 },
 };
 
-const Needle: React.FC<{ angle: number; radius: number; center: number }> = ({ angle, radius, center }) => {
-    const scale = radius / 200;
-    const points = "200,215 199,160 201,130 199,100 201,70 200,40";
-    const scaledPoints = points.split(' ').map(p => {
-        const [x, y] = p.split(',').map(Number);
-        const translatedX = (x - 200) * scale + center;
-        const translatedY = (y - 200) * scale + center;
-        return `${translatedX},${translatedY}`;
-    }).join(' ');
-
-    return (
-        <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }}>
-            {/* Shadow/underlayer */}
-            <polyline points={scaledPoints} fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth={6 * scale} strokeLinecap="round" strokeLinejoin="round" filter="url(#classic-needle-shadow)" />
-            {/* Main needle */}
-            <polyline points={scaledPoints} fill="none" stroke={"var(--theme-needle-color)"} strokeWidth={3 * scale} strokeLinecap="round" strokeLinejoin="round" />
-             {/* Highlight */}
-            <polyline points={scaledPoints} fill="none" stroke={"#FFFF00"} strokeWidth={1 * scale} strokeLinecap="round" strokeLinejoin="round" />
-        </g>
-    );
-};
-
-
 const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, unit, size, coldZoneEndValue, warningValue, redlineValue, dangerZone = 'high' }) => {
     const animatedValue = useAnimatedValue(value);
     const config = sizeConfig[size];
@@ -75,15 +52,25 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
         if (inWarning) return { fill: 'var(--theme-accent-primary)', opacity: 0.25, filter: 'url(#classic-glow-yellow)' };
         return { fill: 'transparent', opacity: 0 };
     };
+    
+    const needleWidth = radius * 0.03;
+    const needleTailLength = radius * 0.15;
+    const needlePath = `
+      M ${center - needleWidth} ${center} 
+      L ${center} ${radius * 0.12} 
+      L ${center + needleWidth} ${center} 
+      L ${center} ${center + needleTailLength} 
+      Z
+    `;
 
     return (
         <div className="relative w-full h-full filter drop-shadow-lg">
             <svg viewBox={`0 0 ${radius * 2} ${radius * 2}`} className="w-full h-full">
                 <defs>
                     <radialGradient id="classic-chrome-bezel" cx="50%" cy="50%" r="50%" fx="35%" fy="35%">
-                        <stop offset="0%" stopColor="#ffffff" />
-                        <stop offset="60%" stopColor="#d0d0d0" />
-                        <stop offset="85%" stopColor="#a0a0a0" />
+                        <stop offset="0%" stopColor="#f5f5f5" />
+                        <stop offset="85%" stopColor="#c0c0c0" />
+                        <stop offset="95%" stopColor="#a0a0a0" />
                         <stop offset="100%" stopColor="#444444" />
                     </radialGradient>
                     <radialGradient id="classic-face-grad">
@@ -93,6 +80,11 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                     <linearGradient id="classic-glare" x1="0" y1="0" x2="1" y2="1">
                          <stop offset="0%" stopColor="white" stopOpacity="0.15" />
                          <stop offset="100%" stopColor="white" stopOpacity="0" />
+                    </linearGradient>
+                     <linearGradient id="classic-needle-grad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="var(--theme-needle-color)" stopOpacity="0.8" />
+                        <stop offset="50%" stopColor="#FFFF00" />
+                        <stop offset="100%" stopColor="var(--theme-needle-color)" stopOpacity="0.8" />
                     </linearGradient>
                     <filter id="classic-needle-shadow">
                         <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.6"/>
@@ -109,6 +101,8 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                 <circle cx={center} cy={center} r={radius} fill="url(#classic-chrome-bezel)" />
                 <circle cx={center} cy={center} r={radius * 0.95} fill="#111" />
                 <circle cx={center} cy={center} r={radius * 0.9} fill="url(#classic-face-grad)" />
+                <circle cx={center} cy={center} r={radius * 0.9} fill="transparent" stroke="rgba(0,0,0,0.5)" strokeWidth={radius*0.03} />
+
                 
                 {/* Dynamic Backlight */}
                 <circle cx={center} cy={center} r={radius * 0.88} {...getBacklightStyle()} style={{ transition: 'fill 0.3s, opacity 0.3s' }} />
@@ -159,12 +153,15 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                     </div>
                 </foreignObject>
 
-                {/* Needle */}
-                <Needle angle={angle} radius={radius} center={center} />
+                {/* High-Fidelity Needle */}
+                <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-needle-shadow)">
+                    <path d={needlePath} fill="url(#classic-needle-grad)" />
+                </g>
                 
                 {/* Pivot */}
-                <circle cx={center} cy={center} r={radius * (size === 'large' ? 0.08 : 0.06)} fill="#333" stroke="#111" strokeWidth="2" />
-                <circle cx={center} cy={center} r={radius * (size === 'large' ? 0.04 : 0.03)} fill="#111" />
+                <circle cx={center} cy={center} r={radius * 0.08} fill="#444" stroke="#111" strokeWidth="2" />
+                <circle cx={center} cy={center} r={radius * 0.04} fill="#222" />
+                <line x1={center - radius*0.025} y1={center} x2={center + radius*0.025} y2={center} stroke="#555" strokeWidth="1.5" />
 
 
                 {/* Glare */}

@@ -239,3 +239,10 @@ export interface GroundedResponse {
   text: string;
   chunks: GroundingChunk[];
 }
+
+export enum ConnectionStatus {
+  DISCONNECTED = 'Disconnected',
+  CONNECTING = 'Connecting',
+  CONNECTED = 'Connected',
+  ERROR = 'Error',
+}

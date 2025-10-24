@@ -157,6 +157,11 @@ const ARAssistant: React.FC = () => {
         recognition.onend = () => setIsListening(false);
         recognition.onerror = (event: any) => {
             console.error('Speech recognition error:', event.error);
+            if (event.error === 'not-allowed') {
+                setAssistantMessage("Microphone permission was denied. Please allow microphone access in your browser settings to use voice commands.");
+            } else {
+                setAssistantMessage(`An error occurred during speech recognition: ${event.error}.`);
+            }
             setIsListening(false);
         };
         recognition.onresult = (event: any) => {

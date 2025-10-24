@@ -164,7 +164,13 @@ export const useLiveConversation = () => {
             sessionPromiseRef.current = sessionPromise;
         } catch (e) {
             console.error('Failed to connect:', e);
-            setError(e instanceof Error ? e.message : 'Failed to initialize session.');
+            let friendlyError = 'Failed to initialize session.';
+            if (e instanceof DOMException && e.name === 'NotAllowedError') {
+                friendlyError = "Microphone permission denied. Please enable it in your browser settings to use this feature.";
+            } else if (e instanceof Error) {
+                friendlyError = e.message;
+            }
+            setError(friendlyError);
             setConnectionState('ERROR');
             cleanup();
         }
