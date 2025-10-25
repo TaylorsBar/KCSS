@@ -1,3 +1,4 @@
+
 import React, { useContext } from 'react';
 import { AppearanceContext, Theme, AccentMaterial, LEDMode, UnitSystem } from '../contexts/AppearanceContext';
 
@@ -7,6 +8,7 @@ const themes: { id: Theme; name: string; description: string }[] = [
     { id: 'classic', name: 'E-Tuner Pro', description: 'Professional tuner interface with a red-on-black aesthetic.' },
     { id: 'haltech', name: 'Pro Tuner', description: 'Yellow-on-black professional racing display.' },
     { id: 'minimalist', name: 'Minimalist EV', description: 'Clean, modern interface with a frosted glass aesthetic.' },
+    { id: 'ic7', name: 'Race Dash IC-7', description: 'Mobile-ready, information-dense professional racing display.' },
 ];
 
 const materials: { id: AccentMaterial; name: string; style: React.CSSProperties }[] = [

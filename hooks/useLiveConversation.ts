@@ -158,7 +158,7 @@ export const useLiveConversation = () => {
                     responseModalities: [Modality.AUDIO],
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
-                    systemInstruction: `You are KC, an expert automotive mechanic and AI diagnostic assistant for the 'Karapiro Cartel Speed Shop' app. Your responses should be clear, conversational, and helpful for diagnosing vehicle issues. Keep your answers concise and to the point.`,
+                    systemInstruction: `You are CW, an expert automotive mechanic and AI diagnostic assistant for the 'CartelWorx' app. Your responses should be clear, conversational, and helpful for diagnosing vehicle issues. Keep your answers concise and to the point.`,
                 },
             });
             sessionPromiseRef.current = sessionPromise;

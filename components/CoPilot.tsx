@@ -123,7 +123,7 @@ const CoPilot: React.FC = () => {
       case CoPilotState.Thinking:
         return `Processing: "${userTranscript}"`;
       case CoPilotState.Speaking:
-        return 'KC is responding...';
+        return 'CW is responding...';
       default:
         return 'AI Co-Pilot is standing by.';
     }

@@ -1,4 +1,5 @@
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession } from '../types';
+
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession, DTCInfo } from '../types';
 
 // Using a module-level variable to ensure a single worker instance.
 let worker: Worker | undefined;
@@ -7,10 +8,10 @@ let requestIdCounter = 0;
 
 function getWorker(): Worker {
     if (!worker) {
-        // The path to the worker must be absolute from the root of the domain (e.g., /services/ai.worker.ts)
-        // to avoid cross-origin issues when the app is hosted in a sandboxed environment.
-        // Using a relative path like './services/ai.worker.ts' can be resolved incorrectly by the browser.
-        worker = new Worker('/services/ai.worker.ts', {
+        // The path to the worker is resolved relative to the current module's URL to ensure
+        // it loads correctly within the sandboxed environment and avoids cross-origin issues.
+        const workerUrl = new URL('./ai.worker.ts', import.meta.url);
+        worker = new Worker(workerUrl, {
             type: 'module'
         });
 
@@ -79,12 +80,27 @@ export const getPredictiveAnalysis = (
 };
 
 export const getTuningSuggestion = (
-    liveData: SensorDataPoint,
-    drivingStyle: string,
-    conditions: string
+    goal: string,
+    liveData: SensorDataPoint
 ): Promise<TuningSuggestion> => {
-    return callWorker('getTuningSuggestion', { liveData, drivingStyle, conditions });
+    return callWorker('getTuningSuggestion', { goal, liveData });
 };
+
+export const analyzeTuneSafety = (
+    currentTune: { ignitionTiming: number[][]; boostPressure: number[][] },
+    liveData: SensorDataPoint
+): Promise<{ safetyScore: number; warnings: string[] }> => {
+    return callWorker('analyzeTuneSafety', { currentTune, liveData });
+};
+
+export const getTuningChatResponse = (
+    query: string,
+    currentTune: { ignitionTiming: number[][]; boostPressure: number[][] },
+    liveData: SensorDataPoint
+): Promise<string> => {
+    return callWorker('getTuningChatResponse', { query, currentTune, liveData });
+};
+
 
 export const getVoiceCommandIntent = (command: string): Promise<VoiceCommandIntent> => {
     return callWorker('getVoiceCommandIntent', { command });
@@ -122,4 +138,8 @@ export const getRouteScoutResponse = (
 
 export const getRaceAnalysis = (session: SavedRaceSession): Promise<string> => {
     return callWorker('getRaceAnalysis', { session });
+};
+
+export const getDTCInfo = (dtcCode: string): Promise<DTCInfo> => {
+    return callWorker('getDTCInfo', { dtcCode });
 };

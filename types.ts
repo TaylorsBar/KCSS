@@ -85,14 +85,17 @@ export interface TimelineEvent {
 export interface TuningSuggestion {
   suggestedParams: {
     fuelMap: number;
-    ignitionTiming: number;
-    boostPressure: number;
+    ignitionTiming: number[][];
+    boostPressure: number[][];
   };
   analysis: {
     predictedGains: string;
     potentialRisks: string;
+    safetyWarnings?: string[];
+    educationalTip?: string;
   };
 }
+
 
 // Types for Security Audit Trail
 export enum AuditEvent {
@@ -245,4 +248,11 @@ export enum ConnectionStatus {
   CONNECTING = 'Connecting',
   CONNECTED = 'Connected',
   ERROR = 'Error',
+}
+
+export interface DTCInfo {
+    code: string;
+    description: string;
+    severity: 'Info' | 'Warning' | 'Critical';
+    possibleCauses: string[];
 }

@@ -58,10 +58,20 @@ const ConnectionIndicator: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   return (
     <div className={`carbon-background border-r border-black/50 flex flex-col shadow-inner z-10 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
-      <div className="flex items-center justify-center h-24 py-4 border-b border-black/50 overflow-hidden">
-        <div className={`flex items-center justify-center font-classic transition-all duration-300 ${isCollapsed ? 'text-4xl' : 'text-5xl'}`}>
+      <div className="relative flex items-center justify-center h-24 py-4 border-b border-black/50 overflow-hidden">
+        {/* Expanded Logo */}
+        <div className={`absolute transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+          <div className="font-classic text-4xl whitespace-nowrap">
+            <span className="text-gray-300 tracking-tighter">Cartel</span>
+            <span className="text-[var(--theme-accent-primary)] tracking-normal">Worx</span>
+          </div>
+        </div>
+        {/* Collapsed Logo */}
+        <div className={`absolute transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <div className="font-classic text-4xl">
             <span className="text-gray-300 tracking-tighter">C</span>
             <span className="text-[var(--theme-accent-primary)] tracking-normal">W</span>
+          </div>
         </div>
       </div>
       <nav className={`flex-1 py-4 space-y-2 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-4'}`}>

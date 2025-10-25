@@ -92,7 +92,7 @@ const ModernGauge: React.FC<ModernGaugeProps> = ({ value, min, max, label, size 
                         fontFamily="cursive"
                         fontStyle="italic"
                     >
-                        Karapiro Cartel
+                        CartelWorx
                     </text>
                 )}
 

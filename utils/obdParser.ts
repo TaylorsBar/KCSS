@@ -34,12 +34,6 @@ const pidMap: { [pid: string]: PidParser } = {
     const [A, B] = hex.map(h => parseInt(h, 16));
     return { batteryVoltage: ((A * 256) + B) / 1000 };
   },
-  '5C': (hex) => { // Engine Oil Temperature
-    const [A] = hex.map(h => parseInt(h, 16));
-    // Assuming this sensor is available. In a real car, it might not be.
-    // Let's use it to populate fuelTemp as a proxy if it's there.
-    return { fuelTemp: A - 40 };
-  },
   '0A': (hex) => { // Fuel Pressure
     const [A] = hex.map(h => parseInt(h, 16));
     const kpa = A * 3;
@@ -54,7 +48,11 @@ const pidMap: { [pid: string]: PidParser } = {
 };
 
 export const parseOBDResponse = (response: string): Partial<SensorDataPoint> | null => {
-  const cleaned = response.replace(/\s/g, '');
+  const cleaned = response.replace(/\s/g, '').trim();
+  
+  if (cleaned.includes('NODATA')) {
+    return null;
+  }
   
   // A standard successful response starts with '41' (Mode 01 success)
   if (!cleaned.startsWith('41')) {
@@ -75,4 +73,53 @@ export const parseOBDResponse = (response: string): Partial<SensorDataPoint> | n
   }
   
   return null;
+};
+
+export const parseDTCResponse = (response: string): string[] => {
+    const cleaned = response.replace(/\s/g, '').trim();
+    // Mode 03 (DTC) response starts with 43.
+    if (!cleaned.startsWith('43')) {
+        return [];
+    }
+    
+    // The hex data for codes starts after the '43' and the byte indicating the number of codes.
+    // We can ignore the count byte and just parse all subsequent byte pairs.
+    const hexData = cleaned.substring(4).match(/.{1,2}/g) || [];
+    
+    // Defensive check: Ensure we have pairs of bytes to process.
+    if (hexData.length % 2 !== 0) {
+        console.warn("Malformed DTC response, odd number of hex bytes:", cleaned);
+        // We can attempt to process the even part of the array.
+        hexData.pop();
+    }
+    
+    const dtcs: string[] = [];
+    for (let i = 0; i < hexData.length; i += 2) {
+        const byte1 = hexData[i];
+        const byte2 = hexData[i+1];
+        if (byte1 === '00' && byte2 === '00') {
+            continue; // Ignore padding bytes
+        }
+        
+        const firstCharVal = parseInt(byte1.charAt(0), 16);
+        let firstChar = '';
+        
+        // The first two bits of the first byte determine the code's letter.
+        // 00xx -> P (Powertrain)
+        // 01xx -> C (Chassis)
+        // 10xx -> B (Body)
+        // 11xx -> U (Network)
+        switch (firstCharVal >> 2) {
+            case 0: firstChar = 'P'; break;
+            case 1: firstChar = 'C'; break;
+            case 2: firstChar = 'B'; break;
+            case 3: firstChar = 'U'; break;
+        }
+        
+        const secondChar = (firstCharVal & 0x03).toString(16);
+        const restOfCode = byte1.charAt(1) + byte2;
+        dtcs.push(`${firstChar}${secondChar}${restOfCode}`.toUpperCase());
+    }
+    
+    return dtcs;
 };

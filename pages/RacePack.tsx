@@ -11,9 +11,11 @@ import TrophyIcon from '../components/icons/TrophyIcon';
 import StopwatchIcon from '../components/icons/StopwatchIcon';
 import GpsIcon from '../components/icons/GpsIcon';
 import EngineIcon from '../components/icons/EngineIcon';
+import CameraIcon from '../components/icons/CameraIcon';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { useUnitConversion } from '../hooks/useUnitConversion';
 import SessionComparison from '../components/SessionComparison';
+import TrackCamera from '../components/TrackCamera';
 
 
 const formatTime = (ms: number) => {
@@ -250,6 +252,7 @@ const RacePack: React.FC = () => {
             </div>
             <div className="bg-base-800/30 rounded-t-lg flex">
                 <TabButton label="Live Session" icon={<StopwatchIcon />} isActive={activeTab === 'live'} onClick={() => setActiveTab('live')} />
+                <TabButton label="Track Camera" icon={<CameraIcon />} isActive={activeTab === 'camera'} onClick={() => setActiveTab('camera')} />
                 <TabButton label="GPS Tracking" icon={<GpsIcon />} isActive={activeTab === 'gps'} onClick={() => setActiveTab('gps')} />
                 <TabButton label="History" icon={<HistoryIcon />} isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} />
                 <TabButton label="Leaderboard" icon={<TrophyIcon />} isActive={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} />
@@ -257,6 +260,8 @@ const RacePack: React.FC = () => {
 
             <div className="p-4 bg-black/30 rounded-b-lg">
                 {activeTab === 'live' && renderLiveSession()}
+                {activeTab === 'camera' && session.isActive && <TrackCamera latestData={session.data[session.data.length - 1]} gpsPath={session.gpsPath} />}
+                {activeTab === 'camera' && !session.isActive && <div className="text-center text-gray-400 p-10 bg-black rounded-lg border border-brand-cyan/30">Please start a live session to use the track camera.</div>}
                 {activeTab === 'gps' && renderGpsTracking()}
                 {activeTab === 'history' && renderHistory()}
                 {activeTab === 'leaderboard' && renderLeaderboard()}

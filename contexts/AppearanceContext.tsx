@@ -1,13 +1,14 @@
 
 
 
+
 import React, { createContext, useState, useEffect, useMemo } from 'react';
 // FIX: Re-export UnitSystem so other modules can import it from this context file.
 // Use an alias `TUnitSystem` for internal use to avoid naming conflicts.
 import type { UnitSystem as TUnitSystem } from '../types';
 export type { UnitSystem } from '../types';
 
-export type Theme = 'rally' | 'modern' | 'classic' | 'haltech' | 'minimalist';
+export type Theme = 'rally' | 'modern' | 'classic' | 'haltech' | 'minimalist' | 'ic7';
 export type AccentMaterial = 'cyan' | 'brushed-brass' | 'satin-brass' | 'antique-brass' | 'carbon-fiber';
 export type LEDMode = 'solid' | 'pulse' | 'music';
 export type CopilotAudioOutput = 'phone' | 'stereo';

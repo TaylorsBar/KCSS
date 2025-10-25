@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "https://esm.sh/@google/genai@^1.12.0";
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, SavedRaceSession } from '../types';
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, SavedRaceSession, DTCInfo } from '../types';
 
 // Safely access the API key. In a web worker, `process` might not be defined.
 // The execution environment is expected to provide this value.
@@ -46,7 +46,7 @@ const getPredictiveAnalysis = async (
       - **Oil Pressure Trend**: ${firstPoint.oilPressure.toFixed(1)} to ${lastPoint.oilPressure.toFixed(1)} bar.
     `;
     
-    const systemInstructionForAnalysis = `You are 'KC', an expert automotive AI mechanic specializing in predictive maintenance for a 2022 Subaru WRX with 45,000 miles. Your task is to analyze vehicle data trends and maintenance history to identify potential future mechanical issues.
+    const systemInstructionForAnalysis = `You are 'CW', an expert automotive AI mechanic specializing in predictive maintenance for a 2022 Subaru WRX with 45,000 miles. Your task is to analyze vehicle data trends and maintenance history to identify potential future mechanical issues.
 - Analyze trends for anomalies (e.g., rising Long Term Fuel Trim, dropping oil pressure under load).
 - Predict risks to specific components.
 - Categorize the risk timeframe (e.g., 'Immediate', 'Next 1000 miles', 'Next 3 months').
@@ -110,10 +110,16 @@ const getPredictiveAnalysis = async (
   }
 };
 
-const getTuningSuggestion = async (liveData: SensorDataPoint, drivingStyle: string, conditions: string): Promise<TuningSuggestion> => {
+const getTuningSuggestion = async (goal: string, liveData: SensorDataPoint): Promise<TuningSuggestion> => {
     // This function remains a mock as per the user's focus on other features.
+    // FIX: Updated to return mock 2D arrays to match the type definition.
+    const mockMap = (baseValue: number) => Array(8).fill(0).map(() => Array(8).fill(baseValue));
     return {
-        suggestedParams: { fuelMap: 1.5, ignitionTiming: 0.5, boostPressure: 2.0 },
+        suggestedParams: { 
+            fuelMap: 1.5, 
+            ignitionTiming: mockMap(0.5), 
+            boostPressure: mockMap(2.0)
+        },
         analysis: {
             predictedGains: "Approximately 10-15 HP increase.",
             potentialRisks: "Slightly increased engine wear over time."
@@ -193,7 +199,7 @@ const getComponentTuningAnalysis = async (componentName: string, liveData: Senso
   if (!ai || !isOnline()) {
     return `**Offline Mode**: Cannot analyze ${componentName}.`;
   }
-  const systemInstructionForTuning = `You are KC, an expert automotive performance tuner. Analyze the provided component and its live data. Provide a concise analysis (2-3 sentences) of its current state and potential tuning improvements or issues. Focus on what the live data indicates. Be direct and use markdown for formatting.`;
+  const systemInstructionForTuning = `You are CW, an expert automotive performance tuner. Analyze the provided component and its live data. Provide a concise analysis (2-3 sentences) of its current state and potential tuning improvements or issues. Focus on what the live data indicates. Be direct and use markdown for formatting.`;
   const prompt = `Component: ${componentName}. Live Data Snapshot: ${JSON.stringify(liveData)}. Provide your analysis.`;
 
   try {
@@ -217,7 +223,7 @@ const getCoPilotResponse = async (command: string, vehicleData: SensorDataPoint,
         return "Co-pilot is offline. Please try again later.";
     }
 
-    const systemInstructionForCopilot = `You are KC, a hands-free AI co-pilot in a vehicle. You are talking to the driver. Keep responses very short and conversational (1-2 sentences max). Use the provided vehicle data and alerts to answer the driver's questions directly. Do not offer to do things you cannot, like 'pulling over'.`;
+    const systemInstructionForCopilot = `You are CW, a hands-free AI co-pilot in a vehicle. You are talking to the driver. Keep responses very short and conversational (1-2 sentences max). Use the provided vehicle data and alerts to answer the driver's questions directly. Do not offer to do things you cannot, like 'pulling over'.`;
     
     const context = `
       **Current Vehicle Data:**
@@ -248,7 +254,7 @@ const getCrewChiefResponse = async (query: string): Promise<GroundedResponse> =>
     if (!ai || !isOnline()) {
         return { text: "Crew Chief is offline. Please check your connection to search for parts.", chunks: [] };
     }
-    const systemInstructionForCrewChief = `You are 'KC', a helpful Crew Chief AI. Your job is to help users find automotive parts. Use your search tool to find suppliers or information about the requested part. Provide a summary and always include the source links.`;
+    const systemInstructionForCrewChief = `You are 'CW', a helpful Crew Chief AI. Your job is to help users find automotive parts. Use your search tool to find suppliers or information about the requested part. Provide a summary and always include the source links.`;
     
     try {
         const response = await ai.models.generateContent({
@@ -271,7 +277,7 @@ const getRouteScoutResponse = async (query: string, location: { latitude: number
     if (!ai || !isOnline()) {
         return { text: "Route Scout is offline. Please check your connection for route suggestions.", chunks: [] };
     }
-    const systemInstructionForRouteScout = `You are 'KC', an expert route scout for performance driving enthusiasts. Based on my current location and your access to real-time map data, suggest an interesting route. The user is asking about: "${query}". Frame your suggestions for things like spirited drives, potential street circuits, scenic club convoys, or suitable private spots for 1/4 mile runs. Provide a conversational, helpful response and use markdown for formatting.`;
+    const systemInstructionForRouteScout = `You are 'CW', an expert route scout for performance driving enthusiasts. Based on my current location and your access to real-time map data, suggest an interesting route. The user is asking about: "${query}". Frame your suggestions for things like spirited drives, potential street circuits, scenic club convoys, or suitable private spots for 1/4 mile runs. Provide a conversational, helpful response and use markdown for formatting.`;
 
     try {
         const response = await ai.models.generateContent({
@@ -298,7 +304,7 @@ const getRouteScoutResponse = async (query: string, location: { latitude: number
 const getRaceAnalysis = async (session: SavedRaceSession): Promise<string> => {
     if (!ai) return "AI Race Coach is unavailable.";
     
-    const systemInstructionForRaceCoach = `You are 'KC', a world-class AI race engineer and driver coach. Analyze the provided race session data for a skilled enthusiast driver. Your analysis should be insightful, actionable, and encouraging.
+    const systemInstructionForRaceCoach = `You are 'CW', a world-class AI race engineer and driver coach. Analyze the provided race session data for a skilled enthusiast driver. Your analysis should be insightful, actionable, and encouraging.
 - Start with a positive, high-level summary of the session.
 - Identify the best lap and explain what made it fast (e.g., "Your best lap was Lap 3. You carried excellent speed through the chicane.").
 - Pinpoint 1-2 key areas for improvement. Be specific and use data (e.g., "On your slower laps, it looks like you were braking a little too early for Turn 5, costing you a few tenths. Try using the 100m board as your braking marker.").
@@ -334,6 +340,38 @@ const getRaceAnalysis = async (session: SavedRaceSession): Promise<string> => {
     }
 };
 
+const getDTCInfo = async (dtcCode: string): Promise<DTCInfo> => {
+    if (!ai || !isOnline()) {
+        return { code: dtcCode, description: "Could not retrieve details while offline.", severity: 'Warning', possibleCauses: ["Check your internet connection."] };
+    }
+    const systemInstructionForDTC = `You are an expert automotive diagnostic AI. Given a standard OBD-II Diagnostic Trouble Code (DTC), you must provide a detailed analysis. Respond ONLY with a valid JSON object matching the provided schema.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Analyze this DTC: ${dtcCode}`,
+            config: {
+                systemInstruction: systemInstructionForDTC,
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        code: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        severity: { type: Type.STRING, enum: ['Info', 'Warning', 'Critical'] },
+                        possibleCauses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    },
+                    required: ['code', 'description', 'severity', 'possibleCauses']
+                }
+            }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error(`Error fetching info for DTC ${dtcCode}:`, error);
+        return { code: dtcCode, description: "Failed to retrieve information for this code.", severity: 'Warning', possibleCauses: ["Could not connect to the AI analysis service."] };
+    }
+};
+
 
 self.onmessage = async (e: MessageEvent) => {
     const { type, payload, requestId } = e.data;
@@ -348,7 +386,8 @@ self.onmessage = async (e: MessageEvent) => {
                 result = await getPredictiveAnalysis(payload.dataHistory, payload.maintenanceHistory);
                 break;
             case 'getTuningSuggestion':
-                result = await getTuningSuggestion(payload.liveData, payload.drivingStyle, payload.conditions);
+                // FIX: Corrected arguments to match function definition.
+                result = await getTuningSuggestion(payload.goal, payload.liveData);
                 break;
             case 'getVoiceCommandIntent':
                 result = await getVoiceCommandIntent(payload.command);
@@ -370,6 +409,9 @@ self.onmessage = async (e: MessageEvent) => {
                 break;
             case 'getRaceAnalysis':
                 result = await getRaceAnalysis(payload.session);
+                break;
+            case 'getDTCInfo':
+                result = await getDTCInfo(payload.dtcCode);
                 break;
             default:
                 throw new Error(`Unknown worker command: ${type}`);
