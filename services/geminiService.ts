@@ -8,10 +8,10 @@ let requestIdCounter = 0;
 
 function getWorker(): Worker {
     if (!worker) {
-        // The path to the worker is resolved relative to the current module's URL to ensure
-        // it loads correctly within the sandboxed environment and avoids cross-origin issues.
-        const workerUrl = new URL('./ai.worker.ts', import.meta.url);
-        worker = new Worker(workerUrl, {
+        // The path to the worker is now an absolute path from the project root.
+        // This avoids issues with `import.meta.url` which can be unreliable in certain
+        // sandboxed or no-build environments, preventing "Invalid URL" errors.
+        worker = new Worker('/services/ai.worker.ts', {
             type: 'module'
         });
 

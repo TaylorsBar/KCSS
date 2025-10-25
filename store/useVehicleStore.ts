@@ -14,6 +14,7 @@ interface VehicleState {
   timelineEvents: TimelineEvent[];
   connectionStatus: ConnectionStatus;
   isSimulating: boolean;
+  deviceName: string | null;
 }
 
 interface VehicleActions {
@@ -28,7 +29,7 @@ const generateInitialData = (): SensorDataPoint[] => {
   const now = Date.now();
   for (let i = MAX_DATA_POINTS; i > 0; i--) {
     data.push({
-      time: now - i * 20, rpm: RPM_IDLE, speed: 0, gear: 1, fuelUsed: 19.4, inletAirTemp: 25.0, batteryVoltage: 12.7, engineTemp: 90.0, fuelTemp: 20.0, turboBoost: -0.8, fuelPressure: 3.5, oilPressure: 1.5, shortTermFuelTrim: 0, longTermFuelTrim: 1.5, o2SensorVoltage: 0.45, engineLoad: 15, distance: 0, gForce: 0, latitude: -37.88, longitude: 175.55,
+      time: now - i * 20, rpm: RPM_IDLE, speed: 0, gear: 1, fuelUsed: 19.4, inletAirTemp: 25.0, batteryVoltage: 12.7, engineTemp: 90.0, fuelTemp: 20.0, turboBoost: -0.8, fuelPressure: 3.5, oilPressure: 1.5, shortTermFuelTrim: 0, longTermFuelTrim: 1.5, o2SensorVoltage: 0.45, engineLoad: 15, distance: 0, longitudinalGForce: 0, lateralGForce: 0, latitude: -37.88, longitude: 175.55,
     });
   }
   return data;
@@ -42,6 +43,7 @@ const initialState: VehicleState = {
   timelineEvents: [],
   connectionStatus: ConnectionStatus.DISCONNECTED,
   isSimulating: true,
+  deviceName: null,
 };
 
 // --- Zustand Store Creation ---
@@ -60,8 +62,8 @@ export const useVehicleStore = create<VehicleState & VehicleActions>((set) => ({
 
 // --- OBD Service Subscription ---
 obdService.subscribe(
-  (status: ConnectionStatus) => {
-    useVehicleStore.setState({ connectionStatus: status });
+  (status: ConnectionStatus, deviceName: string | null) => {
+    useVehicleStore.setState({ connectionStatus: status, deviceName });
     if (status === ConnectionStatus.DISCONNECTED || status === ConnectionStatus.ERROR) {
       if (!useVehicleStore.getState().isSimulating) {
         useVehicleStore.setState({ isSimulating: true });
@@ -80,7 +82,7 @@ obdService.subscribe(
     if (deltaTimeSeconds > 0) {
       const speedMetersPerSecond = mergedData.speed * (1000 / 3600);
       const prevSpeedMetersPerSecond = latestData.speed * (1000 / 3600);
-      mergedData.gForce = ((speedMetersPerSecond - prevSpeedMetersPerSecond) / deltaTimeSeconds) / 9.81;
+      mergedData.longitudinalGForce = ((speedMetersPerSecond - prevSpeedMetersPerSecond) / deltaTimeSeconds) / 9.81;
       mergedData.distance = (latestData.distance || 0) + (speedMetersPerSecond * deltaTimeSeconds);
     }
 
@@ -178,7 +180,9 @@ const simulationManager = {
       const timeOfDayEffect = Math.sin(now / 20000);
       const isFaultActive = timeOfDayEffect > 0.7;
       const speedDelta = (speed - latestData.speed) * (1000/3600);
-      const gForce = deltaTimeSeconds > 0 ? (speedDelta / deltaTimeSeconds) / 9.81 : 0;
+      const longitudinalGForce = deltaTimeSeconds > 0 ? (speedDelta / deltaTimeSeconds) / 9.81 : 0;
+      const lateralGForce = (Math.sin(now / 2500) * (speed / 80)) * Math.min(1, rpm / 4000);
+
       
       const newDataPoint: SensorDataPoint = {
         time: now, rpm, speed, gear,
@@ -195,7 +199,8 @@ const simulationManager = {
         o2SensorVoltage: 0.1 + (0.5 + Math.sin(now / 500) * 0.4),
         engineLoad: 15 + (rpm - RPM_IDLE) / (this.RPM_MAX - RPM_IDLE) * 85,
         distance: distance + (speed * (1000 / 3600)) * deltaTimeSeconds,
-        gForce,
+        longitudinalGForce,
+        lateralGForce,
         latitude: currentGpsData?.latitude || latitude,
         longitude: currentGpsData?.longitude || longitude,
       };

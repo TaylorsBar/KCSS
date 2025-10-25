@@ -29,24 +29,54 @@ const drawTelemetryOverlay = (ctx: CanvasRenderingContext2D, data: SensorDataPoi
     ctx.fillText(`${data.rpm.toFixed(0)} RPM`, 25, height - 35);
     ctx.fillText(`GEAR: ${data.gear > 0 ? data.gear : 'N'}`, 200, height - 35);
 
-    // --- G-Force Meter (bottom right) ---
-    const gForceX = width - 80;
-    const gForceY = height - 80;
-    const gForceRadius = 60;
-    
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    // --- Temperatures & Pressures (top left) ---
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(10, 10, 220, 80);
+    ctx.font = '18px "Roboto Mono", monospace';
+    ctx.fillStyle = 'white';
+    ctx.textBaseline = 'top';
+
+    ctx.fillStyle = '#FF4500'; // Orange/Red for coolant
+    ctx.fillText('COOLANT', 20, 20);
+    ctx.fillStyle = 'white';
+    ctx.fillText(`${data.engineTemp.toFixed(1)} °C`, 130, 20);
+
+    ctx.fillStyle = '#F3FF00'; // Yellow for oil
+    ctx.fillText('OIL PRES', 20, 50);
+    ctx.fillStyle = 'white';
+    ctx.fillText(`${data.oilPressure.toFixed(1)} bar`, 130, 50);
+
+    // --- G-Force Meter (bottom right) ---
+    const gForceX = width - 90;
+    const gForceY = height - 90;
+    const gForceRadius = 70;
+    
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.lineWidth = 1;
+
     ctx.beginPath();
     ctx.arc(gForceX, gForceY, gForceRadius, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
-    
-    const gDotX = gForceX; // Assuming G-force is primarily longitudinal for now
-    const gDotY = gForceY - data.gForce * (gForceRadius * 0.8);
+
+    ctx.beginPath();
+    ctx.moveTo(gForceX - gForceRadius, gForceY);
+    ctx.lineTo(gForceX + gForceRadius, gForceY);
+    ctx.moveTo(gForceX, gForceY - gForceRadius);
+    ctx.lineTo(gForceX, gForceY + gForceRadius);
+    ctx.stroke();
+
+    const maxG = 1.5;
+    const gDotX = gForceX + (data.lateralGForce / maxG) * (gForceRadius * 0.9);
+    const gDotY = gForceY - (data.longitudinalGForce / maxG) * (gForceRadius * 0.9);
     ctx.fillStyle = '#FF00FF';
     ctx.beginPath();
-    ctx.arc(gDotX, gDotY, 5, 0, 2 * Math.PI);
+    ctx.arc(gDotX, gDotY, 6, 0, 2 * Math.PI);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     // --- GPS Mini-Map (top right) ---
     if (path.length > 1) {
@@ -69,14 +99,19 @@ const drawTelemetryOverlay = (ctx: CanvasRenderingContext2D, data: SensorDataPoi
         
         const latRange = maxLat - minLat || 1;
         const lonRange = maxLon - minLon || 1;
-        const range = Math.max(latRange, lonRange);
+        const range = Math.max(latRange, lonRange) * 1.1; // Add 10% padding
+
+        const centerX = minLon + lonRange / 2;
+        const centerY = minLat + latRange / 2;
+        
+        const scale = (mapSize - mapPadding*2) / range;
 
         ctx.beginPath();
         ctx.strokeStyle = '#FFFF00';
         ctx.lineWidth = 2;
         path.forEach((point, index) => {
-            const px = mapX + mapPadding + ((point.longitude - minLon) / range) * (mapSize - mapPadding*2);
-            const py = mapY + (mapSize-mapPadding) - ((point.latitude - minLat) / range) * (mapSize - mapPadding*2);
+            const px = mapX + (mapSize/2) + (point.longitude - centerX) * scale;
+            const py = mapY + (mapSize/2) - (point.latitude - centerY) * scale;
             if (index === 0) {
                 ctx.moveTo(px, py);
             } else {

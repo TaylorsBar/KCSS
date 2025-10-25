@@ -46,11 +46,12 @@ const ELM327_SERVICE_UUID = '00001101-0000-1000-8000-00805f9b34fb';
 enum CommState { IDLE, POLLING, COMMAND_MODE }
 
 // --- Callbacks ---
-type StatusCallback = (status: ConnectionStatus) => void;
+type StatusCallback = (status: ConnectionStatus, deviceName: string | null) => void;
 type DataCallback = (data: Partial<SensorDataPoint>) => void;
 
 class OBDService {
   private device: BluetoothDevice | null = null;
+  private deviceName: string | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
   private txCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
   private rxCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
@@ -77,7 +78,7 @@ class OBDService {
   }
 
   private updateStatus(status: ConnectionStatus) {
-    this.statusCallback(status);
+    this.statusCallback(status, this.deviceName);
   }
   
   private onDataReceived(data: Partial<SensorDataPoint>) {
@@ -99,6 +100,9 @@ class OBDService {
         filters: [{ services: [ELM327_SERVICE_UUID] }],
         optionalServices: [ELM327_SERVICE_UUID]
       });
+
+      this.deviceName = this.device.name || 'Unknown Device';
+      this.updateStatus(ConnectionStatus.CONNECTING);
 
       if (!this.device.gatt) throw new Error("GATT server not available.");
       
@@ -124,6 +128,7 @@ class OBDService {
 
     } catch (error) {
       console.error("Bluetooth connection failed:", error);
+      this.deviceName = null;
       this.updateStatus(ConnectionStatus.ERROR);
       this.disconnect();
     }
@@ -135,11 +140,36 @@ class OBDService {
       this.device.gatt.disconnect();
     }
     this.device = null;
+    this.deviceName = null;
     this.server = null;
     this.txCharacteristic = null;
     this.rxCharacteristic = null;
     this.commState = CommState.IDLE;
     this.updateStatus(ConnectionStatus.DISCONNECTED);
+  }
+
+  /**
+   * Performs a "soft reset" of the ELM327 adapter without a full disconnect.
+   */
+  async reinitialize() {
+    if (!this.txCharacteristic) {
+      throw new Error("Cannot re-initialize. Not connected.");
+    }
+    
+    const wasPolling = this.commState === CommState.POLLING;
+    if (wasPolling) this.stopPolling();
+
+    try {
+      console.log("Re-initializing ELM327...");
+      await this.initializeELM327();
+      console.log("Re-initialization complete.");
+    } catch (error) {
+      console.error("Failed to re-initialize ELM327", error);
+      this.updateStatus(ConnectionStatus.ERROR);
+      throw error; // re-throw to be caught by UI
+    } finally {
+      if (wasPolling) this.startPolling();
+    }
   }
 
   /**

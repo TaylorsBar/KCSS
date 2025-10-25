@@ -5,7 +5,7 @@ import { AppearanceContext, Theme, AccentMaterial, LEDMode, UnitSystem } from '.
 const themes: { id: Theme; name: string; description: string }[] = [
     { id: 'rally', name: 'World Rally', description: 'High-contrast, functional display for intense conditions.' },
     { id: 'modern', name: 'Modern Performance', description: 'Photo-realistic gauge with brushed metal and carbon fiber accents.' },
-    { id: 'classic', name: 'E-Tuner Pro', description: 'Professional tuner interface with a red-on-black aesthetic.' },
+    { id: 'classic', name: 'Classic Muscle', description: 'Vintage analog gauges with a wood and chrome finish.' },
     { id: 'haltech', name: 'Pro Tuner', description: 'Yellow-on-black professional racing display.' },
     { id: 'minimalist', name: 'Minimalist EV', description: 'Clean, modern interface with a frosted glass aesthetic.' },
     { id: 'ic7', name: 'Race Dash IC-7', description: 'Mobile-ready, information-dense professional racing display.' },

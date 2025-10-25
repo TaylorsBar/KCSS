@@ -35,7 +35,7 @@ const ConversationalDiagnostics: React.FC = () => {
     } = useLiveConversation();
 
     const [lastUserTranscript, setLastUserTranscript] = useState('');
-    const [lastAiTranscript, setLastAiTranscript] = useState("Hello! I'm CW. Press the microphone to start a conversation.");
+    const [lastAiTranscript, setLastAiTranscript] = useState("Hello! I'm KC. How can I help you with your vehicle diagnostics today?");
 
     useEffect(() => {
         if (userTranscript) setLastUserTranscript(userTranscript);
@@ -59,7 +59,7 @@ const ConversationalDiagnostics: React.FC = () => {
         <div className="flex flex-col h-full bg-black rounded-lg border border-brand-cyan/30 shadow-lg p-6 text-center items-center justify-between">
             <div>
                 <h2 className="text-xl font-bold text-gray-100 font-display">Live Conversational AI</h2>
-                <p className="text-gray-400 mt-1 text-sm">Speak with CW for real-time help.</p>
+                <p className="text-gray-400 mt-1 text-sm">Speak with KC for real-time help.</p>
                 <div className="mt-4">
                     <StatusIndicator status={error ? 'ERROR' : connectionState} />
                     {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
@@ -68,7 +68,7 @@ const ConversationalDiagnostics: React.FC = () => {
 
             <div className="w-full max-w-2xl flex-grow flex flex-col justify-center gap-6 my-4">
                 <div className="min-h-[5rem] p-3 bg-base-900/50 rounded-lg border border-base-700">
-                    <h3 className="font-semibold text-brand-cyan mb-2 text-left text-sm">CW's Response:</h3>
+                    <h3 className="font-semibold text-brand-cyan mb-2 text-left text-sm">KC's Response:</h3>
                     <p className="text-md text-gray-200 text-left">{lastAiTranscript}</p>
                 </div>
                 <div className="min-h-[5rem] p-3 bg-base-800/50 rounded-lg border border-base-700">

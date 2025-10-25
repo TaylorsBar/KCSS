@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IntentAction, ComponentHotspot, VoiceCommandIntent } from '../types';
 import { getVoiceCommandIntent, generateComponentImage, getComponentTuningAnalysis } from '../services/geminiService';
 import { useVehicleStore } from '../store/useVehicleStore';
@@ -33,6 +33,9 @@ const ARAssistant: React.FC = () => {
     const [isInspecting, setIsInspecting] = useState(false);
     const [inspectionResult, setInspectionResult] = useState<{ imageUrl: string | null; analysis: string | null; error: string | null } | null>(null);
 
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+
     const getLiveDataForComponent = (componentId: string | null): string | null => {
         if (!componentId || !latestData) return null;
         switch(componentId) {
@@ -47,15 +50,47 @@ const ARAssistant: React.FC = () => {
         }
     };
 
-    const handleConnect = () => {
+    const handleConnect = async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setAssistantMessage("Camera access is not supported by your browser.");
+            return;
+        }
+
         setIsConnecting(true);
-        setAssistantMessage("Establishing secure link to vehicle...");
-        setTimeout(() => {
-            setIsConnecting(false);
+        setAssistantMessage("Requesting camera access...");
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" } // Prefer rear camera
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
             setIsConnected(true);
-            setAssistantMessage("Connection successful. Activate the microphone or tap a component.");
-        }, 2000);
+            setAssistantMessage("AR Link active. Point your camera at a component or use voice commands.");
+        } catch (err) {
+            console.error("Camera access denied:", err);
+            let message = "Failed to access camera.";
+            if (err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
+                message = "Camera permission was denied. Please allow camera access in your browser settings to use this feature.";
+            }
+            setAssistantMessage(message);
+            setIsConnected(false);
+        } finally {
+            setIsConnecting(false);
+        }
     };
+    
+    // Cleanup effect to stop the camera stream when the component unmounts
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, []);
+
 
     const processCommand = async (command: string) => {
         setIsListening(false);
@@ -98,7 +133,9 @@ const ARAssistant: React.FC = () => {
         const inspectComponent = async () => {
             if (!highlightedComponent) {
                 setInspectionResult(null); // Clear results when no component is selected
-                setAssistantMessage("Select a component to inspect or use voice commands.");
+                if (isConnected) {
+                    setAssistantMessage("Select a component to inspect or use voice commands.");
+                }
                 return;
             }
 
@@ -130,7 +167,7 @@ const ARAssistant: React.FC = () => {
         };
 
         inspectComponent();
-    }, [highlightedComponent, latestData]);
+    }, [highlightedComponent, latestData, isConnected]);
 
 
     const handleListen = () => {
@@ -207,7 +244,7 @@ const ARAssistant: React.FC = () => {
 
     return (
         <div className="flex flex-col lg:flex-row gap-6 h-full p-4">
-            {/* Left Panel: 3D Model and Controls */}
+            {/* Left Panel: Camera View and Controls */}
             <div className="w-full lg:w-2/3 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col relative">
                 <h1 className="text-xl font-bold text-gray-100 font-display border-b border-brand-cyan/30 pb-2 mb-4">Augmented Reality Assistant</h1>
 
@@ -219,13 +256,13 @@ const ARAssistant: React.FC = () => {
                         </button>
                     </div>
                 ) : (
-                    <div className="flex-grow relative engine-3d-container">
-                        <iframe
-                            title="AR Engine View"
-                            frameBorder="0"
-                            allowFullScreen
-                            src="https://sketchfab.com/models/7ebc9741434540c4831453066d7ae057/embed?autospin=0&autostart=1&ui_theme=dark&ui_controls=0&ui_infos=0"
-                            className="w-full h-full"
+                    <div className="flex-grow relative engine-3d-container bg-black">
+                        <video
+                            ref={videoRef}
+                            playsInline
+                            autoPlay
+                            muted
+                            className="absolute top-0 left-0 w-full h-full object-cover"
                         />
                         {MOCK_HOTSPOTS.map(hotspot => {
                             const isHighlighted = highlightedComponent === hotspot.id;
