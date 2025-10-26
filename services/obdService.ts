@@ -46,7 +46,7 @@ const ELM327_SERVICE_UUID = '00001101-0000-1000-8000-00805f9b34fb';
 enum CommState { IDLE, POLLING, COMMAND_MODE }
 
 // --- Callbacks ---
-type StatusCallback = (status: ConnectionStatus, deviceName: string | null) => void;
+type StatusCallback = (status: ConnectionStatus, deviceName: string | null, error?: string) => void;
 type DataCallback = (data: Partial<SensorDataPoint>) => void;
 
 class OBDService {
@@ -77,64 +77,15 @@ class OBDService {
     this.dataCallback = dataCallback;
   }
 
-  private updateStatus(status: ConnectionStatus) {
-    this.statusCallback(status, this.deviceName);
+  private updateStatus(status: ConnectionStatus, error?: string) {
+    this.statusCallback(status, this.deviceName, error);
   }
   
   private onDataReceived(data: Partial<SensorDataPoint>) {
     this.dataCallback(data);
   }
-
-  async connect() {
-    // FIX: Cast navigator to 'any' to access the Web Bluetooth API without TypeScript errors.
-    if (!(navigator as any).bluetooth) {
-      this.updateStatus(ConnectionStatus.ERROR);
-      alert("Web Bluetooth API is not available in this browser. Please use Chrome or Edge.");
-      return;
-    }
-
-    try {
-      this.updateStatus(ConnectionStatus.CONNECTING);
-      // FIX: Cast navigator to 'any' to access the Web Bluetooth API without TypeScript errors.
-      this.device = await (navigator as any).bluetooth.requestDevice({
-        filters: [{ services: [ELM327_SERVICE_UUID] }],
-        optionalServices: [ELM327_SERVICE_UUID]
-      });
-
-      this.deviceName = this.device.name || 'Unknown Device';
-      this.updateStatus(ConnectionStatus.CONNECTING);
-
-      if (!this.device.gatt) throw new Error("GATT server not available.");
-      
-      this.server = await this.device.gatt.connect();
-      const service = await this.server.getPrimaryService(ELM327_SERVICE_UUID);
-      
-      const characteristics = await service.getCharacteristics();
-      this.rxCharacteristic = characteristics.find(c => c.properties.notify);
-      this.txCharacteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
-
-      if (!this.rxCharacteristic || !this.txCharacteristic) {
-        throw new Error("Could not find required TX/RX characteristics.");
-      }
-      
-      this.device.addEventListener('gattserverdisconnected', () => this.disconnect());
-
-      await this.rxCharacteristic.startNotifications();
-      this.rxCharacteristic.addEventListener('characteristicvaluechanged', this.handleNotifications.bind(this));
-
-      await this.initializeELM327();
-      this.startPolling();
-      this.updateStatus(ConnectionStatus.CONNECTED);
-
-    } catch (error) {
-      console.error("Bluetooth connection failed:", error);
-      this.deviceName = null;
-      this.updateStatus(ConnectionStatus.ERROR);
-      this.disconnect();
-    }
-  }
-
-  disconnect() {
+  
+  private cleanupConnection() {
     this.stopPolling();
     if (this.device?.gatt?.connected) {
       this.device.gatt.disconnect();
@@ -145,12 +96,65 @@ class OBDService {
     this.txCharacteristic = null;
     this.rxCharacteristic = null;
     this.commState = CommState.IDLE;
+  }
+
+  async connect() {
+    if (!(navigator as any).bluetooth) {
+      this.updateStatus(ConnectionStatus.ERROR, "Web Bluetooth API is not available in this browser. Please use Chrome or Edge.");
+      return;
+    }
+
+    try {
+      this.updateStatus(ConnectionStatus.CONNECTING);
+      this.device = await (navigator as any).bluetooth.requestDevice({
+        filters: [{ services: [ELM327_SERVICE_UUID] }],
+        optionalServices: [ELM327_SERVICE_UUID]
+      });
+
+      this.deviceName = this.device.name || 'Unknown Device';
+      this.updateStatus(ConnectionStatus.CONNECTING);
+
+      if (!this.device.gatt) throw new Error("GATT server not available.");
+      
+      this.device.addEventListener('gattserverdisconnected', () => this.disconnect());
+      
+      this.server = await this.device.gatt.connect();
+      const service = await this.server.getPrimaryService(ELM327_SERVICE_UUID);
+      
+      const characteristics = await service.getCharacteristics();
+      this.rxCharacteristic = characteristics.find(c => c.properties.notify);
+      this.txCharacteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
+
+      if (!this.rxCharacteristic || !this.txCharacteristic) {
+        throw new Error("Could not find required TX/RX characteristics on the Bluetooth device.");
+      }
+
+      await this.rxCharacteristic.startNotifications();
+      this.rxCharacteristic.addEventListener('characteristicvaluechanged', this.handleNotifications.bind(this));
+
+      await this.initializeELM327();
+      this.startPolling();
+      this.updateStatus(ConnectionStatus.CONNECTED);
+
+    } catch (error) {
+      console.error("Bluetooth connection failed:", error);
+      this.cleanupConnection();
+
+      if (error instanceof DOMException && error.name === 'NotFoundError') {
+        // User cancelled the device picker, which is not a system error.
+        this.updateStatus(ConnectionStatus.DISCONNECTED);
+      } else {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        this.updateStatus(ConnectionStatus.ERROR, errorMessage);
+      }
+    }
+  }
+
+  disconnect() {
+    this.cleanupConnection();
     this.updateStatus(ConnectionStatus.DISCONNECTED);
   }
 
-  /**
-   * Performs a "soft reset" of the ELM327 adapter without a full disconnect.
-   */
   async reinitialize() {
     if (!this.txCharacteristic) {
       throw new Error("Cannot re-initialize. Not connected.");
@@ -165,22 +169,17 @@ class OBDService {
       console.log("Re-initialization complete.");
     } catch (error) {
       console.error("Failed to re-initialize ELM327", error);
-      this.updateStatus(ConnectionStatus.ERROR);
+      this.updateStatus(ConnectionStatus.ERROR, "Failed to re-initialize adapter.");
       throw error; // re-throw to be caught by UI
     } finally {
       if (wasPolling) this.startPolling();
     }
   }
 
-  /**
-   * Fetches Diagnostic Trouble Codes (DTCs) from the vehicle.
-   * This method temporarily stops PID polling to send a specific command and wait for a complete response.
-   */
   async fetchDTCs(): Promise<string[]> {
       if (!this.txCharacteristic || !this.rxCharacteristic) {
           throw new Error("Not connected to vehicle.");
       }
-      // Pause polling and enter command mode
       this.stopPolling();
       this.commState = CommState.COMMAND_MODE;
 
@@ -188,7 +187,6 @@ class OBDService {
         const responses = await this.executeCommand('03', 5000);
         return responses.flatMap(parseDTCResponse);
       } finally {
-        // Always resume polling, even if the command fails
         this.startPolling();
       }
   }
@@ -205,7 +203,7 @@ class OBDService {
             }
         }, timeout);
 
-        this.responseBuffer = ''; // Clear buffer for the new command
+        this.responseBuffer = '';
         await this.writeCommand(command);
     });
   }
@@ -232,9 +230,8 @@ class OBDService {
     const str = decoder.decode(value);
     this.responseBuffer += str;
 
-    // ELM327 commands are terminated with a '>' character.
     if (this.responseBuffer.includes('>')) {
-      const responses = this.responseBuffer.split('\r').filter(line => line.length > 0 && line !== '>');
+      const responses = this.responseBuffer.split('\r').filter(line => line.trim().length > 0 && line.trim() !== '>');
       
       if (this.commState === CommState.POLLING) {
         for (const response of responses) {
@@ -253,7 +250,7 @@ class OBDService {
     const initCommands = ['ATZ', 'ATE0', 'ATL0', 'ATSP0']; // Reset, Echo Off, Linefeeds Off, Auto Protocol
     for (const cmd of initCommands) {
         await this.writeCommand(cmd);
-        await new Promise(resolve => setTimeout(resolve, 150)); // Delay for ELM327 to process
+        await new Promise(resolve => setTimeout(resolve, 150));
     }
   }
 

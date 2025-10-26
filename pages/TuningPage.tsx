@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { getTuningSuggestion, analyzeTuneSafety, getTuningChatResponse } from '../services/geminiService';
-import { TuningSuggestion, ChatMessage } from '../types';
+import { TuningSuggestion, ChatMessage, AuditEvent, HederaEventType } from '../types';
 import TuningSlider from '../components/tuning/TuningSlider';
 import TuningMap from '../components/tuning/TuningMap';
 import SparklesIcon from '../components/icons/SparklesIcon';
@@ -20,9 +20,10 @@ const DEFAULT_TUNE = {
 };
 
 const TuningPage: React.FC = () => {
-    const { latestData, data: vehicleDataHistory } = useVehicleStore(state => ({
+    const { latestData, addAuditEvent, addHederaRecord } = useVehicleStore(state => ({
         latestData: state.latestData,
-        data: state.data
+        addAuditEvent: state.addAuditEvent,
+        addHederaRecord: state.addHederaRecord,
     }));
 
     const [currentTune, setCurrentTune] = useState(DEFAULT_TUNE);
@@ -31,6 +32,11 @@ const TuningPage: React.FC = () => {
     const [aiChat, setAiChat] = useState<ChatMessage[]>([]);
     const [aiChatInput, setAiChatInput] = useState('');
     const [safetyReport, setSafetyReport] = useState<{ score: number; warnings: string[] } | null>(null);
+    const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [aiChat]);
 
     const handleMapChange = (map: 'ignitionTiming' | 'boostPressure', row: number, col: number, value: number) => {
         const newMap = currentTune[map].map(r => [...r]);
@@ -44,17 +50,19 @@ const TuningPage: React.FC = () => {
         setSafetyReport(null);
     }
     
-    const applySuggestion = (suggestion: TuningSuggestion) => {
+    const applySuggestion = (suggestion: TuningSuggestion, goal: string) => {
         setCurrentTune(suggestion.suggestedParams);
         const aiMessage: ChatMessage = {
             id: Date.now().toString(),
             sender: 'ai',
-            text: `**Tune Applied: Analysis**\n- **Gains:** ${suggestion.analysis.predictedGains}\n- **Risks:** ${suggestion.analysis.potentialRisks}`
+            text: `**Tune Applied: "${goal}"**\n- **Gains:** ${suggestion.analysis.predictedGains}\n- **Risks:** ${suggestion.analysis.potentialRisks}`
         };
         if (suggestion.analysis.educationalTip) {
             aiMessage.text += `\n- **Pro Tip:** ${suggestion.analysis.educationalTip}`;
         }
         setAiChat(prev => [...prev, aiMessage]);
+        addAuditEvent(AuditEvent.TuningChange, `AI tuning suggestion '${goal}' applied.`);
+        addHederaRecord(HederaEventType.Tuning, `AI tune '${goal}' applied.`);
         setSafetyReport(null);
     };
 
@@ -62,9 +70,10 @@ const TuningPage: React.FC = () => {
         setAiIsLoading(true);
         const userMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text: `Generate a tune for: ${goal}` };
         setAiChat(prev => [...prev, userMessage]);
+        addAuditEvent(AuditEvent.AiAnalysis, `Requested AI tuning suggestion for "${goal}".`);
         try {
             const suggestion = await getTuningSuggestion(goal, latestData);
-            applySuggestion(suggestion);
+            applySuggestion(suggestion, goal);
         } catch (e) {
             const error = e instanceof Error ? e.message : "An unknown error occurred.";
             const aiMessage: ChatMessage = { id: Date.now().toString(), sender: 'ai', text: `Sorry, I couldn't generate a tune. Error: ${error}` };
@@ -79,6 +88,7 @@ const TuningPage: React.FC = () => {
         setSafetyReport(null);
         const userMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text: 'Analyze the safety of my current tune.' };
         setAiChat(prev => [...prev, userMessage]);
+        addAuditEvent(AuditEvent.AiAnalysis, `Requested tune safety analysis.`);
         try {
             const { ignitionTiming, boostPressure } = currentTune;
             const report = await analyzeTuneSafety({ ignitionTiming, boostPressure }, latestData);
@@ -100,21 +110,51 @@ const TuningPage: React.FC = () => {
         }
     };
     
+    const handleChatSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!aiChatInput.trim() || aiIsLoading) return;
+        
+        const userMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text: aiChatInput };
+        setAiChat(prev => [...prev, userMessage]);
+        addAuditEvent(AuditEvent.DiagnosticQuery, `Tuning query: "${aiChatInput}"`);
+        setAiChatInput('');
+        setAiIsLoading(true);
+        
+        try {
+            const { ignitionTiming, boostPressure } = currentTune;
+            const response = await getTuningChatResponse(aiChatInput, {ignitionTiming, boostPressure}, latestData);
+            const aiMessage: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'ai', text: response };
+            setAiChat(prev => [...prev, aiMessage]);
+        } catch (e) {
+            const error = e instanceof Error ? e.message : "An unknown error occurred.";
+            const aiMessage: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'ai', text: `Sorry, I couldn't get a response. Error: ${error}` };
+            setAiChat(prev => [...prev, aiMessage]);
+        } finally {
+            setAiIsLoading(false);
+        }
+    };
+    
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full p-4">
             {/* Left Panel: AI Assistant */}
             <div className="lg:col-span-1 bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 font-display">AI Tuning Assistant</h2>
-                <div className="flex-grow my-4 space-y-2 overflow-y-auto">
+                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">AI Tuning Assistant</h2>
+                <div className="flex-grow my-2 space-y-3 overflow-y-auto pr-2">
                     {aiChat.map(msg => (
-                         <div key={msg.id} className={`max-w-xs p-2 rounded-lg ${msg.sender === 'user' ? 'bg-brand-blue/80 ml-auto' : 'bg-base-800'}`}>
-                             <div className="prose prose-sm prose-invert max-w-none"><ReactMarkdown>{msg.text}</ReactMarkdown></div>
+                         <div key={msg.id} className={`flex items-start gap-2 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                             <div className={`w-fit max-w-xs p-2 rounded-lg ${msg.sender === 'user' ? 'bg-brand-blue/80' : 'bg-base-800'}`}>
+                                 <div className="prose prose-sm prose-invert max-w-none"><ReactMarkdown>{msg.text}</ReactMarkdown></div>
+                             </div>
                          </div>
                     ))}
-                    {aiIsLoading && <div className="text-center text-gray-400">KC is thinking...</div>}
+                     {aiIsLoading && <div className="text-center text-gray-400 p-2">KC is thinking...</div>}
+                    <div ref={chatEndRef} />
                 </div>
-                <div className="flex-shrink-0 space-y-2">
-                    <p className="text-xs text-gray-400 font-semibold">QUICK ACTIONS:</p>
+                <div className="flex-shrink-0 space-y-2 pt-2 border-t border-brand-cyan/30">
+                     <form onSubmit={handleChatSubmit} className="flex gap-2">
+                        <input type="text" value={aiChatInput} onChange={e => setAiChatInput(e.target.value)} placeholder="Ask about tuning..." className="flex-1 bg-base-800 border border-base-700 rounded-md px-3 py-2 text-sm text-gray-200" disabled={aiIsLoading} />
+                        <button type="submit" disabled={aiIsLoading} className="bg-brand-cyan text-black px-4 rounded-md font-semibold text-sm disabled:opacity-50">Send</button>
+                    </form>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                         <button onClick={() => handleGetSuggestion('Max Performance')} disabled={aiIsLoading} className="flex items-center justify-center gap-1 bg-base-700 p-2 rounded hover:bg-base-600 disabled:opacity-50"><SparklesIcon className="w-4 h-4 text-brand-pink" /> Track Day</button>
                         <button onClick={() => handleGetSuggestion('Fuel Economy')} disabled={aiIsLoading} className="flex items-center justify-center gap-1 bg-base-700 p-2 rounded hover:bg-base-600 disabled:opacity-50"><SparklesIcon className="w-4 h-4 text-brand-green" /> Eco Tune</button>

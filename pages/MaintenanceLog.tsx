@@ -1,25 +1,103 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useVehicleStore } from '../store/useVehicleStore';
+import { generateHealthReport } from '../services/geminiService';
 import { MaintenanceRecord } from '../types';
 import VerifiedIcon from '../components/icons/VerifiedIcon';
+import ReactMarkdown from 'react-markdown';
 
-export const MOCK_LOGS: MaintenanceRecord[] = [
-  { id: '1', date: '2024-07-15', service: 'Oil & Filter Change', notes: 'Performed by KC SpeedShop. Used Mobil 1 5W-30.', verified: true, isAiRecommendation: false },
-  { id: '2', date: '2024-06-28', service: 'Replace Air Filter', notes: 'Airflow sensor detected reduced intake. Recommended replacement.', verified: true, isAiRecommendation: true },
-  { id: '3', date: '2024-06-01', service: 'Tire Rotation', notes: 'Standard 5,000-mile service.', verified: true, isAiRecommendation: false },
-  { id: '4', date: '2024-05-20', service: 'Inspect O2 Sensor', notes: 'System predicted potential O2 sensor degradation based on response times.', verified: false, isAiRecommendation: true },
-  { id: '5', date: '2024-03-10', service: 'Brake Fluid Flush', notes: 'Completed at dealer.', verified: false, isAiRecommendation: false },
-];
+const AddRecordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const addMaintenanceRecord = useVehicleStore(state => state.addMaintenanceRecord);
+    const [service, setService] = useState('');
+    const [notes, setNotes] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (service.trim() && notes.trim()) {
+            addMaintenanceRecord({ service, notes });
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="w-full max-w-md bg-base-900 rounded-lg border border-brand-cyan shadow-lg" onClick={(e) => e.stopPropagation()}>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <h2 className="text-xl font-bold font-display text-brand-cyan">Add New Maintenance Record</h2>
+                    <div>
+                        <label htmlFor="service" className="block text-sm font-medium text-gray-300 mb-1">Service Performed</label>
+                        <input type="text" id="service" value={service} onChange={e => setService(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200" required />
+                    </div>
+                    <div>
+                        <label htmlFor="notes" className="block text-sm font-medium text-gray-300 mb-1">Notes</label>
+                        <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200" rows={3} required />
+                    </div>
+                    <div className="flex justify-end gap-4 pt-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-base-700 text-white font-semibold hover:bg-base-600">Cancel</button>
+                        <button type="submit" className="px-4 py-2 rounded-md bg-brand-blue text-white font-semibold hover:bg-blue-600">Save Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const HealthReportModal: React.FC<{ onClose: () => void, report: string, isLoading: boolean }> = ({ onClose, report, isLoading }) => {
+    return (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="w-full max-w-3xl h-[80vh] bg-base-900 rounded-lg border border-brand-cyan shadow-lg flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="p-4 border-b border-brand-cyan/30 flex justify-between items-center">
+                    <h2 className="text-xl font-bold font-display text-brand-cyan">AI Vehicle Health Report</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                <div className="p-6 flex-grow overflow-y-auto">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-brand-cyan"></div>
+                        </div>
+                    ) : (
+                        <div className="prose prose-invert max-w-none">
+                             <ReactMarkdown>{report}</ReactMarkdown>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
 const MaintenanceLog: React.FC = () => {
-  return (
+    const { maintenanceLog, vehicleDataHistory } = useVehicleStore(state => ({
+        maintenanceLog: state.maintenanceLog,
+        vehicleDataHistory: state.data
+    }));
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [report, setReport] = useState('');
+    const [isReportLoading, setIsReportLoading] = useState(false);
+
+    const handleGenerateReport = async () => {
+        setIsReportModalOpen(true);
+        setIsReportLoading(true);
+        setReport('');
+        try {
+            const result = await generateHealthReport(vehicleDataHistory, maintenanceLog);
+            setReport(result);
+        } catch (e) {
+            setReport("Sorry, there was an error generating the health report. Please check your connection and try again.");
+        } finally {
+            setIsReportLoading(false);
+        }
+    };
+
+    return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-2xl font-bold text-gray-100 font-display">Maintenance Logbook</h1>
             <p className="text-gray-400 mt-1">An immutable record of your vehicle's service history.</p>
         </div>
-        <button className="bg-brand-cyan text-black font-semibold px-4 py-2 rounded-md hover:bg-cyan-300 transition-colors shadow-glow-cyan">
+        <button onClick={() => setIsAddModalOpen(true)} className="bg-brand-cyan text-black font-semibold px-4 py-2 rounded-md hover:bg-cyan-300 transition-colors shadow-glow-cyan">
             Add New Record
         </button>
       </div>
@@ -36,7 +114,7 @@ const MaintenanceLog: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-black divide-y divide-base-700/50">
-              {MOCK_LOGS.map((log) => (
+              {maintenanceLog.length > 0 ? maintenanceLog.map((log) => (
                 <tr key={log.id} className="hover:bg-base-800/40">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-300">{log.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
@@ -59,16 +137,22 @@ const MaintenanceLog: React.FC = () => {
                     )}
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                    <td colSpan={4} className="text-center py-10 text-gray-500">No maintenance records found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
        <div className="text-center mt-4">
-        <button className="text-brand-cyan font-semibold hover:underline">
+        <button onClick={handleGenerateReport} className="text-brand-cyan font-semibold hover:underline">
             Generate Vehicle Health Report
         </button>
       </div>
+      {isAddModalOpen && <AddRecordModal onClose={() => setIsAddModalOpen(false)} />}
+      {isReportModalOpen && <HealthReportModal onClose={() => setIsReportModalOpen(false)} report={report} isLoading={isReportLoading} />}
     </div>
   );
 };

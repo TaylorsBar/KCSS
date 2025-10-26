@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { SensorDataPoint, TimelineEvent, ConnectionStatus } from '../types';
+import { SensorDataPoint, TimelineEvent, ConnectionStatus, MaintenanceRecord, AuditLogEntry, HederaRecord, AuditEvent, HederaEventType } from '../types';
 import { obdService } from '../services/obdService';
 
 // --- Constants ---
@@ -15,13 +15,39 @@ interface VehicleState {
   connectionStatus: ConnectionStatus;
   isSimulating: boolean;
   deviceName: string | null;
+  errorMessage: string | null;
+  maintenanceLog: MaintenanceRecord[];
+  auditLog: AuditLogEntry[];
+  hederaLog: HederaRecord[];
 }
 
 interface VehicleActions {
   setTimelineEvents: (events: TimelineEvent[]) => void;
   connectToVehicle: () => void;
   disconnectFromVehicle: () => void;
+  addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'verified' | 'isAiRecommendation' | 'date'>) => void;
+  addAuditEvent: (event: AuditEvent, description: string, status?: 'Success' | 'Failure') => void;
+  addHederaRecord: (eventType: HederaEventType, summary: string) => void;
 }
+
+// --- LocalStorage Persistence ---
+const loadFromStorage = <T>(key: string, defaultValue: T): T => {
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+        console.error(`Error loading ${key} from localStorage`, error);
+        return defaultValue;
+    }
+};
+
+const saveToStorage = <T>(key: string, value: T) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.error(`Error saving ${key} to localStorage`, error);
+    }
+};
 
 // --- Initial State ---
 const generateInitialData = (): SensorDataPoint[] => {
@@ -44,26 +70,88 @@ const initialState: VehicleState = {
   connectionStatus: ConnectionStatus.DISCONNECTED,
   isSimulating: true,
   deviceName: null,
+  errorMessage: null,
+  maintenanceLog: loadFromStorage<MaintenanceRecord[]>('cartelworx_maintenance_log', []),
+  auditLog: loadFromStorage<AuditLogEntry[]>('cartelworx_audit_log', []),
+  hederaLog: loadFromStorage<HederaRecord[]>('cartelworx_hedera_log', []),
 };
 
 // --- Zustand Store Creation ---
-export const useVehicleStore = create<VehicleState & VehicleActions>((set) => ({
+export const useVehicleStore = create<VehicleState & VehicleActions>((set, get) => ({
   ...initialState,
   setTimelineEvents: (events) => set({ timelineEvents: events }),
   connectToVehicle: () => {
     simulationManager.stop();
     set({ isSimulating: false });
     obdService.connect();
+    get().addAuditEvent(AuditEvent.DataSync, 'Attempting to connect to vehicle OBD-II adapter.');
   },
   disconnectFromVehicle: () => {
     obdService.disconnect();
+    get().addAuditEvent(AuditEvent.DataSync, 'Disconnected from vehicle OBD-II adapter.');
   },
+  addMaintenanceRecord: (record) => {
+      const newRecord: MaintenanceRecord = {
+          ...record,
+          id: Date.now().toString(),
+          date: new Date().toISOString().split('T')[0],
+          verified: false, // Can be changed later
+          isAiRecommendation: false, // User-added records are not AI recommendations
+      };
+      set(state => {
+          const newLog = [newRecord, ...state.maintenanceLog];
+          saveToStorage('cartelworx_maintenance_log', newLog);
+          get().addAuditEvent(AuditEvent.DataSync, `Maintenance record added: "${record.service}"`);
+          get().addHederaRecord(HederaEventType.Maintenance, `Service Added: ${record.service}`);
+          return { maintenanceLog: newLog };
+      });
+  },
+  addAuditEvent: (event, description, status: 'Success' | 'Failure' = 'Success') => {
+      const newEntry: AuditLogEntry = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          event,
+          description,
+          ipAddress: '192.168.1.1 (Local)',
+          status,
+      };
+      set(state => {
+          const newLog = [newEntry, ...state.auditLog];
+          saveToStorage('cartelworx_audit_log', newLog);
+          return { auditLog: newLog };
+      });
+  },
+  addHederaRecord: (eventType, summary) => {
+      const newRecord: HederaRecord = {
+            id: `hedera-${Date.now()}`,
+            timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            eventType,
+            vin: 'JN1AZ00Z9ZT000123', // Mock VIN
+            summary,
+            hederaTxId: `0.0.12345@${Date.now() / 1000 | 0}.${Math.floor(Math.random() * 1e9)}`,
+            dataHash: 'mock-' + Math.random().toString(36).substring(7),
+      };
+       set(state => {
+          const newLog = [newRecord, ...state.hederaLog];
+          saveToStorage('cartelworx_hedera_log', newLog);
+          return { hederaLog: newLog };
+      });
+  }
 }));
 
 // --- OBD Service Subscription ---
 obdService.subscribe(
-  (status: ConnectionStatus, deviceName: string | null) => {
-    useVehicleStore.setState({ connectionStatus: status, deviceName });
+  (status: ConnectionStatus, deviceName: string | null, error?: string) => {
+    useVehicleStore.setState({ 
+        connectionStatus: status, 
+        deviceName, 
+        errorMessage: error || null 
+    });
+
+    if (status === ConnectionStatus.CONNECTED) {
+        useVehicleStore.getState().addAuditEvent(AuditEvent.DataSync, `Successfully connected to ${deviceName}.`);
+    }
+
     if (status === ConnectionStatus.DISCONNECTED || status === ConnectionStatus.ERROR) {
       if (!useVehicleStore.getState().isSimulating) {
         useVehicleStore.setState({ isSimulating: true });
@@ -97,19 +185,18 @@ obdService.subscribe(
 
 // --- Simulation Manager ---
 const simulationManager = {
-  UPDATE_INTERVAL_MS: 20,
+  UPDATE_INTERVAL_MS: 100, // Slower interval for less intensive simulation
   RPM_MAX: 8000,
   GEAR_RATIOS: [0, 3.6, 2.1, 1.4, 1.0, 0.8, 0.6],
-  DEFAULT_LAT: -37.88,
-  DEFAULT_LON: 175.55,
   
   simState: {
-    vehicleState: 0 as number, // Enum VehicleSimState
+    vehicleState: 0 as number, // 0: Idle, 1: Accelerating, 2: Cruising, 3: Decelerating
     stateTimeout: 0,
     lastUpdate: Date.now(),
     gpsDataRef: null as { latitude: number; longitude: number; speed: number | null } | null,
     watcherId: null as number | null,
     intervalId: null as number | null,
+    simGpsAngle: 0, // Vehicle's bearing for simulation
   },
 
   stop() {
@@ -154,12 +241,14 @@ const simulationManager = {
       const currentGpsData = this.simState.gpsDataRef;
 
       if (currentGpsData?.speed != null && currentGpsData.speed > 0.5) {
+        // Use real GPS data if available and moving
         speed = currentGpsData.speed * 3.6; // m/s to km/h
         latitude = currentGpsData.latitude;
         longitude = currentGpsData.longitude;
         if (speed < 20) gear = 1; else if (speed < 40) gear = 2; else if (speed < 70) gear = 3; else if (speed < 100) gear = 4; else if (speed < 130) gear = 5; else gear = 6;
         rpm = speed > 1 ? RPM_IDLE + (1500 * (gear-1)) + (speed % 30) * 100 : RPM_IDLE;
       } else {
+        // Fallback to simulated vehicle behavior
         if (now > this.simState.stateTimeout) {
             this.simState.vehicleState = (this.simState.vehicleState + Math.floor(Math.random() * 2) + 1) % 4;
             this.simState.stateTimeout = now + 3000 + Math.random() * 5000;
@@ -171,6 +260,27 @@ const simulationManager = {
           default: rpm += (RPM_IDLE - rpm) * 0.1; speed *= 0.98; if (speed < 5) gear = 1; break;
         }
         speed = (rpm / (this.GEAR_RATIOS[gear] * 300)) * (1 - (1/gear)) * 10;
+        
+        // --- Simulated GPS Path Logic ---
+        // Creates a plausible, curved path when real GPS is unavailable
+        if (speed > 1 && deltaTimeSeconds > 0) {
+            const distanceMovedMeters = (speed * (1000/3600)) * deltaTimeSeconds;
+            const earthRadiusMeters = 6371000;
+            
+            // Gently curve the path over time
+            this.simState.simGpsAngle = (this.simState.simGpsAngle + (0.5 * deltaTimeSeconds)) % 360;
+            const bearingRad = this.simState.simGpsAngle * Math.PI / 180;
+            
+            const latRad = latitude * Math.PI / 180;
+            const lonRad = longitude * Math.PI / 180;
+            const angularDistance = distanceMovedMeters / earthRadiusMeters;
+
+            const newLatRad = Math.asin(Math.sin(latRad) * Math.cos(angularDistance) + Math.cos(latRad) * Math.sin(angularDistance) * Math.cos(bearingRad));
+            const newLonRad = lonRad + Math.atan2(Math.sin(bearingRad) * Math.sin(angularDistance) * Math.cos(latRad), Math.cos(angularDistance) - Math.sin(latRad) * Math.sin(newLatRad));
+            
+            latitude = newLatRad * 180 / Math.PI;
+            longitude = newLonRad * 180 / Math.PI;
+        }
       }
       
       rpm = Math.max(RPM_IDLE, Math.min(rpm, this.RPM_MAX));
@@ -201,8 +311,8 @@ const simulationManager = {
         distance: distance + (speed * (1000 / 3600)) * deltaTimeSeconds,
         longitudinalGForce,
         lateralGForce,
-        latitude: currentGpsData?.latitude || latitude,
-        longitude: currentGpsData?.longitude || longitude,
+        latitude,
+        longitude,
       };
 
       const updatedData = [...data, newDataPoint];

@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { getPredictiveAnalysis, getCrewChiefResponse, getRouteScoutResponse } from '../services/geminiService';
-import { MOCK_LOGS } from './MaintenanceLog';
-import { TimelineEvent, PredictiveAnalysisResult, ChatMessage, GroundingChunk } from '../types';
+import { TimelineEvent, PredictiveAnalysisResult, ChatMessage, GroundingChunk, AuditEvent } from '../types';
 import RiskTimeline from '../components/RiskTimeline';
 import EngineIcon from '../components/icons/EngineIcon';
 import ShoppingCartIcon from '../components/icons/ShoppingCartIcon';
@@ -44,10 +42,12 @@ const PredictiveTab: React.FC = () => {
     const [lastAnalysisTimestamp, setLastAnalysisTimestamp] = useState<Date | null>(null);
     const analysisIntervalRef = useRef<number | null>(null);
 
-    const { vehicleDataHistory, timelineEvents, setTimelineEvents } = useVehicleStore(state => ({
+    const { vehicleDataHistory, timelineEvents, setTimelineEvents, maintenanceLog, addAuditEvent } = useVehicleStore(state => ({
         vehicleDataHistory: state.data,
         timelineEvents: state.timelineEvents,
         setTimelineEvents: state.setTimelineEvents,
+        maintenanceLog: state.maintenanceLog,
+        addAuditEvent: state.addAuditEvent,
     }));
 
     const handleAnalyze = useCallback(async (isForced: boolean = false) => {
@@ -60,9 +60,10 @@ const PredictiveTab: React.FC = () => {
         setAnalysisStatus('analyzing');
         setError(null);
         if (isForced) setTimelineEvents([]);
+        addAuditEvent(AuditEvent.AiAnalysis, `Predictive analysis started (${isForced ? 'manual' : 'proactive'}).`);
 
         try {
-            const result = await getPredictiveAnalysis(vehicleDataHistory, MOCK_LOGS) as PredictiveAnalysisResult;
+            const result = await getPredictiveAnalysis(vehicleDataHistory, maintenanceLog) as PredictiveAnalysisResult;
             if (result.error) {
                 setError(result.error);
                 setAnalysisStatus('error');
@@ -76,7 +77,7 @@ const PredictiveTab: React.FC = () => {
             setError(errorMessage);
             setAnalysisStatus('error');
         }
-    }, [analysisStatus, vehicleDataHistory, isProactiveMode, setTimelineEvents]);
+    }, [analysisStatus, vehicleDataHistory, isProactiveMode, setTimelineEvents, maintenanceLog, addAuditEvent]);
 
     useEffect(() => {
         const stopInterval = () => {
@@ -132,7 +133,10 @@ const PredictiveTab: React.FC = () => {
 };
 
 const AgentChatInterface: React.FC<{ agent: 'crew-chief' | 'route-scout' }> = ({ agent }) => {
-    const latestData = useVehicleStore(state => state.latestData);
+    const { latestData, addAuditEvent } = useVehicleStore(state => ({
+        latestData: state.latestData,
+        addAuditEvent: state.addAuditEvent,
+    }));
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -172,6 +176,7 @@ const AgentChatInterface: React.FC<{ agent: 'crew-chief' | 'route-scout' }> = ({
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
+        addAuditEvent(AuditEvent.DiagnosticQuery, `${config.title} query: "${input}"`);
 
         try {
             const aiResponse = await config.handler(input);

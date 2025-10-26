@@ -36,19 +36,22 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
     const tickValue = (i: number) => min + (i / (config.ticks - 1)) * (max - min);
     
     const displayValue = unit === 'x1000' ? (animatedValue / 1000).toFixed(1) : animatedValue.toFixed(0);
+
+    const inRedline = React.useMemo(() => {
+        if (dangerZone === 'low') {
+            return redlineValue !== undefined && animatedValue <= redlineValue;
+        }
+        return redlineValue !== undefined && animatedValue >= redlineValue;
+    }, [animatedValue, redlineValue, dangerZone]);
+
+    const inWarning = React.useMemo(() => {
+        if (dangerZone === 'low') {
+            return warningValue !== undefined && animatedValue <= warningValue && !inRedline;
+        }
+        return warningValue !== undefined && animatedValue >= warningValue && !inRedline;
+    }, [animatedValue, warningValue, dangerZone, inRedline]);
     
     const getBacklightStyle = () => {
-        let inRedline = false;
-        let inWarning = false;
-
-        if (dangerZone === 'low') {
-            if (redlineValue && animatedValue <= redlineValue) inRedline = true;
-            else if (warningValue && animatedValue <= warningValue) inWarning = true;
-        } else {
-            if (redlineValue && animatedValue >= redlineValue) inRedline = true;
-            else if (warningValue && animatedValue >= warningValue) inWarning = true;
-        }
-
         if (inRedline) return { fill: 'var(--theme-accent-red)', opacity: 0.35, filter: 'url(#classic-glow-red)' };
         if (inWarning) return { fill: 'var(--theme-accent-primary)', opacity: 0.25, filter: 'url(#classic-glow-yellow)' };
         return { fill: 'transparent', opacity: 0 };
@@ -63,6 +66,10 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
       L ${center} ${center + needleTailLength} 
       Z
     `;
+
+    const needleFill = React.useMemo(() => {
+        return inRedline ? 'url(#classic-needle-grad-red)' : 'url(#classic-needle-grad)';
+    }, [inRedline]);
 
     return (
         <div className="relative w-full h-full filter drop-shadow-lg">
@@ -86,6 +93,11 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                         <stop offset="0%" stopColor="var(--theme-needle-color)" stopOpacity="0.8" />
                         <stop offset="50%" stopColor="#FFFF00" />
                         <stop offset="100%" stopColor="var(--theme-needle-color)" stopOpacity="0.8" />
+                    </linearGradient>
+                    <linearGradient id="classic-needle-grad-red" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#ff4d4d" stopOpacity="0.8" />
+                        <stop offset="50%" stopColor="#ff0000" />
+                        <stop offset="100%" stopColor="#ff4d4d" stopOpacity="0.8" />
                     </linearGradient>
                     <filter id="classic-needle-shadow">
                         <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.6"/>
@@ -156,7 +168,7 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
 
                 {/* High-Fidelity Needle */}
                 <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-needle-shadow)">
-                    <path d={needlePath} fill="url(#classic-needle-grad)" />
+                    <path d={needlePath} fill={needleFill} />
                 </g>
                 
                 {/* Pivot */}

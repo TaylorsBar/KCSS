@@ -7,11 +7,12 @@ import { ConnectionStatus } from '../types';
 import { obdService } from '../services/obdService';
 
 const VehicleConnection: React.FC = () => {
-    const { connectionStatus, deviceName, connectToVehicle, disconnectFromVehicle } = useVehicleStore(state => ({
+    const { connectionStatus, deviceName, connectToVehicle, disconnectFromVehicle, errorMessage } = useVehicleStore(state => ({
         connectionStatus: state.connectionStatus,
         deviceName: state.deviceName,
         connectToVehicle: state.connectToVehicle,
         disconnectFromVehicle: state.disconnectFromVehicle,
+        errorMessage: state.errorMessage,
     }));
     
     const [isReinitializing, setIsReinitializing] = useState(false);
@@ -76,6 +77,13 @@ const VehicleConnection: React.FC = () => {
                     <div className="bg-base-800/50 p-4 rounded-md flex justify-between items-center">
                         <span className="font-semibold text-gray-300">Device</span>
                         <span className="text-sm text-gray-200 font-mono truncate">{deviceName}</span>
+                    </div>
+                )}
+
+                {connectionStatus === ConnectionStatus.ERROR && errorMessage && (
+                    <div className="p-3 rounded-md text-center text-sm bg-red-900/50 text-red-300 border border-red-700/50">
+                        <p className="font-semibold">Connection Failed</p>
+                        <p className="text-xs">{errorMessage}</p>
                     </div>
                 )}
                 

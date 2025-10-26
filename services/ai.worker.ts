@@ -111,20 +111,96 @@ const getPredictiveAnalysis = async (
 };
 
 const getTuningSuggestion = async (goal: string, liveData: SensorDataPoint): Promise<TuningSuggestion> => {
-    // This function remains a mock as per the user's focus on other features.
-    // FIX: Updated to return mock 2D arrays to match the type definition.
-    const mockMap = (baseValue: number) => Array(8).fill(0).map(() => Array(8).fill(baseValue));
-    return {
-        suggestedParams: { 
-            fuelMap: 1.5, 
-            ignitionTiming: mockMap(0.5), 
-            boostPressure: mockMap(2.0)
+    if (!ai) throw new Error("AI service not initialized.");
+
+    const systemInstruction = `You are a master ECU tuner for a 2022 Subaru WRX. The user wants a tune for '${goal}'. Based on the live data, generate a new set of tuning parameters.
+- Fuel Map: Global fuel trim percentage, from -10 to 10.
+- Ignition Timing & Boost Pressure: Fill out 8x8 grids (Load % vs RPM).
+- Be realistic and safe. For 'Max Performance', be aggressive but within reasonable limits. For 'Eco Tune', prioritize efficiency.
+- Provide a brief analysis of your suggested changes.
+- Respond ONLY with the JSON object matching the schema.`;
+
+    const prompt = `Goal: ${goal}\nLive Data: ${JSON.stringify(liveData)}`;
+
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-pro",
+        contents: prompt,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    suggestedParams: {
+                        type: Type.OBJECT,
+                        properties: {
+                            fuelMap: { type: Type.NUMBER, description: 'Global fuel trim percentage, from -10 to 10.' },
+                            ignitionTiming: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } }, description: '8x8 grid of ignition timing (8 rows Load, 8 cols RPM).' },
+                            boostPressure: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } }, description: '8x8 grid of boost pressure in bar (8 rows Load, 8 cols RPM).' },
+                        },
+                        required: ["fuelMap", "ignitionTiming", "boostPressure"],
+                    },
+                    analysis: {
+                        type: Type.OBJECT,
+                        properties: {
+                            predictedGains: { type: Type.STRING },
+                            potentialRisks: { type: Type.STRING },
+                            safetyWarnings: { type: Type.ARRAY, items: { type: Type.STRING }, nullable: true },
+                            educationalTip: { type: Type.STRING, nullable: true },
+                        },
+                        required: ["predictedGains", "potentialRisks"],
+                    }
+                },
+                required: ["suggestedParams", "analysis"],
+            },
         },
-        analysis: {
-            predictedGains: "Approximately 10-15 HP increase.",
-            potentialRisks: "Slightly increased engine wear over time."
-        }
-    };
+    });
+    return JSON.parse(response.text);
+};
+
+const analyzeTuneSafety = async (currentTune: { ignitionTiming: number[][]; boostPressure: number[][] }, liveData: SensorDataPoint): Promise<{ safetyScore: number, warnings: string[] }> => {
+    if (!ai) throw new Error("AI service not initialized.");
+
+    const systemInstruction = `You are a master ECU tuner. Analyze the safety of the provided tune given the live sensor data. Look for dangerously high boost, aggressive ignition timing for the given engine load/RPM that could cause knock, or other potential issues. Provide a safety score from 0 (dangerous) to 100 (safe) and a list of specific warnings. Respond ONLY in JSON format.`;
+    const prompt = `Current Tune: ${JSON.stringify(currentTune)}\nLive Data: ${JSON.stringify(liveData)}`;
+    
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    safetyScore: { type: Type.NUMBER, description: 'A safety score from 0 (very dangerous) to 100 (very safe).' },
+                    warnings: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'A list of specific safety concerns.' },
+                },
+                required: ['safetyScore', 'warnings']
+            },
+        },
+    });
+    return JSON.parse(response.text);
+};
+
+const getTuningChatResponse = async (query: string, currentTune: object, liveData: SensorDataPoint): Promise<string> => {
+    if (!ai) throw new Error("AI service not initialized.");
+
+    const systemInstruction = `You are KC, a master tuner. The user is asking a question about their current tune. Be helpful, technical, and conversational.`;
+    const prompt = `Context:
+- Current Tune: ${JSON.stringify(currentTune, null, 2)}
+- Live Sensor Data: ${JSON.stringify(liveData, null, 2)}
+
+User question: "${query}"
+
+Your response:`;
+
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: { systemInstruction },
+    });
+    return response.text;
 };
 
 const getVoiceCommandIntent = async (command: string): Promise<VoiceCommandIntent> => {
@@ -372,6 +448,27 @@ const getDTCInfo = async (dtcCode: string): Promise<DTCInfo> => {
     }
 };
 
+const generateHealthReport = async (dataHistory: SensorDataPoint[], maintenanceHistory: MaintenanceRecord[]): Promise<string> => {
+    if (!ai) return "AI service is unavailable.";
+    
+    const systemInstruction = `You are 'KC', an expert diagnostic technician. Analyze the provided vehicle data history and maintenance log. Provide a comprehensive vehicle health report in Markdown format. Summarize the vehicle's condition, highlight any areas of concern based on data trends (e.g., fuel trims, voltages), note any overdue or upcoming maintenance, and provide a final summary of recommendations.`;
+    
+    // Summarize data to keep prompt concise
+    const dataSummary = {
+        recordCount: dataHistory.length,
+        latest: dataHistory[dataHistory.length - 1],
+    };
+
+    const userContent = `Please generate a vehicle health report based on this data:\n- **Data Summary:** ${JSON.stringify(dataSummary, null, 2)}\n- **Maintenance Log:** ${JSON.stringify(maintenanceHistory, null, 2)}`;
+
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-pro",
+        contents: userContent,
+        config: { systemInstruction },
+    });
+    return response.text;
+};
+
 
 self.onmessage = async (e: MessageEvent) => {
     const { type, payload, requestId } = e.data;
@@ -386,8 +483,13 @@ self.onmessage = async (e: MessageEvent) => {
                 result = await getPredictiveAnalysis(payload.dataHistory, payload.maintenanceHistory);
                 break;
             case 'getTuningSuggestion':
-                // FIX: Corrected arguments to match function definition.
                 result = await getTuningSuggestion(payload.goal, payload.liveData);
+                break;
+            case 'analyzeTuneSafety':
+                result = await analyzeTuneSafety(payload.currentTune, payload.liveData);
+                break;
+            case 'getTuningChatResponse':
+                result = await getTuningChatResponse(payload.query, payload.currentTune, payload.liveData);
                 break;
             case 'getVoiceCommandIntent':
                 result = await getVoiceCommandIntent(payload.command);
@@ -412,6 +514,9 @@ self.onmessage = async (e: MessageEvent) => {
                 break;
             case 'getDTCInfo':
                 result = await getDTCInfo(payload.dtcCode);
+                break;
+            case 'generateHealthReport':
+                result = await generateHealthReport(payload.dataHistory, payload.maintenanceHistory);
                 break;
             default:
                 throw new Error(`Unknown worker command: ${type}`);

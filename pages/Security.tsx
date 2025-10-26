@@ -1,17 +1,10 @@
-
 import React from 'react';
+import { useVehicleStore } from '../store/useVehicleStore';
 import { AuditLogEntry, AuditEvent } from '../types';
 
-const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
-    { id: '1', timestamp: '2024-07-22 14:35:12 UTC', event: AuditEvent.AiAnalysis, description: 'Predictive analysis run on live OBD-II data stream.', ipAddress: '192.168.1.1 (Local)', status: 'Success' },
-    { id: '2', timestamp: '2024-07-22 14:30:05 UTC', event: AuditEvent.Login, description: 'User authenticated successfully via biometrics.', ipAddress: '203.0.113.25', status: 'Success' },
-    { id: '3', timestamp: '2024-07-22 11:15:45 UTC', event: AuditEvent.TuningChange, description: "AI tuning suggestion 'Track Day' applied to sandbox.", ipAddress: '192.168.1.1 (Local)', status: 'Success' },
-    { id: '4', timestamp: '2024-07-22 11:14:20 UTC', event: AuditEvent.DiagnosticQuery, description: "User asked: 'Why is my idle rough?'", ipAddress: '192.168.1.1 (Local)', status: 'Success' },
-    { id: '5', timestamp: '2024-07-22 08:00:01 UTC', event: AuditEvent.DataSync, description: 'Encrypted vehicle health report synced to cloud backup.', ipAddress: 'System', status: 'Success' },
-    { id: '6', timestamp: '2024-07-21 18:05:11 UTC', event: AuditEvent.Login, description: 'User authenticated successfully.', ipAddress: '203.0.113.25', status: 'Success' },
-];
-
 const Security: React.FC = () => {
+  const auditLog = useVehicleStore(state => state.auditLog);
+
   return (
     <div className="space-y-6">
       <div>
@@ -64,11 +57,11 @@ const Security: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-black divide-y divide-base-700/50">
-              {MOCK_AUDIT_LOGS.map((log) => (
+              {auditLog.length > 0 ? auditLog.map((log) => (
                 <tr key={log.id} className="hover:bg-base-800/40">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{log.timestamp}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{log.event}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{log.description}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 max-w-sm truncate" title={log.description}>{log.description}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">{log.ipAddress}</td>
                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {log.status === 'Success' ? (
@@ -78,7 +71,11 @@ const Security: React.FC = () => {
                     )}
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={5} className="text-center py-10 text-gray-500">No audit events recorded.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -127,61 +127,93 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recordedChunksRef = useRef<Blob[]>([]);
-    const animationFrameRef = useRef<number | null>(null);
+    
     const { convertSpeed, getSpeedUnit } = useUnitConversion();
+
+    // Refs to hold latest props for the animation loop
+    const latestDataRef = useRef(latestData);
+    const gpsPathRef = useRef(gpsPath);
+    const conversionFnsRef = useRef({ convertSpeed, getSpeedUnit });
 
     const [isRecording, setIsRecording] = useState(false);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // This effect runs on every render to keep the refs updated with the latest props
     useEffect(() => {
-        const setupCamera = async () => {
+        latestDataRef.current = latestData;
+        gpsPathRef.current = gpsPath;
+        conversionFnsRef.current = { convertSpeed, getSpeedUnit };
+    });
+
+    // This effect runs only ONCE on mount to set up the camera and drawing loop
+    useEffect(() => {
+        let animationFrameId: number;
+        let stream: MediaStream | undefined;
+
+        const setupAndRun = async () => {
+            if (!canvasRef.current || !videoRef.current) return;
+
+            // 1. Check for browser API support before attempting to use them
+            if (typeof (canvasRef.current as any).captureStream !== 'function' || typeof window.MediaRecorder !== 'function') {
+                setError("Video recording is not supported on this browser. Please use a recent version of Chrome, Firefox, or Edge.");
+                return;
+            }
+
+            // 2. Get camera stream
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment" }
-                });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    videoRef.current.play();
-                }
-                
-                const drawFrame = () => {
-                    if (!canvasRef.current || !videoRef.current) return;
-                    const ctx = canvasRef.current.getContext('2d');
-                    if (!ctx) return;
-                    
-                    ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-                    drawTelemetryOverlay(ctx, latestData, gpsPath, convertSpeed, getSpeedUnit);
-                    
-                    animationFrameRef.current = requestAnimationFrame(drawFrame);
-                };
-                drawFrame();
-
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
             } catch (err) {
-                console.error("Camera access denied:", err);
-                setError("Camera access is required. Please enable it in your browser settings.");
+                console.error("Camera access error:", err);
+                setError("Camera access was denied or is unavailable. Please check your browser permissions.");
+                return;
             }
+
+            const ctx = canvasRef.current.getContext('2d');
+            if (!ctx) return;
+            
+            // 3. Start the drawing loop
+            const drawLoop = () => {
+                if (videoRef.current && videoRef.current.readyState >= 2) { // HAVE_CURRENT_DATA
+                    ctx.drawImage(videoRef.current, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+                    drawTelemetryOverlay(
+                        ctx,
+                        latestDataRef.current,
+                        gpsPathRef.current,
+                        conversionFnsRef.current.convertSpeed,
+                        conversionFnsRef.current.getSpeedUnit
+                    );
+                }
+                animationFrameId = requestAnimationFrame(drawLoop);
+            };
+            drawLoop();
         };
 
-        setupCamera();
+        setupAndRun();
 
+        // 4. Cleanup function
         return () => {
-            if (videoRef.current && videoRef.current.srcObject) {
-                (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
             }
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
+            stream?.getTracks().forEach(track => track.stop());
         };
-    }, [latestData, gpsPath, convertSpeed, getSpeedUnit]);
+    }, []); // Empty dependency array ensures this runs only once
 
     const handleStartRecording = () => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current || !!error) return;
         setVideoUrl(null);
         recordedChunksRef.current = [];
 
+        const mimeType = 'video/webm; codecs=vp9';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+            setError(`Recording format (${mimeType}) not supported. Video may not be playable.`);
+        }
+
         const stream = canvasRef.current.captureStream(30); // 30 FPS
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
 
         mediaRecorderRef.current.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -208,14 +240,18 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
 
     return (
         <div className="w-full h-full bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col gap-4">
-            {error && <div className="text-red-500 text-center">{error}</div>}
             <div className="relative w-full aspect-video">
                 <video ref={videoRef} className="absolute inset-0 w-full h-full hidden" playsInline autoPlay muted />
-                <canvas ref={canvasRef} width="1280" height="720" className="w-full h-full rounded-md" />
+                <canvas ref={canvasRef} width="1280" height="720" className="w-full h-full rounded-md bg-gray-900" />
+                {error && 
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+                        <p className="text-red-400 text-center max-w-sm">{error}</p>
+                    </div>
+                }
             </div>
             <div className="flex items-center justify-center gap-4">
                 {!isRecording ? (
-                    <button onClick={handleStartRecording} className="bg-red-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-red-500 transition-colors">Start Recording</button>
+                    <button onClick={handleStartRecording} disabled={!!error || isRecording} className="bg-red-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-red-500 transition-colors disabled:bg-base-700 disabled:cursor-not-allowed">Start Recording</button>
                 ) : (
                     <button onClick={handleStopRecording} className="bg-gray-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-gray-500 transition-colors">Stop Recording</button>
                 )}

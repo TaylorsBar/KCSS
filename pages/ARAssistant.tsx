@@ -3,7 +3,6 @@ import { IntentAction, ComponentHotspot, VoiceCommandIntent } from '../types';
 import { getVoiceCommandIntent, generateComponentImage, getComponentTuningAnalysis } from '../services/geminiService';
 import { useVehicleStore } from '../store/useVehicleStore';
 import MicrophoneIcon from '../components/icons/MicrophoneIcon';
-import { MOCK_LOGS } from './MaintenanceLog';
 import ReactMarkdown from 'react-markdown';
 
 // @ts-ignore
@@ -21,7 +20,11 @@ const MOCK_HOTSPOTS: ComponentHotspot[] = [
 ];
 
 const ARAssistant: React.FC = () => {
-    const latestData = useVehicleStore(state => state.latestData);
+    // FIX: Use maintenanceLog from the vehicle store instead of non-existent mock data.
+    const { latestData, maintenanceLog } = useVehicleStore(state => ({
+        latestData: state.latestData,
+        maintenanceLog: state.maintenanceLog,
+    }));
     const [isConnecting, setIsConnecting] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [isListening, setIsListening] = useState(false);
@@ -112,7 +115,7 @@ const ARAssistant: React.FC = () => {
                 }
                 break;
             case IntentAction.QueryService:
-                const nextService = MOCK_LOGS.find(log => !log.verified && log.isAiRecommendation);
+                const nextService = maintenanceLog.find(log => !log.verified && log.isAiRecommendation);
                 if (nextService) {
                     setAssistantMessage(`Your next recommended service is: ${nextService.service} on or around ${nextService.date}.`);
                 } else {

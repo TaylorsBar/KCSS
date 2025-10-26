@@ -1,4 +1,3 @@
-
 import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession, DTCInfo } from '../types';
 
 // Using a module-level variable to ensure a single worker instance.
@@ -142,4 +141,11 @@ export const getRaceAnalysis = (session: SavedRaceSession): Promise<string> => {
 
 export const getDTCInfo = (dtcCode: string): Promise<DTCInfo> => {
     return callWorker('getDTCInfo', { dtcCode });
+};
+
+export const generateHealthReport = (
+    dataHistory: SensorDataPoint[],
+    maintenanceHistory: MaintenanceRecord[]
+): Promise<string> => {
+    return callWorker('generateHealthReport', { dataHistory, maintenanceHistory });
 };
