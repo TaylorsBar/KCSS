@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { SensorDataPoint, TimelineEvent, ConnectionStatus, MaintenanceRecord, AuditLogEntry, HederaRecord, AuditEvent, HederaEventType } from '../types';
+import { SensorDataPoint, TimelineEvent, ConnectionStatus, MaintenanceRecord, AuditLogEntry, HederaRecord, AuditEvent, HederaEventType, DTCInfo } from '../types';
 import { obdService } from '../services/obdService';
+import { getDTCInfo } from '../services/geminiService';
 
 // --- Constants ---
 const MAX_DATA_POINTS = 500;
@@ -14,20 +15,26 @@ interface VehicleState {
   timelineEvents: TimelineEvent[];
   connectionStatus: ConnectionStatus;
   isSimulating: boolean;
+  isGaugeSweeping: boolean;
   deviceName: string | null;
   errorMessage: string | null;
   maintenanceLog: MaintenanceRecord[];
   auditLog: AuditLogEntry[];
   hederaLog: HederaRecord[];
+  isScanningDTCs: boolean;
+  dtcResults: DTCInfo[];
+  dtcError: string | null;
 }
 
 interface VehicleActions {
   setTimelineEvents: (events: TimelineEvent[]) => void;
+  triggerGaugeSweep: () => void;
   connectToVehicle: () => void;
   disconnectFromVehicle: () => void;
   addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'verified' | 'isAiRecommendation' | 'date'>) => void;
   addAuditEvent: (event: AuditEvent, description: string, status?: 'Success' | 'Failure') => void;
   addHederaRecord: (eventType: HederaEventType, summary: string) => void;
+  scanForDTCs: () => Promise<void>;
 }
 
 // --- LocalStorage Persistence ---
@@ -69,17 +76,28 @@ const initialState: VehicleState = {
   timelineEvents: [],
   connectionStatus: ConnectionStatus.DISCONNECTED,
   isSimulating: true,
+  isGaugeSweeping: false,
   deviceName: null,
   errorMessage: null,
   maintenanceLog: loadFromStorage<MaintenanceRecord[]>('cartelworx_maintenance_log', []),
   auditLog: loadFromStorage<AuditLogEntry[]>('cartelworx_audit_log', []),
   hederaLog: loadFromStorage<HederaRecord[]>('cartelworx_hedera_log', []),
+  isScanningDTCs: false,
+  dtcResults: [],
+  dtcError: null,
 };
 
 // --- Zustand Store Creation ---
 export const useVehicleStore = create<VehicleState & VehicleActions>((set, get) => ({
   ...initialState,
   setTimelineEvents: (events) => set({ timelineEvents: events }),
+  triggerGaugeSweep: () => {
+    set({ isGaugeSweeping: true });
+    // Duration should be long enough for sweep up and down animations
+    setTimeout(() => {
+      set({ isGaugeSweeping: false });
+    }, 1400); 
+  },
   connectToVehicle: () => {
     simulationManager.stop();
     set({ isSimulating: false });
@@ -136,7 +154,38 @@ export const useVehicleStore = create<VehicleState & VehicleActions>((set, get) 
           saveToStorage('cartelworx_hedera_log', newLog);
           return { hederaLog: newLog };
       });
-  }
+  },
+  scanForDTCs: async () => {
+    set({ isScanningDTCs: true, dtcError: null, dtcResults: [] });
+    get().addAuditEvent(AuditEvent.DiagnosticQuery, 'Started ECU fault code scan.');
+    try {
+      const codes = await obdService.fetchDTCs();
+      if (codes.length === 0) {
+        set({
+          dtcResults: [{ 
+            code: "P0000", 
+            description: "No Diagnostic Trouble Codes found in the system.", 
+            severity: "Info", 
+            possibleCauses: [] 
+          }],
+        });
+        get().addAuditEvent(AuditEvent.DiagnosticQuery, `ECU scan completed. No faults found.`);
+      } else {
+        const results = await Promise.all(codes.map(code => getDTCInfo(code)));
+        set({ dtcResults: results });
+        get().addAuditEvent(AuditEvent.DiagnosticQuery, `ECU scan completed. Found codes: ${codes.join(', ')}`);
+        if (results.some(r => r.severity === 'Critical')) {
+            get().addHederaRecord(HederaEventType.Diagnostic, `Critical DTCs found: ${results.filter(r => r.severity === 'Critical').map(r => r.code).join(', ')}`);
+        }
+      }
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during scan.";
+      set({ dtcError: errorMessage });
+      get().addAuditEvent(AuditEvent.DiagnosticQuery, `ECU scan failed: ${errorMessage}`, 'Failure');
+    } finally {
+      set({ isScanningDTCs: false });
+    }
+  },
 }));
 
 // --- OBD Service Subscription ---

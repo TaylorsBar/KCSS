@@ -20,9 +20,9 @@ const AddRecordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="w-full max-w-md bg-base-900 rounded-lg border border-brand-cyan shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-md bg-base-900 rounded-lg border border-[var(--theme-accent-primary)] shadow-lg" onClick={(e) => e.stopPropagation()}>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <h2 className="text-xl font-bold font-display text-brand-cyan">Add New Maintenance Record</h2>
+                    <h2 className="text-xl font-bold font-display text-[var(--theme-accent-primary)]">Add New Maintenance Record</h2>
                     <div>
                         <label htmlFor="service" className="block text-sm font-medium text-gray-300 mb-1">Service Performed</label>
                         <input type="text" id="service" value={service} onChange={e => setService(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200" required />
@@ -32,8 +32,8 @@ const AddRecordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200" rows={3} required />
                     </div>
                     <div className="flex justify-end gap-4 pt-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-base-700 text-white font-semibold hover:bg-base-600">Cancel</button>
-                        <button type="submit" className="px-4 py-2 rounded-md bg-brand-blue text-white font-semibold hover:bg-blue-600">Save Record</button>
+                        <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+                        <button type="submit" className="btn btn-action">Save Record</button>
                     </div>
                 </form>
             </div>
@@ -44,15 +44,15 @@ const AddRecordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 const HealthReportModal: React.FC<{ onClose: () => void, report: string, isLoading: boolean }> = ({ onClose, report, isLoading }) => {
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="w-full max-w-3xl h-[80vh] bg-base-900 rounded-lg border border-brand-cyan shadow-lg flex flex-col" onClick={(e) => e.stopPropagation()}>
-                <div className="p-4 border-b border-brand-cyan/30 flex justify-between items-center">
-                    <h2 className="text-xl font-bold font-display text-brand-cyan">AI Vehicle Health Report</h2>
+            <div className="w-full max-w-3xl h-[80vh] bg-base-900 rounded-lg border border-[var(--theme-accent-primary)] shadow-lg flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="p-4 border-b border-[var(--theme-accent-primary)]/30 flex justify-between items-center">
+                    <h2 className="text-xl font-bold font-display text-[var(--theme-accent-primary)]">AI Vehicle Health Report</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
                 </div>
                 <div className="p-6 flex-grow overflow-y-auto">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-full">
-                            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-brand-cyan"></div>
+                            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-[var(--theme-accent-primary)]"></div>
                         </div>
                     ) : (
                         <div className="prose prose-invert max-w-none">
@@ -97,12 +97,12 @@ const MaintenanceLog: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-100 font-display">Maintenance Logbook</h1>
             <p className="text-gray-400 mt-1">An immutable record of your vehicle's service history.</p>
         </div>
-        <button onClick={() => setIsAddModalOpen(true)} className="bg-brand-cyan text-black font-semibold px-4 py-2 rounded-md hover:bg-cyan-300 transition-colors shadow-glow-cyan">
+        <button onClick={() => setIsAddModalOpen(true)} className="btn btn-primary">
             Add New Record
         </button>
       </div>
       
-      <div className="bg-black rounded-lg border border-brand-cyan/30 shadow-lg overflow-hidden">
+      <div className="bg-black rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-base-700/50">
             <thead className="bg-base-800/50">
@@ -119,8 +119,8 @@ const MaintenanceLog: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-300">{log.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
                     <div className="flex items-center">
-                      {log.isAiRecommendation && <span className="text-brand-cyan mr-2 font-mono text-xs">[AI]</span>}
-                      {log.isAiRecommendation ? <span className="text-brand-cyan">{log.service}</span> : log.service}
+                      {log.isAiRecommendation && <span className="text-[var(--theme-accent-primary)] mr-2 font-mono text-xs">[AI]</span>}
+                      {log.isAiRecommendation ? <span className="text-[var(--theme-accent-primary)]">{log.service}</span> : log.service}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{log.notes}</td>
@@ -147,7 +147,7 @@ const MaintenanceLog: React.FC = () => {
         </div>
       </div>
        <div className="text-center mt-4">
-        <button onClick={handleGenerateReport} className="text-brand-cyan font-semibold hover:underline">
+        <button onClick={handleGenerateReport} className="text-[var(--theme-accent-primary)] font-semibold hover:underline">
             Generate Vehicle Health Report
         </button>
       </div>

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { useVehicleStore } from '../../store/useVehicleStore';
 import { useUnitConversion } from '../../hooks/useUnitConversion';
@@ -17,10 +18,10 @@ const Ic7Dashboard: React.FC = () => {
     const mapKpa = (latestData.turboBoost * 100) + 101.3;
 
     return (
-        <div className="flex flex-col lg:flex-row h-full w-full p-2 lg:p-4 gap-2 lg:gap-4 theme-background items-center justify-center haltech-ic7-background">
+        <div className="flex flex-col lg:flex-row h-full w-full p-2 lg:p-4 gap-2 lg:gap-4 items-center justify-center">
             
             {/* Left Gauges */}
-            <div className="w-full lg:w-1/4 grid grid-cols-2 lg:grid-cols-1 gap-2">
+            <div className="w-full lg:w-1/4 grid grid-cols-2 lg:grid-cols-1 lg:grid-rows-4 gap-2">
                 <Ic7DataReadout 
                     label="MAP" 
                     value={mapKpa} 
@@ -80,7 +81,7 @@ const Ic7Dashboard: React.FC = () => {
             </div>
 
             {/* Right Gauges */}
-            <div className="w-full lg:w-1/4 grid grid-cols-2 lg:grid-cols-1 gap-2">
+            <div className="w-full lg:w-1/4 grid grid-cols-2 lg:grid-cols-1 lg:grid-rows-4 gap-2">
                  <Ic7DataReadout 
                     label="Ignition Angle" 
                     value={ignitionAngle} 

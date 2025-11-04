@@ -1,10 +1,10 @@
-
-
 import React, { useState, useContext, useEffect } from 'react';
 import { AppearanceContext, CopilotAudioOutput } from '../contexts/AppearanceContext';
 import { useVehicleStore } from '../store/useVehicleStore';
-import { ConnectionStatus } from '../types';
-import { obdService } from '../services/obdService';
+import { ConnectionStatus, AuditEvent, Did } from '../types';
+import { obdService, MOCK_OEM_PROFILES } from '../services/obdService';
+import { useTrainingStore } from '../hooks/useVehicleData';
+import FeatureLock from '../components/DataBar';
 
 const VehicleConnection: React.FC = () => {
     const { connectionStatus, deviceName, connectToVehicle, disconnectFromVehicle, errorMessage } = useVehicleStore(state => ({
@@ -95,18 +95,14 @@ const VehicleConnection: React.FC = () => {
                     <button
                         onClick={handleConnectClick}
                         disabled={isConnecting}
-                        className={`w-full font-semibold py-2 rounded-md transition-colors shadow-md disabled:bg-base-700 disabled:cursor-not-allowed ${
-                            isConnected 
-                                ? 'bg-red-600 text-white hover:bg-red-500' 
-                                : 'bg-brand-blue text-white hover:bg-blue-600 shadow-glow-blue'
-                        }`}
+                        className={`btn w-full ${isConnected ? 'btn-danger' : 'btn-action'}`}
                     >
                         {isConnecting ? 'Connecting...' : (isConnected ? 'Disconnect' : 'Connect to Vehicle')}
                     </button>
                     <button
                         onClick={handleReinitialize}
                         disabled={!isConnected || isReinitializing}
-                        className="w-full font-semibold py-2 rounded-md bg-base-700 text-white hover:bg-base-600 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="btn btn-secondary w-full"
                     >
                         {isReinitializing ? 'Re-initializing...' : 'Re-initialize ELM327'}
                     </button>
@@ -120,6 +116,99 @@ const VehicleConnection: React.FC = () => {
                     </div>
                 )}
             </div>
+        </div>
+    );
+};
+
+const OemDiagnostics: React.FC = () => {
+    const isUnlocked = useTrainingStore(state => state.isUnlocked('oem-insights'));
+    const { connectionStatus, addAuditEvent } = useVehicleStore(state => ({
+        connectionStatus: state.connectionStatus,
+        addAuditEvent: state.addAuditEvent,
+    }));
+    const [selectedOem, setSelectedOem] = useState('');
+    const [didResults, setDidResults] = useState<Record<string, { value: string, isLoading: boolean }>>({});
+
+    const isConnected = connectionStatus === ConnectionStatus.CONNECTED;
+    const currentProfile = MOCK_OEM_PROFILES.find(p => p.oem === selectedOem);
+
+    const handleOemChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedOem(e.target.value);
+        setDidResults({}); // Clear results when profile changes
+    };
+
+    const handleReadDid = async (symbol: string, did: Did) => {
+        setDidResults(prev => ({ ...prev, [symbol]: { value: 'Reading...', isLoading: true } }));
+        addAuditEvent(AuditEvent.DiagnosticQuery, `Reading DID: ${did.desc} (${symbol}) from ${selectedOem} profile.`);
+        try {
+            const result = await obdService.readDid(did);
+            setDidResults(prev => ({ ...prev, [symbol]: { value: result, isLoading: false } }));
+        } catch (e) {
+            const error = e instanceof Error ? e.message : 'Unknown error';
+            setDidResults(prev => ({ ...prev, [symbol]: { value: `Error: ${error}`, isLoading: false } }));
+        }
+    };
+
+    if (!isUnlocked) {
+        return (
+            <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg min-h-[300px] flex items-center justify-center">
+                 <FeatureLock featureName="OEM Diagnostic Profiles" moduleName="OEM-Level Insights" level={3} />
+            </div>
+        )
+    }
+
+    return (
+        <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg relative">
+            <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">OEM Diagnostic Profiles</h2>
+            <div className={`space-y-4 ${!isConnected ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div>
+                    <label htmlFor="oem-select" className="block text-sm font-medium text-gray-300 mb-1">Select OEM Profile</label>
+                    <select
+                        id="oem-select"
+                        value={selectedOem}
+                        onChange={handleOemChange}
+                        className="w-full bg-base-800 border border-base-700 rounded-md px-3 py-2 text-gray-200 focus:ring-brand-cyan focus:border-brand-cyan"
+                    >
+                        <option value="">-- Standard OBD-II --</option>
+                        {MOCK_OEM_PROFILES.map(profile => (
+                            <option key={profile.oem} value={profile.oem}>{profile.oem}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {currentProfile && (
+                    <div>
+                        <h3 className="text-md font-semibold text-gray-300 mt-4 mb-2">Available Data Identifiers (DIDs)</h3>
+                        <div className="space-y-2 max-h-60 overflow-y-auto bg-base-900/50 p-2 rounded-md">
+                            {Object.entries(currentProfile.dids).map(([symbol, did]) => (
+                                <div key={symbol} className="flex items-center justify-between p-2 bg-base-800 rounded-md">
+                                    <div>
+                                        <p className="font-semibold text-gray-200">{did.desc}</p>
+                                        <p className="text-xs text-gray-400 font-mono">Symbol: {symbol} | ID: {did.id}</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <span className="font-mono text-brand-cyan w-48 text-right truncate" title={didResults[symbol]?.value}>
+                                            {didResults[symbol]?.isLoading ? '...' : (didResults[symbol]?.value || '')}
+                                        </span>
+                                        <button
+                                            onClick={() => handleReadDid(symbol, did)}
+                                            disabled={didResults[symbol]?.isLoading}
+                                            className="btn btn-secondary px-3 py-1 text-xs"
+                                        >
+                                            Read
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+            {!isConnected && (
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-lg">
+                    <p className="text-yellow-400 font-semibold">Connect to vehicle to access OEM diagnostics.</p>
+                </div>
+            )}
         </div>
     );
 };
@@ -141,6 +230,8 @@ const Accessories: React.FC = () => {
             </div>
             
             <VehicleConnection />
+
+            <OemDiagnostics />
 
             {/* Car Stereo Section */}
             <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">

@@ -6,6 +6,7 @@ import TuningSlider from '../components/tuning/TuningSlider';
 import TuningMap from '../components/tuning/TuningMap';
 import SparklesIcon from '../components/icons/SparklesIcon';
 import ReactMarkdown from 'react-markdown';
+import RealtimeMetrics from './TuningSandbox';
 
 const RPM_AXIS = ['800', '1500', '2500', '3500', '4500', '5500', '6500', '7500'];
 const LOAD_AXIS = ['20', '30', '40', '50', '60', '70', '80', '100'];
@@ -27,6 +28,7 @@ const TuningPage: React.FC = () => {
     }));
 
     const [currentTune, setCurrentTune] = useState(DEFAULT_TUNE);
+    const [boostPressureOffset, setBoostPressureOffset] = useState(0);
     const [activeTab, setActiveTab] = useState<'fuel' | 'ignition' | 'boost'>('ignition');
     const [aiIsLoading, setAiIsLoading] = useState(false);
     const [aiChat, setAiChat] = useState<ChatMessage[]>([]);
@@ -37,26 +39,55 @@ const TuningPage: React.FC = () => {
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [aiChat]);
+    
+    const displayBoostMap = useMemo(() => {
+        return currentTune.boostPressure.map(row => 
+            row.map(cell => parseFloat((cell + boostPressureOffset).toFixed(2)))
+        );
+    }, [currentTune.boostPressure, boostPressureOffset]);
 
     const handleMapChange = (map: 'ignitionTiming' | 'boostPressure', row: number, col: number, value: number) => {
-        const newMap = currentTune[map].map(r => [...r]);
-        newMap[row][col] = value;
-        setCurrentTune(prev => ({ ...prev, [map]: newMap }));
-        setSafetyReport(null); // Invalidate safety report on change
+        let newMap;
+        if (map === 'boostPressure') {
+            const baseValue = value - boostPressureOffset;
+            newMap = currentTune.boostPressure.map(r => [...r]);
+            newMap[row][col] = parseFloat(baseValue.toFixed(2));
+            setCurrentTune(prev => ({ ...prev, boostPressure: newMap }));
+        } else {
+            newMap = currentTune.ignitionTiming.map(r => [...r]);
+            newMap[row][col] = value;
+            setCurrentTune(prev => ({ ...prev, ignitionTiming: newMap }));
+        }
+        setSafetyReport(null);
     };
 
     const handleFuelChange = (value: number) => {
         setCurrentTune(prev => ({...prev, fuelMap: value}));
         setSafetyReport(null);
-    }
+    };
+    
+    const handleBoostOffsetChange = (value: number) => {
+        setBoostPressureOffset(value);
+        setSafetyReport(null);
+    };
     
     const applySuggestion = (suggestion: TuningSuggestion, goal: string) => {
-        setCurrentTune(suggestion.suggestedParams);
+        const { boostPressureOffset: suggestedOffset, ...suggestedMaps } = suggestion.suggestedParams;
+        if (suggestedOffset !== undefined && suggestedOffset !== null) {
+            setBoostPressureOffset(suggestedOffset);
+        }
+        setCurrentTune(prev => ({ ...prev, ...suggestedMaps }));
+
         const aiMessage: ChatMessage = {
             id: Date.now().toString(),
             sender: 'ai',
             text: `**Tune Applied: "${goal}"**\n- **Gains:** ${suggestion.analysis.predictedGains}\n- **Risks:** ${suggestion.analysis.potentialRisks}`
         };
+
+        if (suggestedOffset !== undefined) {
+          aiMessage.text += `\n- **Boost Offset:** ${suggestedOffset.toFixed(2)} bar`;
+        }
+
         if (suggestion.analysis.educationalTip) {
             aiMessage.text += `\n- **Pro Tip:** ${suggestion.analysis.educationalTip}`;
         }
@@ -72,7 +103,7 @@ const TuningPage: React.FC = () => {
         setAiChat(prev => [...prev, userMessage]);
         addAuditEvent(AuditEvent.AiAnalysis, `Requested AI tuning suggestion for "${goal}".`);
         try {
-            const suggestion = await getTuningSuggestion(goal, latestData);
+            const suggestion = await getTuningSuggestion(goal, latestData, currentTune, boostPressureOffset);
             applySuggestion(suggestion, goal);
         } catch (e) {
             const error = e instanceof Error ? e.message : "An unknown error occurred.";
@@ -91,7 +122,7 @@ const TuningPage: React.FC = () => {
         addAuditEvent(AuditEvent.AiAnalysis, `Requested tune safety analysis.`);
         try {
             const { ignitionTiming, boostPressure } = currentTune;
-            const report = await analyzeTuneSafety({ ignitionTiming, boostPressure }, latestData);
+            const report = await analyzeTuneSafety({ ignitionTiming, boostPressure }, boostPressureOffset, latestData);
             setSafetyReport({ score: report.safetyScore, warnings: report.warnings });
             let safetyMessage = `**Safety Analysis Complete**\n- **Safety Score:** ${report.safetyScore}/100\n`;
             if (report.warnings.length > 0) {
@@ -122,7 +153,7 @@ const TuningPage: React.FC = () => {
         
         try {
             const { ignitionTiming, boostPressure } = currentTune;
-            const response = await getTuningChatResponse(aiChatInput, {ignitionTiming, boostPressure}, latestData);
+            const response = await getTuningChatResponse(aiChatInput, {ignitionTiming, boostPressure}, boostPressureOffset, latestData);
             const aiMessage: ChatMessage = { id: (Date.now() + 1).toString(), sender: 'ai', text: response };
             setAiChat(prev => [...prev, aiMessage]);
         } catch (e) {
@@ -137,8 +168,8 @@ const TuningPage: React.FC = () => {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full p-4">
             {/* Left Panel: AI Assistant */}
-            <div className="lg:col-span-1 bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">AI Tuning Assistant</h2>
+            <div className="lg:col-span-1 bg-black p-4 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg flex flex-col">
+                <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-4 font-display">AI Tuning Assistant</h2>
                 <div className="flex-grow my-2 space-y-3 overflow-y-auto pr-2">
                     {aiChat.map(msg => (
                          <div key={msg.id} className={`flex items-start gap-2 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
@@ -150,43 +181,67 @@ const TuningPage: React.FC = () => {
                      {aiIsLoading && <div className="text-center text-gray-400 p-2">KC is thinking...</div>}
                     <div ref={chatEndRef} />
                 </div>
-                <div className="flex-shrink-0 space-y-2 pt-2 border-t border-brand-cyan/30">
+                <div className="flex-shrink-0 space-y-2 pt-2 border-t border-[var(--theme-accent-primary)]/30">
                      <form onSubmit={handleChatSubmit} className="flex gap-2">
                         <input type="text" value={aiChatInput} onChange={e => setAiChatInput(e.target.value)} placeholder="Ask about tuning..." className="flex-1 bg-base-800 border border-base-700 rounded-md px-3 py-2 text-sm text-gray-200" disabled={aiIsLoading} />
-                        <button type="submit" disabled={aiIsLoading} className="bg-brand-cyan text-black px-4 rounded-md font-semibold text-sm disabled:opacity-50">Send</button>
+                        <button type="submit" disabled={aiIsLoading} className="btn btn-primary">Send</button>
                     </form>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                        <button onClick={() => handleGetSuggestion('Max Performance')} disabled={aiIsLoading} className="flex items-center justify-center gap-1 bg-base-700 p-2 rounded hover:bg-base-600 disabled:opacity-50"><SparklesIcon className="w-4 h-4 text-brand-pink" /> Track Day</button>
-                        <button onClick={() => handleGetSuggestion('Fuel Economy')} disabled={aiIsLoading} className="flex items-center justify-center gap-1 bg-base-700 p-2 rounded hover:bg-base-600 disabled:opacity-50"><SparklesIcon className="w-4 h-4 text-brand-green" /> Eco Tune</button>
-                        <button onClick={() => handleGetSuggestion('Daily Driving')} disabled={aiIsLoading} className="flex items-center justify-center gap-1 bg-base-700 p-2 rounded hover:bg-base-600 disabled:opacity-50"><SparklesIcon className="w-4 h-4 text-brand-cyan" /> Daily</button>
-                        <button onClick={handleSafetyCheck} disabled={aiIsLoading} className="bg-yellow-600/80 p-2 rounded hover:bg-yellow-500/80 disabled:opacity-50 font-semibold">Safety Check</button>
+                        <button onClick={() => handleGetSuggestion('Max Performance')} disabled={aiIsLoading} className="btn btn-secondary flex items-center justify-center gap-1"><SparklesIcon className="w-4 h-4 text-brand-pink" /> Track Day</button>
+                        <button onClick={() => handleGetSuggestion('Fuel Economy')} disabled={aiIsLoading} className="btn btn-secondary flex items-center justify-center gap-1"><SparklesIcon className="w-4 h-4 text-brand-green" /> Eco Tune</button>
+                        <button onClick={() => handleGetSuggestion('Daily Driving')} disabled={aiIsLoading} className="btn btn-secondary flex items-center justify-center gap-1"><SparklesIcon className="w-4 h-4 text-[var(--theme-accent-primary)]" /> Daily</button>
+                        <button onClick={handleSafetyCheck} disabled={aiIsLoading} className="btn btn-warning font-semibold">Safety Check</button>
                     </div>
                 </div>
             </div>
 
             {/* Right Panel: Tables & Controls */}
-            <div className="lg:col-span-2 bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col">
-                <div className="flex justify-between items-center border-b border-brand-cyan/30 pb-2 mb-2">
-                    <div className="flex bg-base-900/50 rounded-md">
-                        <button onClick={() => setActiveTab('ignition')} className={`px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'ignition' ? 'bg-brand-blue text-white' : 'text-gray-400'}`}>Ignition</button>
-                        <button onClick={() => setActiveTab('boost')} className={`px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'boost' ? 'bg-brand-blue text-white' : 'text-gray-400'}`}>Boost</button>
-                        <button onClick={() => setActiveTab('fuel')} className={`px-4 py-2 text-sm font-semibold rounded-md ${activeTab === 'fuel' ? 'bg-brand-blue text-white' : 'text-gray-400'}`}>Fuel</button>
+            <div className="lg:col-span-2 bg-black p-4 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg flex flex-col">
+                <div className="flex justify-between items-center border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-2">
+                    <div className="flex gap-2">
+                        <button onClick={() => setActiveTab('ignition')} className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${activeTab === 'ignition' ? 'border-[var(--theme-accent-primary)] text-white shadow-glow-theme bg-[var(--theme-accent-primary)]/20' : 'border-base-700 bg-transparent text-gray-400 hover:border-[var(--theme-accent-primary)]/50'}`}>Ignition</button>
+                        <button onClick={() => setActiveTab('boost')} className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${activeTab === 'boost' ? 'border-[var(--theme-accent-primary)] text-white shadow-glow-theme bg-[var(--theme-accent-primary)]/20' : 'border-base-700 bg-transparent text-gray-400 hover:border-[var(--theme-accent-primary)]/50'}`}>Boost</button>
+                        <button onClick={() => setActiveTab('fuel')} className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${activeTab === 'fuel' ? 'border-[var(--theme-accent-primary)] text-white shadow-glow-theme bg-[var(--theme-accent-primary)]/20' : 'border-base-700 bg-transparent text-gray-400 hover:border-[var(--theme-accent-primary)]/50'}`}>Fuel</button>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={() => setCurrentTune(DEFAULT_TUNE)} className="bg-base-700 text-white font-semibold py-2 px-4 rounded-md hover:bg-base-600 transition-colors text-sm">Reset</button>
-                         <button disabled className="bg-red-600 text-white font-semibold py-2 px-4 rounded-md disabled:bg-red-900/50 disabled:cursor-not-allowed disabled:text-gray-400 text-sm">Write to ECU</button>
+                        <button onClick={() => { setCurrentTune(DEFAULT_TUNE); setBoostPressureOffset(0); }} className="btn btn-secondary">Reset</button>
+                         <button disabled className="btn btn-danger">Write to ECU</button>
                     </div>
                 </div>
                 
-                <div className="flex-grow mt-2 overflow-auto">
-                    {activeTab === 'ignition' && <TuningMap title="Ignition Timing (deg BTDC)" data={currentTune.ignitionTiming} xAxisLabels={RPM_AXIS} yAxisLabels={LOAD_AXIS} onChange={(r, c, v) => handleMapChange('ignitionTiming', r, c, v)} />}
-                    {activeTab === 'boost' && <TuningMap title="Boost Pressure Target (bar)" data={currentTune.boostPressure} xAxisLabels={RPM_AXIS} yAxisLabels={LOAD_AXIS} onChange={(r, c, v) => handleMapChange('boostPressure', r, c, v)} />}
-                    {activeTab === 'fuel' && (
-                        <div className="p-8">
-                            <h2 className="text-lg font-semibold text-center mb-4 font-display">Global Fuel Map Enrichment</h2>
-                            <TuningSlider label="Fuel Trim" unit="%" value={currentTune.fuelMap} min={-10} max={10} step={0.5} onChange={handleFuelChange} />
-                        </div>
-                    )}
+                <div className="flex-grow mt-2 overflow-y-auto">
+                    <div>
+                        {activeTab === 'ignition' && <TuningMap title="Ignition Timing (deg BTDC)" data={currentTune.ignitionTiming} xAxisLabels={RPM_AXIS} yAxisLabels={LOAD_AXIS} onChange={(r, c, v) => handleMapChange('ignitionTiming', r, c, v)} />}
+                        {activeTab === 'boost' && (
+                            <div>
+                                <TuningMap 
+                                    title="Effective Boost Pressure Target (bar)" 
+                                    data={displayBoostMap} 
+                                    xAxisLabels={RPM_AXIS} 
+                                    yAxisLabels={LOAD_AXIS} 
+                                    onChange={(r, c, v) => handleMapChange('boostPressure', r, c, v)} 
+                                />
+                                <div className="p-4 border-t border-[var(--theme-accent-primary)]/30 mt-4">
+                                    <TuningSlider 
+                                        label="Global Boost Offset" 
+                                        unit="bar" 
+                                        value={boostPressureOffset} 
+                                        min={-0.5} 
+                                        max={0.5} 
+                                        step={0.05} 
+                                        onChange={handleBoostOffsetChange} 
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {activeTab === 'fuel' && (
+                            <div className="p-8">
+                                <h2 className="text-lg font-semibold text-center mb-4 font-display">Global Fuel Map Enrichment</h2>
+                                <TuningSlider label="Fuel Trim" unit="%" value={currentTune.fuelMap} min={-10} max={10} step={0.5} onChange={handleFuelChange} />
+                            </div>
+                        )}
+                    </div>
+                    <RealtimeMetrics />
                 </div>
             </div>
         </div>

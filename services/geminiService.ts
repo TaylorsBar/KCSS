@@ -1,4 +1,4 @@
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession, DTCInfo } from '../types';
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession, DTCInfo, ComponentHealthAnalysisResult } from '../types';
 
 // Using a module-level variable to ensure a single worker instance.
 let worker: Worker | undefined;
@@ -7,10 +7,12 @@ let requestIdCounter = 0;
 
 function getWorker(): Worker {
     if (!worker) {
-        // The path to the worker is now an absolute path from the project root.
-        // This avoids issues with `import.meta.url` which can be unreliable in certain
-        // sandboxed or no-build environments, preventing "Invalid URL" errors.
-        worker = new Worker('/services/ai.worker.ts', {
+        // FIX: Construct the worker URL explicitly from the current origin to prevent
+        // cross-origin errors in sandboxed environments. The browser was incorrectly
+        // resolving the relative path '/services/ai.worker.ts' against a different
+        // origin ('ai.studio') instead of the application's origin.
+        const workerUrl = new URL('/services/ai.worker.ts', window.location.origin);
+        worker = new Worker(workerUrl, {
             type: 'module'
         });
 
@@ -70,6 +72,29 @@ function callWorker<T>(type: string, payload: any): Promise<T> {
     });
 }
 
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            if (typeof reader.result !== 'string') {
+                return reject(new Error('FileReader did not return a string.'));
+            }
+            // result is "data:image/jpeg;base64,..."
+            // we need to strip the prefix
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = error => reject(error);
+    });
+};
+
+export const analyzeImage = async (imageFile: File, prompt: string): Promise<string> => {
+    const base64Image = await fileToBase64(imageFile);
+    const mimeType = imageFile.type;
+    return callWorker('analyzeImage', { base64Image, mimeType, prompt });
+};
+
 export const getPredictiveAnalysis = (
     dataHistory: SensorDataPoint[],
     maintenanceHistory: MaintenanceRecord[]
@@ -78,26 +103,37 @@ export const getPredictiveAnalysis = (
     return callWorker('getPredictiveAnalysis', { dataHistory, maintenanceHistory });
 };
 
+export const getComponentHealthAnalysis = (
+    dataHistory: SensorDataPoint[],
+    maintenanceHistory: MaintenanceRecord[]
+): Promise<ComponentHealthAnalysisResult> => {
+    return callWorker('getComponentHealthAnalysis', { dataHistory, maintenanceHistory });
+};
+
 export const getTuningSuggestion = (
     goal: string,
-    liveData: SensorDataPoint
+    liveData: SensorDataPoint,
+    currentTune: { fuelMap: number; ignitionTiming: number[][]; boostPressure: number[][] },
+    boostPressureOffset: number
 ): Promise<TuningSuggestion> => {
-    return callWorker('getTuningSuggestion', { goal, liveData });
+    return callWorker('getTuningSuggestion', { goal, liveData, currentTune, boostPressureOffset });
 };
 
 export const analyzeTuneSafety = (
     currentTune: { ignitionTiming: number[][]; boostPressure: number[][] },
+    boostPressureOffset: number,
     liveData: SensorDataPoint
 ): Promise<{ safetyScore: number; warnings: string[] }> => {
-    return callWorker('analyzeTuneSafety', { currentTune, liveData });
+    return callWorker('analyzeTuneSafety', { currentTune, boostPressureOffset, liveData });
 };
 
 export const getTuningChatResponse = (
     query: string,
     currentTune: { ignitionTiming: number[][]; boostPressure: number[][] },
+    boostPressureOffset: number,
     liveData: SensorDataPoint
 ): Promise<string> => {
-    return callWorker('getTuningChatResponse', { query, currentTune, liveData });
+    return callWorker('getTuningChatResponse', { query, currentTune, boostPressureOffset, liveData });
 };
 
 

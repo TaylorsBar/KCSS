@@ -1,6 +1,8 @@
 
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useSweepValue } from '../../hooks/useSweepValue';
 
 interface MinimalistGaugeProps {
     value: number;
@@ -17,7 +19,8 @@ const sizeConfig = {
 };
 
 const MinimalistGauge: React.FC<MinimalistGaugeProps> = ({ value, min, max, unit, size }) => {
-    const animatedValue = useAnimatedValue(value);
+    const sweptValue = useSweepValue(value, min, max);
+    const animatedValue = useAnimatedValue(sweptValue);
     const config = sizeConfig[size];
     const radius = config.radius;
     const center = radius;

@@ -1,5 +1,6 @@
 
 
+
 import React from 'react';
 import { useVehicleStore } from '../../store/useVehicleStore';
 import { SensorDataPoint } from '../../types';
@@ -20,7 +21,7 @@ const MinimalistDashboard: React.FC = () => {
 
     return (
         <div className="flex h-full w-full items-center justify-center p-4 md:p-8 theme-background">
-            <div className="w-full h-full max-w-7xl max-h-[800px] relative">
+            <div className="w-full h-full relative">
                 {/* Floating Panels */}
                 <div className="absolute top-[5%] left-[15%] w-[40%] h-[55%]">
                      <MinimalistGauge 

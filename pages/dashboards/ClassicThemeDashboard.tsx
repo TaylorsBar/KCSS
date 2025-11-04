@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { useVehicleStore } from '../../store/useVehicleStore';
 import { useUnitConversion } from '../../hooks/useUnitConversion';
@@ -17,9 +18,9 @@ const ClassicThemeDashboard: React.FC = () => {
   const fuelLevel = Math.max(0, 100 - d.fuelUsed);
 
   return (
-    <div className="flex h-full w-full items-center justify-center p-4 md:p-8 theme-background">
+    <div className="flex h-full w-full items-center justify-center p-4 md:p-8">
       <div 
-        className="w-full max-w-6xl aspect-video rounded-2xl p-6 shadow-2xl flex flex-col items-center justify-center gap-4 classic-wood-panel neon-yellow-border"
+        className="w-full max-h-full aspect-video rounded-2xl p-6 shadow-2xl flex flex-col items-center justify-center gap-6"
         style={{
           boxShadow: 'inset 0 0 30px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.5)',
         }}
@@ -50,7 +51,7 @@ const ClassicThemeDashboard: React.FC = () => {
             />
           </div>
         </div>
-        <div className="w-full flex-shrink-0 flex justify-around items-center gap-6 px-8">
+        <div className="w-full flex-shrink-0 flex justify-center items-center gap-6 px-8">
             <div className="w-1/4 h-full">
                 <ClassicGauge label="Fuel" value={fuelLevel} min={0} max={100} unit="%" size="small" dangerZone="low" redlineValue={15} warningValue={30} />
             </div>

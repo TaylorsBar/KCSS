@@ -1,6 +1,8 @@
 
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useSweepValue } from '../../hooks/useSweepValue';
 
 interface HaltechTachometerProps {
   rpm: number;
@@ -15,13 +17,15 @@ const NUM_LEDS = 16;
 const RPM_MAX = 8000;
 
 const RpmArc: React.FC<{ rpm: number }> = ({ rpm }) => {
-    const activeLeds = Math.min(NUM_LEDS, Math.max(0, Math.ceil((rpm / RPM_MAX) * NUM_LEDS)));
-    const flash = rpm > REDLINE_RPM + 200 && Math.floor(Date.now() / 100) % 2 === 0;
+    const sweptRpm = useSweepValue(rpm, 0, RPM_MAX);
+    const animatedRpm = useAnimatedValue(sweptRpm);
+    const activeLeds = Math.min(NUM_LEDS, Math.max(0, Math.ceil((animatedRpm / RPM_MAX) * NUM_LEDS)));
+    const flash = animatedRpm > REDLINE_RPM + 200 && Math.floor(Date.now() / 100) % 2 === 0;
 
     const getLedColor = (i: number) => {
         const ledRpm = (i + 1) * (RPM_MAX / NUM_LEDS);
-        if (ledRpm > REDLINE_RPM) return flash ? 'white' : 'var(--theme-haltech-red)';
-        if (ledRpm > SHIFT_WARN_RPM) return 'var(--theme-haltech-yellow)';
+        if (ledRpm > REDLINE_RPM) return flash ? 'white' : 'var(--theme-accent-red)';
+        if (ledRpm > SHIFT_WARN_RPM) return 'var(--theme-accent-primary)';
         return '#00a1ff'; // A blueish color for the low end
     };
 
@@ -62,18 +66,23 @@ const RpmArc: React.FC<{ rpm: number }> = ({ rpm }) => {
 };
 
 const HaltechTachometer: React.FC<HaltechTachometerProps> = ({ rpm, speed, gear, speedUnit }) => {
-    const animatedRpm = useAnimatedValue(rpm);
-    const animatedSpeed = useAnimatedValue(speed);
+    const sweptRpm = useSweepValue(rpm, 0, RPM_MAX);
+    const animatedRpm = useAnimatedValue(sweptRpm);
+    
+    const speedMax = speedUnit === 'mph' ? 180 : 280;
+    const sweptSpeed = useSweepValue(speed, 0, speedMax);
+    const animatedSpeed = useAnimatedValue(sweptSpeed);
+
 
     const gearDisplay = gear === 0 ? 'N' : gear;
 
     return (
-        <div className="w-full h-full bg-[var(--theme-haltech-dark-gray)] rounded-lg p-4 flex flex-col justify-between relative border-2 border-[var(--theme-haltech-light-gray)]">
+        <div className="w-full h-full glass-panel rounded-lg p-4 flex flex-col justify-between relative">
             <RpmArc rpm={animatedRpm} />
             <div className="flex-grow flex flex-col items-center justify-center">
                 <div className="flex items-end justify-center gap-4">
                     <div className="font-mono font-black text-white" style={{ fontSize: '12rem', lineHeight: 1 }}>{Math.round(animatedSpeed)}</div>
-                    <div className="font-mono font-black text-[var(--theme-haltech-yellow)] pb-4" style={{ fontSize: '7rem', lineHeight: 1 }}>{gearDisplay}</div>
+                    <div className="font-mono font-black text-[var(--theme-accent-primary)] pb-4" style={{ fontSize: '7rem', lineHeight: 1 }}>{gearDisplay}</div>
                 </div>
                 <div className="font-sans text-xl text-gray-400 -mt-2 uppercase">{speedUnit}</div>
             </div>

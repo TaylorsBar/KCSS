@@ -1,11 +1,11 @@
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRaceSession } from '../hooks/useRaceSession';
 import * as storage from '../services/storageService';
-import { SavedRaceSession, Leaderboard } from '../types';
+import { SavedRaceSession, Leaderboard, LapTime } from '../types';
 import { getRaceAnalysis } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
-import Map from '../components/Map';
-import RouteMap from '../components/RouteMap';
 import HistoryIcon from '../components/icons/HistoryIcon';
 import TrophyIcon from '../components/icons/TrophyIcon';
 import StopwatchIcon from '../components/icons/StopwatchIcon';
@@ -16,7 +16,9 @@ import { useVehicleStore } from '../store/useVehicleStore';
 import { useUnitConversion } from '../hooks/useUnitConversion';
 import SessionComparison from '../components/SessionComparison';
 import TrackCamera from '../components/TrackCamera';
-
+import { useTrainingStore } from '../hooks/useVehicleData';
+import FeatureLock from '../components/DataBar';
+import LiveTrackMap from '../components/tuning/EngineDiagram'; // Repurposed for LiveTrackMap
 
 const formatTime = (ms: number) => {
     const totalSeconds = ms / 1000;
@@ -36,11 +38,12 @@ const StatCard: React.FC<{ title: string; value: string; icon?: React.ReactNode 
     </div>
 );
 
-const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ label, icon, isActive, onClick }) => (
+const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: boolean; onClick: () => void; isDisabled?: boolean }> = ({ label, icon, isActive, onClick, isDisabled }) => (
     <button
         onClick={onClick}
-        className={`flex-1 flex items-center justify-center gap-3 py-3 text-sm font-semibold rounded-t-lg transition-colors ${
-            isActive ? 'bg-black text-brand-cyan border-b-2 border-brand-cyan' : 'bg-transparent text-gray-400 hover:bg-base-800/50'
+        disabled={isDisabled}
+        className={`flex-1 flex items-center justify-center gap-3 py-3 text-sm font-semibold rounded-t-lg transition-all active:scale-95 hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
+            isActive ? 'bg-black text-[var(--theme-accent-primary)] border-b-2 border-[var(--theme-accent-primary)]' : 'bg-transparent text-gray-400 hover:bg-base-800/50'
         }`}
     >
         {icon}
@@ -50,9 +53,13 @@ const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: bool
 
 
 const RacePack: React.FC = () => {
+    const isAdvancedUnlocked = useTrainingStore(state => state.isUnlocked('advanced-performance'));
     const [activeTab, setActiveTab] = useState('live');
     const { session, startSession, stopSession, recordLap } = useRaceSession();
-    const latestData = useVehicleStore(state => state.latestData);
+    const { latestData, vehicleDataHistory } = useVehicleStore(state => ({
+        latestData: state.latestData,
+        vehicleDataHistory: state.data
+    }));
     const { convertSpeed, getSpeedUnit } = useUnitConversion();
     
     const [isSummaryVisible, setIsSummaryVisible] = useState(false);
@@ -63,6 +70,10 @@ const RacePack: React.FC = () => {
     const sessionsForComparison = useMemo(() => savedSessions.filter(s => selectedForCompare.includes(s.id)), [savedSessions, selectedForCompare]);
     const [analysisResult, setAnalysisResult] = useState<{ session: SavedRaceSession | null; analysis: string | null; isLoading: boolean; error?: string }>({ session: null, analysis: null, isLoading: false });
 
+    const gpsPath = useMemo(() => 
+        vehicleDataHistory.filter(d => d.latitude && d.longitude).map(d => ({ latitude: d.latitude, longitude: d.longitude })), 
+        [vehicleDataHistory]
+    );
 
     useEffect(() => {
         setSavedSessions(storage.getSavedSessions());
@@ -132,28 +143,28 @@ const RacePack: React.FC = () => {
 
     const renderLiveSession = () => (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg space-y-4">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 font-display">Session Control</h2>
+            <div className="lg:col-span-1 bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg space-y-4">
+                <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 font-display">Session Control</h2>
                 <div className="text-center bg-base-800/50 rounded-md p-4">
                     <p className="text-sm text-gray-400">Elapsed Time</p>
-                    <p className="font-mono text-5xl text-brand-cyan tracking-wider">{formatTime(session.elapsedTime)}</p>
+                    <p className="font-mono text-5xl text-[var(--theme-accent-primary)] tracking-wider">{formatTime(session.elapsedTime)}</p>
                 </div>
                  <div className="grid grid-cols-2 gap-4">
                     {!session.isActive ? (
-                        <button onClick={startSession} className="col-span-2 bg-green-600 text-white font-semibold py-3 rounded-md hover:bg-green-500 transition-colors">Start Session</button>
+                        <button onClick={startSession} className="btn btn-success col-span-2">Start Session</button>
                     ) : (
-                        <button onClick={handleStop} className="col-span-2 bg-red-600 text-white font-semibold py-3 rounded-md hover:bg-red-500 transition-colors">Stop Session</button>
+                        <button onClick={handleStop} className="btn btn-danger col-span-2">Stop Session</button>
                     )}
-                    <button onClick={recordLap} disabled={!session.isActive} className="col-span-2 bg-brand-blue text-white font-semibold py-3 rounded-md hover:bg-blue-500 transition-colors disabled:bg-base-700 disabled:cursor-not-allowed">Record Lap</button>
+                    <button onClick={recordLap} disabled={!session.isActive} className="btn btn-action col-span-2">Record Lap</button>
                 </div>
-                 <div className="grid grid-cols-2 gap-2 pt-4 border-t border-brand-cyan/30">
+                 <div className="grid grid-cols-2 gap-2 pt-4 border-t border-[var(--theme-accent-primary)]/30">
                     <StatCard title="0-100 km/h" value={session.zeroToHundredKmhTime ? `${session.zeroToHundredKmhTime.toFixed(2)}s` : '--'} />
                     <StatCard title="0-60 mph" value={session.zeroToSixtyMphTime ? `${session.zeroToSixtyMphTime.toFixed(2)}s` : '--'} />
                     <StatCard title="60-130 mph" value={session.sixtyToHundredThirtyMphTime ? `${session.sixtyToHundredThirtyMphTime.toFixed(2)}s` : '--'} />
                     <StatCard title="1/4 Mile" value={session.quarterMileTime ? `${session.quarterMileTime.toFixed(2)}s` : '--'} />
                 </div>
             </div>
-            <div className="lg:col-span-2 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg space-y-4">
+            <div className="lg:col-span-2 bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg space-y-4">
                 <div className="grid grid-cols-2 gap-4 h-full">
                     <div className="h-full flex flex-col">
                         <h3 className="text-md font-semibold mb-2 font-display">Lap Times</h3>
@@ -171,7 +182,7 @@ const RacePack: React.FC = () => {
                         </div>
                     </div>
                     <div className="h-full">
-                         {session.gpsPath.length > 0 ? <Map lat={session.gpsPath[session.gpsPath.length - 1].latitude} lon={session.gpsPath[session.gpsPath.length - 1].longitude} /> : <div className="w-full h-full bg-base-800/50 rounded-md flex items-center justify-center text-gray-500">Waiting for GPS...</div> }
+                         {session.gpsPath.length > 0 ? <LiveTrackMap gpsPath={session.gpsPath} latestData={latestData} /> : <div className="w-full h-full bg-base-800/50 rounded-md flex items-center justify-center text-gray-500">Waiting for GPS...</div> }
                     </div>
                 </div>
             </div>
@@ -181,18 +192,18 @@ const RacePack: React.FC = () => {
     const renderHistory = () => (
         <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1 bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
-                    <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-2 font-display">Saved Sessions</h2>
+                <div className="md:col-span-1 bg-black p-4 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+                    <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-2 font-display">Saved Sessions</h2>
                     <p className="text-xs text-gray-500 mb-2">Select sessions to compare or analyze.</p>
                     <div className="space-y-2 h-[60vh] overflow-y-auto">
                         {savedSessions.length > 0 ? savedSessions.map(s => (
-                            <div key={s.id} className={`w-full text-left p-3 rounded-md transition-colors ${selectedForCompare.includes(s.id) ? 'bg-brand-blue/80' : 'bg-base-800/50'}`}>
+                            <div key={s.id} className={`w-full text-left p-3 rounded-md transition-colors ${selectedForCompare.includes(s.id) ? 'bg-[var(--theme-accent-primary)]/80' : 'bg-base-800/50'}`}>
                                 <div className="flex items-start gap-3">
-                                    <input type="checkbox" onChange={() => handleCompareSelect(s.id)} checked={selectedForCompare.includes(s.id)} className="form-checkbox h-5 w-5 bg-base-700 border-base-600 text-brand-blue focus:ring-brand-blue mt-1" />
+                                    <input type="checkbox" onChange={() => handleCompareSelect(s.id)} checked={selectedForCompare.includes(s.id)} className="form-checkbox h-5 w-5 bg-base-700 border-base-600 text-[var(--theme-accent-primary)] focus:ring-[var(--theme-accent-primary)] mt-1" />
                                     <div>
                                         <p className="font-semibold text-white">{s.date}</p>
                                         <p className="text-xs text-gray-400">{s.lapTimes.length} Laps - {formatTime(s.totalTime)}</p>
-                                         <button onClick={() => handleAnalyzeSession(s)} className="mt-2 text-xs bg-brand-cyan/80 text-black px-2 py-1 rounded hover:bg-brand-cyan font-semibold flex items-center gap-1">
+                                         <button onClick={() => handleAnalyzeSession(s)} className="mt-2 text-xs bg-[var(--theme-accent-primary)]/80 text-black px-2 py-1 rounded hover:bg-[var(--theme-accent-primary)] font-semibold flex items-center gap-1">
                                             <EngineIcon className="w-4 h-4" /> AI Race Coach
                                         </button>
                                     </div>
@@ -201,8 +212,8 @@ const RacePack: React.FC = () => {
                         )) : <p className="text-gray-500 text-center pt-10">No saved sessions.</p>}
                     </div>
                 </div>
-                <div className="md:col-span-2 bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
-                    <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-2 font-display">Session Comparison</h2>
+                <div className="md:col-span-2 bg-black p-4 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+                    <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-2 font-display">Session Comparison</h2>
                     {sessionsForComparison.length === 2 ? (
                          <SessionComparison sessions={[sessionsForComparison[0], sessionsForComparison[1]]} />
                     ) : <p className="text-gray-500 text-center pt-10">Select two sessions to compare details.</p>}
@@ -212,8 +223,8 @@ const RacePack: React.FC = () => {
     );
     
     const renderLeaderboard = () => (
-        <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">
-             <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-6 font-display">Personal Bests</h2>
+        <div className="bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+             <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-6 font-display">Personal Bests</h2>
              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <LeaderboardCard title="0-100 km/h" entry={leaderboard.zeroToHundredKmh} format={v => `${v.toFixed(2)}s`} />
                 <LeaderboardCard title="0-60 mph" entry={leaderboard.zeroToSixtyMph} format={v => `${v.toFixed(2)}s`} />
@@ -226,21 +237,12 @@ const RacePack: React.FC = () => {
     );
     
     const renderGpsTracking = () => (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-black p-2 rounded-lg border border-brand-cyan/30 shadow-lg h-[60vh]">
-                <Map lat={latestData.latitude} lon={latestData.longitude} />
-            </div>
-            <div className="lg:col-span-1 space-y-4">
-                <div className="bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
-                    <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display text-center">Live Position</h2>
-                    <div className="space-y-4">
-                        <StatCard title="Latitude" value={latestData.latitude.toFixed(6)} />
-                        <StatCard title="Longitude" value={latestData.longitude.toFixed(6)} />
-                    </div>
-                </div>
-            </div>
+        <div className="h-[75vh] bg-black p-2 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+            <LiveTrackMap gpsPath={gpsPath} latestData={latestData} />
         </div>
     );
+
+    const featureLock = <div className="p-4 bg-black/30 rounded-b-lg h-[70vh]"><FeatureLock featureName="Advanced Race Pack" moduleName="Performance & Pro Diagnostics" level={5} /></div>;
 
     return (
         <div className="space-y-4">
@@ -252,25 +254,24 @@ const RacePack: React.FC = () => {
             </div>
             <div className="bg-base-800/30 rounded-t-lg flex">
                 <TabButton label="Live Session" icon={<StopwatchIcon />} isActive={activeTab === 'live'} onClick={() => setActiveTab('live')} />
-                <TabButton label="Track Camera" icon={<CameraIcon />} isActive={activeTab === 'camera'} onClick={() => setActiveTab('camera')} />
+                <TabButton label="Track Camera" icon={<CameraIcon />} isActive={activeTab === 'camera'} onClick={() => setActiveTab('camera')} isDisabled={!isAdvancedUnlocked} />
                 <TabButton label="GPS Tracking" icon={<GpsIcon />} isActive={activeTab === 'gps'} onClick={() => setActiveTab('gps')} />
-                <TabButton label="History" icon={<HistoryIcon />} isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} />
-                <TabButton label="Leaderboard" icon={<TrophyIcon />} isActive={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} />
+                <TabButton label="History" icon={<HistoryIcon />} isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} isDisabled={!isAdvancedUnlocked} />
+                <TabButton label="Leaderboard" icon={<TrophyIcon />} isActive={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} isDisabled={!isAdvancedUnlocked} />
             </div>
 
             <div className="p-4 bg-black/30 rounded-b-lg">
                 {activeTab === 'live' && renderLiveSession()}
-                {activeTab === 'camera' && session.isActive && <TrackCamera latestData={session.data[session.data.length - 1]} gpsPath={session.gpsPath} />}
-                {activeTab === 'camera' && !session.isActive && <div className="text-center text-gray-400 p-10 bg-black rounded-lg border border-brand-cyan/30">Please start a live session to use the track camera.</div>}
+                {activeTab === 'camera' && (isAdvancedUnlocked ? (session.isActive ? <TrackCamera latestData={session.data[session.data.length - 1]} gpsPath={session.gpsPath} lapTimes={session.lapTimes} elapsedTime={session.elapsedTime} /> : <div className="text-center text-gray-400 p-10 bg-black rounded-lg border border-[var(--theme-accent-primary)]/30">Please start a live session to use the track camera.</div>) : featureLock)}
                 {activeTab === 'gps' && renderGpsTracking()}
-                {activeTab === 'history' && renderHistory()}
-                {activeTab === 'leaderboard' && renderLeaderboard()}
+                {activeTab === 'history' && (isAdvancedUnlocked ? renderHistory() : featureLock)}
+                {activeTab === 'leaderboard' && (isAdvancedUnlocked ? renderLeaderboard() : featureLock)}
             </div>
 
             {isSummaryVisible && sessionToSave && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="w-full max-w-4xl bg-base-900 rounded-lg border border-brand-cyan shadow-lg p-6">
-                         <h2 className="text-2xl font-bold font-display text-brand-cyan">Session Summary</h2>
+                    <div className="w-full max-w-4xl bg-base-900 rounded-lg border border-[var(--theme-accent-primary)] shadow-lg p-6">
+                         <h2 className="text-2xl font-bold font-display text-[var(--theme-accent-primary)]">Session Summary</h2>
                          <p className="text-gray-400 mb-4">{sessionToSave.date}</p>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[50vh]">
                             <div className="grid grid-cols-2 gap-3">
@@ -281,56 +282,47 @@ const RacePack: React.FC = () => {
                                 <StatCard title="60-130 mph" value={sessionToSave.sixtyToHundredThirtyMphTime ? `${sessionToSave.sixtyToHundredThirtyMphTime.toFixed(2)}s` : '--'} />
                                 <StatCard title="1/4 Mile" value={sessionToSave.quarterMileTime ? `${sessionToSave.quarterMileTime.toFixed(2)}s` : '--'} />
                             </div>
-                            <RouteMap path={sessionToSave.gpsPath} />
+                            <LiveTrackMap gpsPath={sessionToSave.gpsPath} latestData={sessionToSave.data[sessionToSave.data.length -1]} />
                          </div>
                          <div className="flex justify-end gap-4 mt-6">
-                            <button onClick={() => setIsSummaryVisible(false)} className="px-6 py-2 rounded-md bg-base-700 text-white font-semibold hover:bg-base-600">Discard</button>
-                            <button onClick={handleSaveSession} className="px-6 py-2 rounded-md bg-brand-blue text-white font-semibold hover:bg-blue-600">Save Session</button>
-                        </div>
+                            <button onClick={() => setIsSummaryVisible(false)} className="btn btn-secondary">Discard</button>
+                            <button onClick={handleSaveSession} className="btn btn-primary">Save Session</button>
+                         </div>
                     </div>
                 </div>
             )}
-             {analysisResult.session && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setAnalysisResult({ session: null, analysis: null, isLoading: false })}>
-                    <div className="w-full max-w-2xl bg-base-900 rounded-lg border border-brand-cyan shadow-lg p-6" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-between items-start">
-                             <div>
-                                <h2 className="text-2xl font-bold font-display text-brand-cyan">AI Race Coach Analysis</h2>
-                                <p className="text-gray-400 mb-4 text-sm">Session from: {analysisResult.session.date}</p>
-                            </div>
-                             <button onClick={() => setAnalysisResult({ session: null, analysis: null, isLoading: false })} className="text-gray-400 hover:text-white">&times;</button>
-                        </div>
+            
+            {analysisResult.session && (
+                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setAnalysisResult({session: null, analysis: null, isLoading: false})}>
+                    <div className="w-full max-w-2xl bg-base-900 rounded-lg border border-[var(--theme-accent-primary)] shadow-lg p-6" onClick={e => e.stopPropagation()}>
+                         <h2 className="text-2xl font-bold font-display text-[var(--theme-accent-primary)]">AI Race Coach Analysis</h2>
+                         <p className="text-gray-400 mb-4">Session from {analysisResult.session.date}</p>
                          <div className="h-[60vh] overflow-y-auto pr-2">
-                            {analysisResult.isLoading ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-brand-cyan"></div>
-                                </div>
-                            ) : analysisResult.error ? (
-                                <div className="text-red-400 bg-red-900/20 p-4 rounded-md">{analysisResult.error}</div>
-                            ) : (
-                                <div className="prose prose-invert max-w-none">
-                                    <ReactMarkdown>{analysisResult.analysis || ''}</ReactMarkdown>
-                                </div>
-                            )}
-                        </div>
+                             {analysisResult.isLoading ? (
+                                <div className="flex justify-center items-center h-full"><div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-[var(--theme-accent-primary)]"></div></div>
+                             ) : analysisResult.error ? (
+                                <p className="text-red-400">{analysisResult.error}</p>
+                             ) : (
+                                <div className="prose prose-invert max-w-none"><ReactMarkdown>{analysisResult.analysis || ''}</ReactMarkdown></div>
+                             )}
+                         </div>
                     </div>
-                </div>
+                 </div>
             )}
         </div>
     );
 };
 
-const LeaderboardCard: React.FC<{title: string, entry: Leaderboard['zeroToHundredKmh'], format: (v: number) => string}> = ({title, entry, format}) => (
-    <div className="bg-base-800/50 p-6 rounded-lg text-center border-2 border-transparent hover:border-yellow-400/50 transition-colors">
-        <TrophyIcon className="w-10 h-10 mx-auto text-yellow-400" />
-        <h3 className="mt-4 text-lg font-semibold text-gray-300">{title}</h3>
+const LeaderboardCard: React.FC<{ title: string; entry: { value: number, date: string } | null; format: (value: number) => string }> = ({ title, entry, format }) => (
+    <div className="bg-base-800/50 p-4 rounded-lg">
+        <h4 className="text-sm font-semibold text-gray-400">{title}</h4>
         {entry ? (
             <>
-                <p className="font-mono text-4xl text-white my-2">{format(entry.value)}</p>
-                <p className="text-sm text-gray-500">Set on: {new Date(entry.date).toLocaleDateString()}</p>
+                <p className="font-mono text-3xl text-[var(--theme-accent-primary)] mt-1">{format(entry.value)}</p>
+                <p className="text-xs text-gray-500 mt-1">Set on {new Date(entry.date).toLocaleDateString()}</p>
             </>
         ) : (
-            <p className="font-mono text-4xl text-gray-600 my-2">--</p>
+            <p className="text-2xl text-gray-600 mt-2">--</p>
         )}
     </div>
 );

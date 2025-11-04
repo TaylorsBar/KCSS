@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { useVehicleStore } from '../../store/useVehicleStore';
 import { useUnitConversion } from '../../hooks/useUnitConversion';
@@ -10,8 +11,8 @@ const HaltechDashboard: React.FC = () => {
     const { convertSpeed, getSpeedUnit } = useUnitConversion();
 
     return (
-        <div className="flex h-full w-full p-4 gap-4 theme-background items-center justify-center haltech-ic7-background">
-            <div className="w-full max-w-7xl flex items-stretch justify-center gap-4">
+        <div className="flex h-full w-full p-4 gap-4 items-center justify-center">
+            <div className="w-full flex items-stretch justify-center gap-4">
                 {/* Left Gauges */}
                 <div className="flex flex-col justify-between w-1/6 gap-4">
                     <HaltechSideBarGauge

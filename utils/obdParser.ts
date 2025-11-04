@@ -44,7 +44,18 @@ const pidMap: { [pid: string]: PidParser } = {
       const fuelLevel = (A * 100) / 255;
       return { fuelUsed: 100 - fuelLevel }; // Invert for fuelUsed
   },
-  // TODO: Add parsers for fuel trims if needed
+  '06': (hex) => { // Short term fuel trim Bank 1
+    const [A] = hex.map(h => parseInt(h, 16));
+    return { shortTermFuelTrim: (A - 128) * 100 / 128 };
+  },
+  '07': (hex) => { // Long term fuel trim Bank 1
+    const [A] = hex.map(h => parseInt(h, 16));
+    return { longTermFuelTrim: (A - 128) * 100 / 128 };
+  },
+  '14': (hex) => { // O2 Sensor Voltage (Bank 1, Sensor 1)
+    const [A] = hex.map(h => parseInt(h, 16));
+    return { o2SensorVoltage: A / 200 };
+  },
 };
 
 export const parseOBDResponse = (response: string): Partial<SensorDataPoint> | null => {
@@ -101,23 +112,18 @@ export const parseDTCResponse = (response: string): string[] => {
             continue; // Ignore padding bytes
         }
         
-        const firstCharVal = parseInt(byte1.charAt(0), 16);
+        const byte1Val = parseInt(byte1, 16);
         let firstChar = '';
         
-        // The first two bits of the first byte determine the code's letter.
-        // 00xx -> P (Powertrain)
-        // 01xx -> C (Chassis)
-        // 10xx -> B (Body)
-        // 11xx -> U (Network)
-        switch (firstCharVal >> 2) {
+        switch (byte1Val >> 6) {
             case 0: firstChar = 'P'; break;
             case 1: firstChar = 'C'; break;
             case 2: firstChar = 'B'; break;
             case 3: firstChar = 'U'; break;
         }
         
-        const secondChar = (firstCharVal & 0x03).toString(16);
-        const restOfCode = byte1.charAt(1) + byte2;
+        const secondChar = ((byte1Val >> 4) & 0x03).toString(16);
+        const restOfCode = (byte1Val & 0x0F).toString(16) + byte2;
         dtcs.push(`${firstChar}${secondChar}${restOfCode}`.toUpperCase());
     }
     

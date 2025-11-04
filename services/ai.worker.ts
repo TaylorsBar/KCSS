@@ -1,5 +1,5 @@
-import { GoogleGenAI, Type } from "https://esm.sh/@google/genai@^1.12.0";
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, SavedRaceSession, DTCInfo } from '../types';
+import { GoogleGenAI, Type } from "@google/genai";
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, SavedRaceSession, DTCInfo, ComponentHealthAnalysisResult } from '../types';
 
 // Safely access the API key. In a web worker, `process` might not be defined.
 // The execution environment is expected to provide this value.
@@ -110,17 +110,70 @@ const getPredictiveAnalysis = async (
   }
 };
 
-const getTuningSuggestion = async (goal: string, liveData: SensorDataPoint): Promise<TuningSuggestion> => {
+const getComponentHealthAnalysis = async (payload: { dataHistory: SensorDataPoint[], maintenanceHistory: MaintenanceRecord[] }): Promise<ComponentHealthAnalysisResult> => {
     if (!ai) throw new Error("AI service not initialized.");
+    const { dataHistory, maintenanceHistory } = payload;
+    const latestData = dataHistory[dataHistory.length - 1];
 
-    const systemInstruction = `You are a master ECU tuner for a 2022 Subaru WRX. The user wants a tune for '${goal}'. Based on the live data, generate a new set of tuning parameters.
+    const systemInstruction = `You are a predictive maintenance expert for a high-performance vehicle. Your task is to analyze the provided vehicle data to estimate the health and Remaining Useful Life (RUL) of several key components. The vehicle has driven ${latestData.distance.toFixed(0)} meters (~${(latestData.distance * 0.000621371).toFixed(0)} miles).
+- Analyze wear based on usage patterns (e.g., hard acceleration from G-force data, high RPM operation), age, and maintenance history.
+- For each component, provide a healthScore (0-100), an RUL estimate (in miles or time), a status ('Good', 'Moderate Wear', 'Service Soon', 'Critical'), and a brief analysis summary.
+- The components to analyze are: 'Front Brake Pads', 'Engine Oil', 'Battery', 'Tires'.
+- Respond ONLY with the JSON object matching the schema.`;
+    
+    const prompt = `
+        Vehicle Total Distance: ${(latestData.distance * 0.000621371).toFixed(0)} miles.
+        Latest Data Snapshot: ${JSON.stringify(latestData, null, 2)}
+        Maintenance History: ${JSON.stringify(maintenanceHistory, null, 2)}
+        Please provide the health analysis for the specified components.
+    `;
+    
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    components: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                componentName: { type: Type.STRING },
+                                healthScore: { type: Type.NUMBER },
+                                rulEstimate: { type: Type.STRING },
+                                status: { type: Type.STRING, enum: ['Good', 'Moderate Wear', 'Service Soon', 'Critical'] },
+                                analysisSummary: { type: Type.STRING }
+                            },
+                             required: ["componentName", "healthScore", "rulEstimate", "status", "analysisSummary"]
+                        }
+                    }
+                },
+                required: ["components"]
+            },
+        }
+    });
+
+    return JSON.parse(response.text);
+};
+
+const getTuningSuggestion = async (payload: { goal: string, liveData: SensorDataPoint, currentTune: object, boostPressureOffset: number }): Promise<TuningSuggestion> => {
+    if (!ai) throw new Error("AI service not initialized.");
+    const { goal, liveData, currentTune, boostPressureOffset } = payload;
+
+    const systemInstruction = `You are a master ECU tuner for a 2022 Subaru WRX. The user wants a tune for '${goal}'. Based on the live data and current tune, generate a new set of tuning parameters.
 - Fuel Map: Global fuel trim percentage, from -10 to 10.
 - Ignition Timing & Boost Pressure: Fill out 8x8 grids (Load % vs RPM).
+- Boost Pressure Offset: You can suggest a global offset from -0.5 to 0.5 bar to apply to the entire boost map. This is useful for quick adjustments based on conditions (e.g., weather, fuel quality).
 - Be realistic and safe. For 'Max Performance', be aggressive but within reasonable limits. For 'Eco Tune', prioritize efficiency.
 - Provide a brief analysis of your suggested changes.
+- You can choose to update the base maps, the offset, or both. If you don't want to change something, return its current value.
 - Respond ONLY with the JSON object matching the schema.`;
 
-    const prompt = `Goal: ${goal}\nLive Data: ${JSON.stringify(liveData)}`;
+    const prompt = `Goal: ${goal}\nCurrent Tune: ${JSON.stringify(currentTune)}\nCurrent Boost Offset: ${boostPressureOffset}\nLive Data: ${JSON.stringify(liveData)}`;
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-pro",
@@ -137,6 +190,7 @@ const getTuningSuggestion = async (goal: string, liveData: SensorDataPoint): Pro
                             fuelMap: { type: Type.NUMBER, description: 'Global fuel trim percentage, from -10 to 10.' },
                             ignitionTiming: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } }, description: '8x8 grid of ignition timing (8 rows Load, 8 cols RPM).' },
                             boostPressure: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } }, description: '8x8 grid of boost pressure in bar (8 rows Load, 8 cols RPM).' },
+                            boostPressureOffset: { type: Type.NUMBER, description: 'Global boost pressure offset in bar, from -0.5 to 0.5.', nullable: true }
                         },
                         required: ["fuelMap", "ignitionTiming", "boostPressure"],
                     },
@@ -158,11 +212,12 @@ const getTuningSuggestion = async (goal: string, liveData: SensorDataPoint): Pro
     return JSON.parse(response.text);
 };
 
-const analyzeTuneSafety = async (currentTune: { ignitionTiming: number[][]; boostPressure: number[][] }, liveData: SensorDataPoint): Promise<{ safetyScore: number, warnings: string[] }> => {
+const analyzeTuneSafety = async (payload: {currentTune: { ignitionTiming: number[][]; boostPressure: number[][] }, boostPressureOffset: number, liveData: SensorDataPoint}): Promise<{ safetyScore: number, warnings: string[] }> => {
     if (!ai) throw new Error("AI service not initialized.");
+    const { currentTune, boostPressureOffset, liveData } = payload;
 
-    const systemInstruction = `You are a master ECU tuner. Analyze the safety of the provided tune given the live sensor data. Look for dangerously high boost, aggressive ignition timing for the given engine load/RPM that could cause knock, or other potential issues. Provide a safety score from 0 (dangerous) to 100 (safe) and a list of specific warnings. Respond ONLY in JSON format.`;
-    const prompt = `Current Tune: ${JSON.stringify(currentTune)}\nLive Data: ${JSON.stringify(liveData)}`;
+    const systemInstruction = `You are a master ECU tuner. Analyze the safety of the provided tune given the live sensor data. The provided 'boostPressure' map is the base map. A global 'boostPressureOffset' is also provided. The effective boost pressure is the sum of the map value and the offset. Look for dangerously high effective boost, aggressive ignition timing for the given engine load/RPM that could cause knock, or other potential issues. Provide a safety score from 0 (dangerous) to 100 (safe) and a list of specific warnings. Respond ONLY in JSON format.`;
+    const prompt = `Base Tune: ${JSON.stringify(currentTune)}\nBoost Pressure Offset: ${boostPressureOffset}\nLive Data: ${JSON.stringify(liveData)}`;
     
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -183,12 +238,14 @@ const analyzeTuneSafety = async (currentTune: { ignitionTiming: number[][]; boos
     return JSON.parse(response.text);
 };
 
-const getTuningChatResponse = async (query: string, currentTune: object, liveData: SensorDataPoint): Promise<string> => {
+const getTuningChatResponse = async (payload: {query: string, currentTune: object, boostPressureOffset: number, liveData: SensorDataPoint}): Promise<string> => {
     if (!ai) throw new Error("AI service not initialized.");
+    const { query, currentTune, boostPressureOffset, liveData } = payload;
 
     const systemInstruction = `You are KC, a master tuner. The user is asking a question about their current tune. Be helpful, technical, and conversational.`;
     const prompt = `Context:
-- Current Tune: ${JSON.stringify(currentTune, null, 2)}
+- Current Base Tune: ${JSON.stringify(currentTune, null, 2)}
+- Current Boost Offset: ${boostPressureOffset.toFixed(2)} bar
 - Live Sensor Data: ${JSON.stringify(liveData, null, 2)}
 
 User question: "${query}"
@@ -266,7 +323,7 @@ const generateComponentImage = async (componentName: string): Promise<string> =>
     }
   } catch (error) {
     console.error(`Error generating image for ${componentName}:`, error);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><rect width="100%" height="100%" fill="#333642"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#ff4d4d">Error</text><text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#fff">Could not generate diagram</text></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><rect width="100%" height="100%" fill="#333642"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-size="18" fill="#ff4d4d">Error</text><text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-size="14" fill="#fff">Could not generate diagram</text></svg>`;
     return `data:image/svg+xml;base64,${btoa(svg)}`;
   }
 };
@@ -299,13 +356,16 @@ const getCoPilotResponse = async (command: string, vehicleData: SensorDataPoint,
         return "Co-pilot is offline. Please try again later.";
     }
 
-    const systemInstructionForCopilot = `You are KC (Karapiro Cartel), a hands-free AI co-pilot in a high-performance vehicle, talking to an enthusiast driver who appreciates technical detail. Your responses should be clear and direct, but also technically rich and authoritative. If asked for a diagnostic walkthrough for a complex fault, provide clear, step-by-step instructions. Be the expert in the passenger seat.`;
+    const systemInstructionForCopilot = `You are KC (Karapiro Cartel), a hands-free AI co-pilot in a high-performance vehicle, talking to an enthusiast driver who appreciates technical detail. Your responses should be clear and direct, but also technically rich and authoritative. Use the provided vehicle data and active alerts to give context-aware answers. For example, if the user asks "how's the car doing?" and oil pressure is low, mention that specifically. If asked for a diagnostic walkthrough for a complex fault, provide clear, step-by-step instructions. Be the expert in the passenger seat.`;
     
     const context = `
       **Current Vehicle Data:**
       - Speed: ${vehicleData.speed.toFixed(0)} km/h
       - RPM: ${vehicleData.rpm.toFixed(0)} RPM
       - Engine Temp: ${vehicleData.engineTemp.toFixed(0)}°C
+      - Oil Pressure: ${vehicleData.oilPressure.toFixed(1)} bar
+      - Turbo Boost: ${vehicleData.turboBoost.toFixed(2)} bar
+      - Battery Voltage: ${vehicleData.batteryVoltage.toFixed(1)} V
 
       **Active Alerts:**
       ${activeAlerts.length > 0 ? JSON.stringify(activeAlerts) : "None"}
@@ -353,13 +413,14 @@ const getRouteScoutResponse = async (query: string, location: { latitude: number
     if (!ai || !isOnline()) {
         return { text: "Route Scout is offline. Please check your connection for route suggestions.", chunks: [] };
     }
-    const systemInstructionForRouteScout = `You are 'KC', an expert route scout for performance driving enthusiasts. Based on my current location and your access to real-time map data, suggest an interesting route. The user is asking about: "${query}". Frame your suggestions for things like spirited drives, potential street circuits, scenic club convoys, or suitable private spots for 1/4 mile runs. Provide a conversational, helpful response and use markdown for formatting.`;
+    const systemInstructionForRouteScout = `You are 'KC', an expert route scout for performance driving enthusiasts. Based on the user's current location and your access to real-time map data, suggest an interesting route in response to their query. Frame your suggestions for things like spirited drives, potential street circuits, scenic club convoys, or suitable private spots for 1/4 mile runs. Provide a conversational, helpful response and use markdown for formatting.`;
 
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: systemInstructionForRouteScout,
+            contents: query,
             config: {
+                systemInstruction: systemInstructionForRouteScout,
                 tools: [{googleMaps: {}}],
                 toolConfig: {
                     retrievalConfig: {
@@ -469,6 +530,37 @@ const generateHealthReport = async (dataHistory: SensorDataPoint[], maintenanceH
     return response.text;
 };
 
+const analyzeImage = async (base64Image: string, mimeType: string, prompt: string): Promise<string> => {
+    if (!ai) throw new Error("AI service not initialized.");
+
+    const imagePart = {
+        inlineData: {
+            data: base64Image,
+            mimeType: mimeType,
+        },
+    };
+
+    const textPart = {
+        text: prompt,
+    };
+    
+    const systemInstruction = "You are KC (Karapiro Cartel), an expert automotive mechanic and diagnostic technician. The user has provided an image of a car part and a question. Provide a detailed, helpful, and accurate analysis. If you see a problem, describe it clearly and suggest next steps. Use markdown for formatting.";
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                systemInstruction: systemInstruction,
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error analyzing image:", error);
+        throw new Error("Failed to analyze the image. The model may not be able to process this image or there might be a connection issue.");
+    }
+};
+
 
 self.onmessage = async (e: MessageEvent) => {
     const { type, payload, requestId } = e.data;
@@ -482,14 +574,17 @@ self.onmessage = async (e: MessageEvent) => {
             case 'getPredictiveAnalysis':
                 result = await getPredictiveAnalysis(payload.dataHistory, payload.maintenanceHistory);
                 break;
+            case 'getComponentHealthAnalysis':
+                result = await getComponentHealthAnalysis(payload);
+                break;
             case 'getTuningSuggestion':
-                result = await getTuningSuggestion(payload.goal, payload.liveData);
+                result = await getTuningSuggestion(payload);
                 break;
             case 'analyzeTuneSafety':
-                result = await analyzeTuneSafety(payload.currentTune, payload.liveData);
+                result = await analyzeTuneSafety(payload);
                 break;
             case 'getTuningChatResponse':
-                result = await getTuningChatResponse(payload.query, payload.currentTune, payload.liveData);
+                result = await getTuningChatResponse(payload);
                 break;
             case 'getVoiceCommandIntent':
                 result = await getVoiceCommandIntent(payload.command);
@@ -518,11 +613,18 @@ self.onmessage = async (e: MessageEvent) => {
             case 'generateHealthReport':
                 result = await generateHealthReport(payload.dataHistory, payload.maintenanceHistory);
                 break;
+            case 'analyzeImage':
+                result = await analyzeImage(payload.base64Image, payload.mimeType, payload.prompt);
+                break;
             default:
                 throw new Error(`Unknown worker command: ${type}`);
         }
         self.postMessage({ type: 'success', command: type, result, requestId });
     } catch (error) {
-        self.postMessage({ type: 'error', command: type, error: error instanceof Error ? error.message : String(error), requestId });
+        let errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.toLowerCase().includes('network error') || errorMessage.toLowerCase().includes('failed to fetch')) {
+            errorMessage = 'Failed to connect to AI services. Please check your internet connection and try again.';
+        }
+        self.postMessage({ type: 'error', command: type, error: errorMessage, requestId });
     }
 };

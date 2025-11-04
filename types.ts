@@ -82,12 +82,27 @@ export interface TimelineEvent {
     details: PredictiveIssue;
 }
 
+// New types for Component Health Scoring
+export interface ComponentHealth {
+  componentName: string; // e.g., 'Front Brake Pads'
+  healthScore: number; // 0-100
+  rulEstimate: string; // e.g., 'Approx. 8,500 miles'
+  status: 'Good' | 'Moderate Wear' | 'Service Soon' | 'Critical';
+  analysisSummary: string; // AI-generated summary
+}
+
+export interface ComponentHealthAnalysisResult {
+    components: ComponentHealth[];
+}
+
+
 // Types for the new AI Tuning Assistant
 export interface TuningSuggestion {
   suggestedParams: {
     fuelMap: number;
     ignitionTiming: number[][];
     boostPressure: number[][];
+    boostPressureOffset?: number;
   };
   analysis: {
     predictedGains: string;
@@ -256,4 +271,46 @@ export interface DTCInfo {
     description: string;
     severity: 'Info' | 'Warning' | 'Critical';
     possibleCauses: string[];
+}
+
+// Types for OEM Diagnostic Profiles
+export interface Did {
+  id: string;
+  desc: string;
+  decode: string;
+  unit: string;
+}
+
+export interface Ecu {
+  req_id: string;
+  resp_id: string;
+}
+
+export interface OemProfile {
+  oem: string;
+  ecus: Record<string, Ecu>;
+  dids: Record<string, Did>;
+}
+
+// Types for Training & Certification
+export type TrainingModuleId =
+  | 'obd-basics'
+  | 'dtc-diagnostics'
+  | 'oem-insights'
+  | 'predictive-maintenance'
+  | 'advanced-performance';
+
+export interface TrainingLesson {
+    title: string;
+    content: string;
+}
+
+export interface TrainingModule {
+    id: TrainingModuleId;
+    level: number;
+    title: string;
+    description: string;
+    unlocks: string[];
+    lessons: TrainingLesson[];
+    badge: string;
 }

@@ -146,7 +146,14 @@ export const useLiveConversation = () => {
                     },
                     onerror: (e: ErrorEvent) => {
                         console.error('Live session error:', e);
-                        setError('A connection error occurred.');
+                        const lowerCaseMessage = e.message.toLowerCase();
+                        let errorMessage = 'A connection error occurred during the session.';
+                        if (lowerCaseMessage.includes('network error') || lowerCaseMessage.includes('failed to fetch')) {
+                            errorMessage = 'Network connection lost during the live session. Please check your internet connection.';
+                        } else if (e.message) {
+                            errorMessage = `An error occurred during the session: ${e.message}`;
+                        }
+                        setError(errorMessage);
                         setConnectionState('ERROR');
                         disconnect();
                     },
@@ -168,7 +175,12 @@ export const useLiveConversation = () => {
             if (e instanceof DOMException && e.name === 'NotAllowedError') {
                 friendlyError = "Microphone permission denied. Please enable it in your browser settings to use this feature.";
             } else if (e instanceof Error) {
-                friendlyError = e.message;
+                const lowerCaseMessage = e.message.toLowerCase();
+                if (lowerCaseMessage.includes('network error') || lowerCaseMessage.includes('failed to fetch')) {
+                    friendlyError = 'Failed to connect to live AI services. Please check your internet connection.';
+                } else {
+                    friendlyError = e.message;
+                }
             }
             setError(friendlyError);
             setConnectionState('ERROR');

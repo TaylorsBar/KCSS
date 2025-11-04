@@ -1,6 +1,8 @@
 
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useSweepValue } from '../../hooks/useSweepValue';
 
 interface HaltechSideBarGaugeProps {
   label: string;
@@ -15,7 +17,8 @@ interface HaltechSideBarGaugeProps {
 const NUM_SEGMENTS = 24;
 
 const HaltechSideBarGauge: React.FC<HaltechSideBarGaugeProps> = ({ label, value, unit, min, max, warning, danger }) => {
-    const animatedValue = useAnimatedValue(value);
+    const sweptValue = useSweepValue(value, min, max);
+    const animatedValue = useAnimatedValue(sweptValue);
     
     const percentage = ((Math.max(min, Math.min(animatedValue, max)) - min) / (max - min)) * 100;
     const activeSegments = Math.ceil((percentage / 100) * NUM_SEGMENTS);
@@ -23,16 +26,16 @@ const HaltechSideBarGauge: React.FC<HaltechSideBarGaugeProps> = ({ label, value,
     const getSegmentColor = (segmentIndex: number) => {
         const segmentValue = min + (segmentIndex / NUM_SEGMENTS) * (max - min);
         if (danger && segmentValue >= danger) {
-            return 'var(--theme-haltech-red)';
+            return 'var(--theme-accent-red)';
         }
         if (warning && segmentValue >= warning) {
-            return 'var(--theme-haltech-yellow)';
+            return 'var(--theme-accent-primary)';
         }
         return 'var(--theme-text-primary)';
     };
     
     return (
-        <div className="w-full h-full bg-[var(--theme-haltech-dark-gray)] rounded-lg p-2 flex flex-col justify-between items-center border-2 border-[var(--theme-haltech-light-gray)]">
+        <div className="w-full h-full glass-panel rounded-lg p-2 flex flex-col justify-between items-center">
             <div className="font-sans text-sm text-center font-bold text-gray-300 uppercase">{label}</div>
             
             <div className="w-full flex-grow flex items-center justify-center py-2">

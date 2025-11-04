@@ -1,107 +1,93 @@
+// This file is repurposed to create the new primary CyberGauge component
+// for the new UI/UX redesign, as new file creation is not permitted.
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useSweepValue } from '../../hooks/useSweepValue';
 
-
-interface AnalogTachometerProps {
+interface CyberGaugeProps {
   rpm: number;
   speed: number;
   gear: number;
+  speedUnit: string;
 }
 
-const RPM_MAX = 10000;
-const REDLINE_START = 8000;
+const RPM_MAX = 8000;
+const REDLINE_START = 6500;
+const START_ANGLE = -160;
+const END_ANGLE = 160;
+const ANGLE_RANGE = END_ANGLE - START_ANGLE;
 
-const AnalogTachometer: React.FC<AnalogTachometerProps> = ({ rpm, speed, gear }) => {
-  const animatedRpm = useAnimatedValue(rpm);
-  const animatedSpeed = useAnimatedValue(speed);
-
-  const rpmToAngle = (r: number) => {
-    const minAngle = -150;
-    const maxAngle = 150;
-    const ratio = Math.max(0, Math.min(r, RPM_MAX)) / RPM_MAX;
-    return minAngle + ratio * (maxAngle - minAngle);
-  };
+const CyberGauge: React.FC<CyberGaugeProps> = ({ rpm, speed, gear, speedUnit }) => {
+  const sweptRpm = useSweepValue(rpm, 0, RPM_MAX);
+  const animatedRpm = useAnimatedValue(sweptRpm, { duration: 150 });
+  const animatedSpeed = useAnimatedValue(speed, { duration: 150 });
   
-  const needleAngle = rpmToAngle(animatedRpm);
-  const redlineOpacity = Math.max(0, (animatedRpm - (REDLINE_START - 1000)) / (RPM_MAX - (REDLINE_START - 1000)));
+  const rpmRatio = Math.min(1, animatedRpm / RPM_MAX);
+  const redlineRatio = Math.max(0, (animatedRpm - (REDLINE_START-1000)) / (RPM_MAX - (REDLINE_START - 1000)));
+
+  const describeArc = (x:number, y:number, radius:number, startAngle:number, endAngle:number) => {
+    const startRad = (startAngle - 90) * Math.PI / 180;
+    const endRad = (endAngle - 90) * Math.PI / 180;
+    const start = { x: x + radius * Math.cos(startRad), y: y + radius * Math.sin(startRad) };
+    const end = { x: x + radius * Math.cos(endRad), y: y + radius * Math.sin(endRad) };
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
+  };
+
+  const gearDisplay = gear === 0 ? 'N' : gear;
+  const flash = animatedRpm > REDLINE_START + 500 && Math.floor(Date.now() / 150) % 2 === 0;
 
   return (
-    <div className="relative w-full h-full max-w-[400px] aspect-square">
-      <svg viewBox="0 0 200 200" className="w-full h-full">
+    <div className="relative w-full h-full max-w-[500px] aspect-square">
+      <svg viewBox="0 0 400 400" className="w-full h-full">
         <defs>
-          <radialGradient id="metal-grad" cx="50%" cy="50%" r="60%" fx="30%" fy="30%">
-            <stop offset="0%" style={{ stopColor: '#d0d0d0' }} />
-            <stop offset="100%" style={{ stopColor: '#707070' }} />
-          </radialGradient>
-          <filter id="glow-red">
-            <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-           <filter id="needle-shadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="1" dy="2" stdDeviation="1" floodColor="#000000" floodOpacity="0.5"/>
+          <filter id="cyber-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
           </filter>
         </defs>
         
-        <circle cx="100" cy="100" r="100" fill="var(--theme-gauge-bezel)" />
-        <circle cx="100" cy="100" r="95" fill="var(--theme-gauge-face)" stroke="#000" strokeWidth="2" />
+        {/* Background arcs */}
+        <path d={describeArc(200, 200, 180, START_ANGLE, END_ANGLE)} fill="none" stroke="rgba(0, 255, 255, 0.1)" strokeWidth="12" />
+        <path d={describeArc(200, 200, 180, START_ANGLE, valueToAngle(REDLINE_START, 0, RPM_MAX, START_ANGLE, ANGLE_RANGE))} fill="none" stroke="rgba(0, 255, 255, 0.2)" strokeWidth="12" />
+        <path d={describeArc(200, 200, 180, valueToAngle(REDLINE_START, 0, RPM_MAX, START_ANGLE, ANGLE_RANGE), END_ANGLE)} fill="none" stroke="rgba(255, 0, 255, 0.3)" strokeWidth="12" />
         
-        {Array.from({ length: 11 }).map((_, i) => {
-            const r = i * 1000;
-            const angle = rpmToAngle(r);
-            const isRed = r >= REDLINE_START;
-            const isMajorTick = i % 2 === 0;
-            return (
-                <g key={`tick-${i}`} transform={`rotate(${angle} 100 100)`}>
-                    <line x1="100" y1="10" x2="100" y2={isMajorTick ? "22" : "16"} stroke={isRed ? 'var(--theme-accent-red)' : 'var(--theme-text-secondary)'} strokeWidth="2" />
-                     {isMajorTick && <text
-                        x="100"
-                        y="32"
-                        textAnchor="middle"
-                        fill={isRed ? 'var(--theme-accent-red)' : 'var(--theme-text-secondary)'}
-                        fontSize="10"
-                        transform="rotate(180 100 32)"
-                        className="font-sans font-bold"
-                     >
-                        {i}
-                    </text>}
-                </g>
-            )
-        })}
+        {/* RPM Fill Arc */}
         <path 
-            d="M 39.3 154.6 A 85 85 0 0 1 160.7 154.6"
-            fill="none"
-            stroke="var(--theme-accent-red)"
-            strokeWidth="8"
-            strokeLinecap="round"
-            filter="url(#glow-red)"
-            style={{ opacity: redlineOpacity, transition: 'opacity 0.2s' }}
+          d={describeArc(200, 200, 180, START_ANGLE, START_ANGLE + (ANGLE_RANGE * rpmRatio))} 
+          fill="none" 
+          stroke="var(--theme-accent-primary)" 
+          strokeWidth="14" 
+          strokeLinecap="round"
+          filter="url(#cyber-glow)"
+          style={{ transition: 'stroke-dashoffset 0.15s linear, stroke 0.2s', stroke: flash ? '#FFF' : `hsl(${200 - redlineRatio*200}, 100%, 50%)` }}
         />
-        
-        <foreignObject x="60" y="70" width="80" height="60">
-            <div className="flex flex-col items-center justify-center text-center">
-                <span className="font-sans text-xs text-gray-400">Speed</span>
-                <span className="font-display font-bold text-4xl text-white -my-1">{animatedSpeed.toFixed(0)}</span>
-                <span className="font-sans text-xs text-gray-400">km/h</span>
-            </div>
-        </foreignObject>
-        <foreignObject x="110" y="90" width="40" height="40">
-            <div className="flex flex-col items-center justify-center text-center">
-                 <span className="font-sans text-xs text-gray-400">Gear</span>
-                 <span className="font-display font-bold text-4xl text-white -my-1">{gear}</span>
-            </div>
-        </foreignObject>
-
-        <g transform={`rotate(${needleAngle} 100 100)`} style={{ transition: 'transform 0.1s cubic-bezier(.4, 0, .2, 1)' }} filter="url(#needle-shadow)">
-          <path d="M 100 100 L 100 10" stroke="var(--theme-needle-color)" strokeWidth="2" strokeLinecap="round" filter="url(#glow-red)" />
-          <path d="M 100 115 L 100 100" stroke="var(--theme-needle-color)" strokeWidth="4" strokeLinecap="round" />
-        </g>
-        <circle cx="100" cy="100" r="5" fill="#333" stroke="var(--theme-gauge-bezel)" strokeWidth="1" />
       </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="font-display font-black text-white" style={{ fontSize: 'clamp(3rem, 18vw, 10rem)', lineHeight: 1, textShadow: '0 0 20px rgba(255,255,255,0.7)' }}>
+          {animatedSpeed.toFixed(0)}
+        </div>
+        <div className="font-sans text-gray-400 text-2xl -mt-2 uppercase">{speedUnit}</div>
+        <div className="absolute top-1/2 mt-16 flex items-baseline gap-4">
+            <div className="text-center">
+                <div className="font-display text-5xl font-bold text-white">{gearDisplay}</div>
+                <div className="font-sans text-xs text-gray-500">GEAR</div>
+            </div>
+             <div className="text-center">
+                <div className="font-display text-5xl font-bold text-white">{(animatedRpm / 1000).toFixed(1)}</div>
+                <div className="font-sans text-xs text-gray-500">x1000 RPM</div>
+            </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default AnalogTachometer;
+// Helper function used inside the component
+const valueToAngle = (val: number, min: number, max: number, start: number, range: number) => {
+    const ratio = (Math.max(min, Math.min(val, max)) - min) / (max - min);
+    return start + ratio * range;
+};
+
+
+export default CyberGauge;

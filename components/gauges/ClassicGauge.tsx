@@ -1,6 +1,8 @@
 
+
 import React from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useSweepValue } from '../../hooks/useSweepValue';
 
 interface ClassicGaugeProps {
     label: string;
@@ -21,7 +23,8 @@ const sizeConfig = {
 };
 
 const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, unit, size, coldZoneEndValue, warningValue, redlineValue, dangerZone = 'high' }) => {
-    const animatedValue = useAnimatedValue(value);
+    const sweptValue = useSweepValue(value, min, max);
+    const animatedValue = useAnimatedValue(sweptValue);
     const config = sizeConfig[size];
     const radius = config.radius;
     const center = radius;
@@ -60,10 +63,10 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
     const needleWidth = radius * 0.03;
     const needleTailLength = radius * 0.15;
     const needlePath = `
-      M ${center - needleWidth} ${center} 
-      L ${center} ${radius * 0.12} 
-      L ${center + needleWidth} ${center} 
-      L ${center} ${center + needleTailLength} 
+      M ${center - needleWidth * 0.7} ${center}
+      L ${center} ${radius * 0.12}
+      L ${center + needleWidth * 0.7} ${center}
+      L ${center} ${center + needleTailLength}
       Z
     `;
 
@@ -105,8 +108,12 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                     <filter id="classic-glow-yellow" x="-50%" y="-50%" width="200%" height="200%">
                       <feGaussianBlur stdDeviation="15" result="coloredBlur" />
                     </filter>
-                     <filter id="classic-glow-red" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="20" result="coloredBlur" />
+                    <filter id="classic-glow-red" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="8" result="coloredBlur" />
+                        <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
                     </filter>
                 </defs>
                 
@@ -167,8 +174,13 @@ const ClassicGauge: React.FC<ClassicGaugeProps> = ({ label, value, min, max, uni
                 </foreignObject>
 
                 {/* High-Fidelity Needle */}
-                <g transform={`rotate(${angle} ${center} ${center})`} style={{ transition: 'transform 0.1s ease-out' }} filter="url(#classic-needle-shadow)">
+                <g 
+                    transform={`rotate(${angle} ${center} ${center})`} 
+                    style={{ transition: 'transform 0.1s ease-out' }} 
+                    filter={`url(#classic-needle-shadow) ${inRedline ? 'url(#classic-glow-red)' : ''}`}
+                >
                     <path d={needlePath} fill={needleFill} />
+                    <path d={`M ${center} ${center + needleTailLength * 0.8} L ${center} ${radius * 0.15}`} stroke="rgba(255,255,255,0.5)" strokeWidth={radius * 0.008} />
                 </g>
                 
                 {/* Pivot */}

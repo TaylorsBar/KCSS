@@ -1,8 +1,10 @@
 
+
 import React from 'react';
 import { useAnimatedValue } from '../../../hooks/useAnimatedValue';
 import { useUnitConversion } from '../../../hooks/useUnitConversion';
 import Ic7IndicatorIcons from './Ic7IndicatorIcons';
+import { useSweepValue } from '../../../hooks/useSweepValue';
 
 interface Ic7TachometerProps {
   rpm: number;
@@ -32,7 +34,8 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
 };
 
 const Ic7Tachometer: React.FC<Ic7TachometerProps> = (props) => {
-    const animatedRpm = useAnimatedValue(props.rpm);
+    const sweptRpm = useSweepValue(props.rpm, 0, RPM_MAX);
+    const animatedRpm = useAnimatedValue(sweptRpm);
     const animatedSpeed = useAnimatedValue(props.speed);
     const { getDistanceUnit } = useUnitConversion();
 

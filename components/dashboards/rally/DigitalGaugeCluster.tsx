@@ -1,7 +1,10 @@
+
+
 import React from 'react';
 import { SensorDataPoint } from '../../../types';
 import { useAnimatedValue } from '../../../hooks/useAnimatedValue';
 import { useUnitConversion } from '../../../hooks/useUnitConversion';
+import { useSweepValue } from '../../../hooks/useSweepValue';
 
 const RPM_MAX = 8000;
 const SHIFT_POINT_1 = 6000;
@@ -10,7 +13,8 @@ const SHIFT_POINT_3 = 7500;
 const NUM_RPM_LEDS = 15;
 
 const RpmShiftLights: React.FC<{ rpm: number }> = ({ rpm }) => {
-    const animatedRpm = useAnimatedValue(rpm);
+    const sweptRpm = useSweepValue(rpm, 0, RPM_MAX);
+    const animatedRpm = useAnimatedValue(sweptRpm);
     const activeLeds = Math.round((animatedRpm / RPM_MAX) * NUM_RPM_LEDS);
     const flash = animatedRpm > SHIFT_POINT_3 + 200 && Math.floor(Date.now() / 100) % 2 === 0;
 
@@ -62,8 +66,9 @@ const RpmShiftLights: React.FC<{ rpm: number }> = ({ rpm }) => {
 };
 
 
-const RallyDataBlock: React.FC<{ label: string; value: number; unit: string; precision?: number }> = ({ label, value, unit, precision = 0 }) => {
-    const animatedValue = useAnimatedValue(value);
+const RallyDataBlock: React.FC<{ label: string; value: number; unit: string; precision?: number, min?: number, max?: number }> = ({ label, value, unit, precision = 0, min=0, max=100 }) => {
+    const sweptValue = useSweepValue(value, min, max);
+    const animatedValue = useAnimatedValue(sweptValue);
     return (
         <div className="w-full text-center bg-black/20 p-3 rounded-lg border border-[var(--theme-panel-border)]">
             <div className="text-gray-400 font-sans text-xs uppercase tracking-widest">{label}</div>
@@ -78,12 +83,15 @@ const RallyDataBlock: React.FC<{ label: string; value: number; unit: string; pre
 
 const DigitalGaugeCluster: React.FC<{ latestData: SensorDataPoint }> = ({ latestData }) => {
     const { rpm, speed, gear, turboBoost, engineTemp, oilPressure } = latestData;
-    const { convertSpeed, getSpeedUnit } = useUnitConversion();
+    const { convertSpeed, getSpeedUnit, unitSystem } = useUnitConversion();
 
-    const animatedSpeed = useAnimatedValue(convertSpeed(speed));
+    const speedVal = convertSpeed(speed);
+    const speedMax = unitSystem === 'imperial' ? 180 : 280;
+    const sweptSpeed = useSweepValue(speedVal, 0, speedMax);
+    const animatedSpeed = useAnimatedValue(sweptSpeed);
 
     return (
-        <div className="h-full w-full max-w-5xl flex flex-col items-center justify-center p-4 glassmorphism-panel rounded-2xl shadow-glow-theme">
+        <div className="h-full w-full flex flex-col items-center justify-center p-4 glassmorphism-panel rounded-2xl shadow-glow-theme">
             
             <div className="w-full h-32 -mb-16">
                  <RpmShiftLights rpm={rpm} />
@@ -100,9 +108,9 @@ const DigitalGaugeCluster: React.FC<{ latestData: SensorDataPoint }> = ({ latest
             </div>
             
             <div className="w-full grid grid-cols-3 gap-4 mt-4">
-                 <RallyDataBlock label="Boost" value={turboBoost} unit="bar" precision={2} />
-                 <RallyDataBlock label="Water Temp" value={engineTemp} unit="°C" />
-                 <RallyDataBlock label="Oil Press" value={oilPressure} unit="bar" precision={1} />
+                 <RallyDataBlock label="Boost" value={turboBoost} unit="bar" precision={2} min={-1} max={2.5}/>
+                 <RallyDataBlock label="Water Temp" value={engineTemp} unit="°C" min={0} max={120} />
+                 <RallyDataBlock label="Oil Press" value={oilPressure} unit="bar" precision={1} min={0} max={8} />
             </div>
         </div>
     );

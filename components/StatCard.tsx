@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface StatCardProps {
@@ -9,19 +8,18 @@ interface StatCardProps {
   children?: React.ReactNode;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, unit, className, children }) => {
+const DataCard: React.FC<StatCardProps> = ({ title, value, unit, className = '' }) => {
   return (
-    <div className={`bg-black p-4 rounded-lg shadow-lg border border-brand-cyan/50 ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-400">{title}</h3>
-        {children}
+    <div className={`p-4 rounded-xl shadow-neumorphic-light bg-gradient-to-br from-base-800 to-base-900 ${className}`}>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
       </div>
       <div>
-        <span className="text-2xl md:text-3xl font-bold text-gray-100 font-display">{value}</span>
+        <span className="text-3xl lg:text-4xl font-bold text-white font-display">{value}</span>
         {unit && <span className="ml-1 text-base text-gray-400">{unit}</span>}
       </div>
     </div>
   );
 };
 
-export default StatCard;
+export default DataCard;

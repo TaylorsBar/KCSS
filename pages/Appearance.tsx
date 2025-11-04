@@ -1,4 +1,3 @@
-
 import React, { useContext } from 'react';
 import { AppearanceContext, Theme, AccentMaterial, LEDMode, UnitSystem } from '../contexts/AppearanceContext';
 
@@ -60,14 +59,14 @@ const Appearance: React.FC = () => {
                 <p className="text-gray-400 mt-1">Customize the look and feel of your dashboard and cabin.</p>
             </div>
 
-             <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-6 font-display">Units</h2>
+             <div className="bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+                <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-6 font-display">Units</h2>
                 <div className="flex gap-4">
                     {unitSystems.map(u => (
                         <button
                             key={u.id}
                             onClick={() => setUnitSystem(u.id)}
-                            className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors w-40 ${unitSystem === u.id ? 'bg-brand-cyan text-black' : 'bg-base-700 text-gray-300 hover:bg-base-600'}`}
+                            className={`w-48 px-4 py-2 rounded-lg font-semibold text-sm transition-all border-2 ${unitSystem === u.id ? 'border-[var(--theme-accent-primary)] text-white shadow-glow-theme bg-[var(--theme-accent-primary)]/20' : 'border-base-700 bg-transparent text-gray-300 hover:border-[var(--theme-accent-primary)]/50'}`}
                         >
                             {u.name}
                         </button>
@@ -75,14 +74,14 @@ const Appearance: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-6 font-display">Dashboard Theme</h2>
+            <div className="bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+                <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-6 font-display">Dashboard Theme</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {themes.map(t => (
                         <div
                             key={t.id}
                             onClick={() => setTheme(t.id)}
-                            className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${theme === t.id ? 'border-[var(--theme-accent-primary)] shadow-glow-theme' : 'border-base-700 hover:border-brand-cyan/50'}`}
+                            className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${theme === t.id ? 'border-[var(--theme-accent-primary)] shadow-glow-theme' : 'border-base-700 hover:border-[var(--theme-accent-primary)]/50'}`}
                         >
                             <h3 className="font-bold text-white">{t.name}</h3>
                             <p className="text-sm text-gray-400 mt-1">{t.description}</p>
@@ -91,8 +90,8 @@ const Appearance: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-6 font-display">Accent Material</h2>
+            <div className="bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+                <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-6 font-display">Accent Material</h2>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                     {materials.map(m => (
                         <div
@@ -102,16 +101,16 @@ const Appearance: React.FC = () => {
                         >
                             <div
                                 style={m.style}
-                                className={`w-24 h-24 rounded-full border-4 transition-all ${accentMaterial === m.id ? 'border-brand-cyan shadow-glow-cyan' : 'border-base-700 group-hover:border-brand-cyan/50'}`}
+                                className={`w-24 h-24 rounded-full border-4 transition-all ${accentMaterial === m.id ? 'border-[var(--theme-accent-primary)] shadow-glow-theme' : 'border-base-700 group-hover:border-[var(--theme-accent-primary)]/50'}`}
                             ></div>
-                            <p className={`mt-3 font-semibold transition-colors ${accentMaterial === m.id ? 'text-brand-cyan' : 'text-gray-400 group-hover:text-white'}`}>{m.name}</p>
+                            <p className={`mt-3 font-semibold transition-colors ${accentMaterial === m.id ? 'text-[var(--theme-accent-primary)]' : 'text-gray-400 group-hover:text-white'}`}>{m.name}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
-            <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg">
-                <div className="flex justify-between items-center border-b border-brand-cyan/30 pb-2 mb-6">
+            <div className="bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+                <div className="flex justify-between items-center border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-6">
                     <h2 className="text-lg font-semibold font-display">Interior Ambient Lighting</h2>
                      <div className="flex items-center">
                         <span className={`mr-3 text-sm font-medium ${ledSettings.isOn ? 'text-white' : 'text-gray-500'}`}>
@@ -119,7 +118,7 @@ const Appearance: React.FC = () => {
                         </span>
                         <button
                             onClick={() => setLedSettings({ isOn: !ledSettings.isOn })}
-                            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none ${ledSettings.isOn ? 'bg-brand-cyan' : 'bg-base-700'}`}
+                            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none ${ledSettings.isOn ? 'bg-[var(--theme-accent-primary)]' : 'bg-base-700'}`}
                             role="switch"
                             aria-checked={ledSettings.isOn}
                         >
@@ -158,7 +157,7 @@ const Appearance: React.FC = () => {
                                 max="100"
                                 value={ledSettings.brightness}
                                 onChange={e => setLedSettings({ brightness: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-base-800 rounded-lg appearance-none cursor-pointer accent-brand-cyan"
+                                className="w-full h-2 bg-base-800 rounded-lg appearance-none cursor-pointer accent-[var(--theme-accent-primary)]"
                             />
                             <span className="font-mono text-lg w-12 text-right">{ledSettings.brightness}%</span>
                         </div>
@@ -171,7 +170,7 @@ const Appearance: React.FC = () => {
                                 <button
                                     key={m.id}
                                     onClick={() => setLedSettings({ mode: m.id })}
-                                    className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${ledSettings.mode === m.id ? 'bg-brand-cyan text-black' : 'bg-base-700 text-gray-300 hover:bg-base-700'}`}
+                                    className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${ledSettings.mode === m.id ? 'bg-[var(--theme-accent-primary)] text-black' : 'bg-base-700 text-gray-300 hover:bg-base-700'}`}
                                 >
                                     {m.name}
                                 </button>

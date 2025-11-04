@@ -1,4 +1,4 @@
-import { ConnectionStatus, SensorDataPoint } from '../types';
+import { ConnectionStatus, SensorDataPoint, OemProfile, Did } from '../types';
 import { parseOBDResponse, parseDTCResponse } from '../utils/obdParser';
 
 // --- Web Bluetooth Type Definitions (for no-build environments) ---
@@ -49,6 +49,94 @@ enum CommState { IDLE, POLLING, COMMAND_MODE }
 type StatusCallback = (status: ConnectionStatus, deviceName: string | null, error?: string) => void;
 type DataCallback = (data: Partial<SensorDataPoint>) => void;
 
+export const MOCK_OEM_PROFILES: OemProfile[] = [
+    {
+        oem: 'Toyota/Lexus',
+        ecus: {
+            ecm: { req_id: '0x7E0', resp_id: '0x7E8' },
+            tcm: { req_id: '0x7E1', resp_id: '0x7E9' },
+        },
+        dids: {
+            vin: { id: '0xF190', desc: 'VIN', decode: 'ascii', unit: 'string' },
+            calibration_id: { id: '0xF187', desc: 'Calibration ID', decode: 'ascii', unit: 'string' },
+            oil_temp: { id: '0x2137', desc: 'ATF/Oil Temperature', decode: 'u8', unit: '°C' },
+            steering_angle: { id: '0x0250', desc: 'Steering Angle', decode: 's16', unit: 'deg' },
+            boost_pressure: { id: '0x2101', desc: 'Manifold Pressure', decode: 'u16', unit: 'kPa' },
+        }
+    },
+    {
+        oem: 'BMW/Mini',
+        ecus: {
+            dme: { req_id: '0x7E0', resp_id: '0x7E8' },
+        },
+        dids: {
+            vin: { id: '0xF190', desc: 'VIN', decode: 'ascii', unit: 'string' },
+            sw_version: { id: '0xF188', desc: 'Software Version', decode: 'ascii', unit: 'string' },
+            oil_temp: { id: '0x0B30', desc: 'Engine Oil Temperature', decode: 'u8', unit: '°C' },
+            boost_pressure: { id: '0x0B31', desc: 'Boost Pressure', decode: 'u16', unit: 'kPa' },
+            gear: { id: '0x0B40', desc: 'Current Gear', decode: 'u8', unit: 'raw' },
+        }
+    },
+    {
+        oem: 'Ford/Mazda',
+        ecus: {
+            pcm: { req_id: '0x7E0', resp_id: '0x7E8' },
+        },
+        dids: {
+            vin: { id: '0xF190', desc: 'VIN', decode: 'ascii', unit: 'string' },
+            trans_temp: { id: '0x2101', desc: 'Transmission Fluid Temp', decode: 'u8', unit: '°C' },
+            fuel_pressure: { id: '0x2102', desc: 'Fuel Rail Pressure', decode: 'u16', unit: 'kPa' },
+            octane_adj: { id: '0x2103', desc: 'Octane Adjust Scalar', decode: 'u8', unit: '%' },
+        }
+    },
+    {
+        oem: 'VAG (VW/Audi)',
+        ecus: {
+          ecm: { req_id: '0x7E0', resp_id: '0x7E8' },
+          tcu: { req_id: '0x7E1', resp_id: '0x7E9' },
+          abs: { req_id: '0x7E2', resp_id: '0x7EA' }
+        },
+        dids: {
+          vin:            { id: '0xF190', desc: 'VIN', decode: 'ascii', unit: 'string' },
+          sw_version:     { id: '0xF188', desc: 'Software version', decode: 'ascii', unit: 'string' },
+          oil_temp:       { id: '0x2001', desc: 'Oil temperature', decode: 'scaled:s16:0.1:degC:-40', unit: '°C' },
+          boost_pressure: { id: '0x2002', desc: 'Boost pressure', decode: 'scaled:u16:0.01:kPa', unit: 'kPa' },
+          lambda:         { id: '0x2003', desc: 'Lambda factor', decode: 'scaled:u16:0.001:ratio', unit: 'ratio' }
+        }
+    },
+    {
+        oem: 'Mercedes-Benz',
+        ecus: {
+          me:   { req_id: '0x7E0', resp_id: '0x7E8' },
+          tcu:  { req_id: '0x7E1', resp_id: '0x7E9' },
+          esp:  { req_id: '0x7E2', resp_id: '0x7EA' }
+        },
+        dids: {
+          vin:            { id: '0xF190', desc: 'VIN', decode: 'ascii', unit: 'string' },
+          sw_version:     { id: '0xF188', desc: 'Software version', decode: 'ascii', unit: 'string' },
+          coolant_temp:   { id: '0x2101', desc: 'Coolant temperature', decode: 'scaled:s16:0.1:degC:-40', unit: '°C' },
+          torque:         { id: '0x2102', desc: 'Engine torque', decode: 'scaled:s16:0.1:Nm', unit: 'Nm' },
+          fuel_pressure:  { id: '0x2103', desc: 'Fuel rail pressure', decode: 'scaled:u16:0.1:kPa', unit: 'kPa' }
+        }
+    },
+    {
+        oem: 'GM/Chevrolet',
+        ecus: {
+          pcm: { req_id: '0x7E0', resp_id: '0x7E8' },
+          bcm: { req_id: '0x7E1', resp_id: '0x7E9' },
+          abs: { req_id: '0x7E2', resp_id: '0x7EA' }
+        },
+        dids: {
+          vin:            { id: '0xF190', desc: 'VIN', decode: 'ascii', unit: 'string' },
+          calibration_id: { id: '0xF187', desc: 'Calibration ID', decode: 'ascii', unit: 'string' },
+          cvn:            { id: '0xF189', desc: 'CVN', decode: 'ascii', unit: 'string' },
+          trans_temp:     { id: '0x2210', desc: 'Transmission fluid temp', decode: 'scaled:u16:0.1:degC:-40', unit: '°C' },
+          oil_pressure:   { id: '0x2211', desc: 'Oil pressure', decode: 'scaled:u16:0.01:kPa', unit: 'kPa' },
+          spark_advance:  { id: '0x2212', desc: 'Spark advance', decode: 'scaled:s16:0.1:deg:-64', unit: 'deg' }
+        }
+    }
+];
+
 class OBDService {
   private device: BluetoothDevice | null = null;
   private deviceName: string | null = null;
@@ -69,7 +157,7 @@ class OBDService {
   private commandTimeout: number | null = null;
 
   private pidsToPoll = [
-    '0C', '0D', '05', '0F', '0B', '04', '42', '0A', '2F',
+    '0C', '0D', '05', '0F', '0B', '04', '42', '0A', '2F', '06', '07', '14',
   ];
 
   subscribe(statusCallback: StatusCallback, dataCallback: DataCallback) {
@@ -191,6 +279,65 @@ class OBDService {
       }
   }
   
+  async readDid(did: Did): Promise<string> {
+    if (!this.txCharacteristic) throw new Error("Not connected to vehicle.");
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 400));
+  
+    const [method, ...params] = did.decode.split(':');
+    let finalValue: string | number;
+  
+    switch (method) {
+      case 'ascii':
+        if (did.id === '0xF190') finalValue = 'JN1AZ00Z9ZT000123';
+        else if (did.id === '0xF187') finalValue = '4A5B6C7D8E9F0G1H';
+        else finalValue = 'SW-V2.1.3-PROD';
+        break;
+      case 'u8':
+        if (did.desc.toLowerCase().includes('temp')) finalValue = 85 + Math.random() * 5;
+        else if (did.desc.toLowerCase().includes('gear')) finalValue = Math.floor(Math.random() * 6 + 1);
+        else finalValue = 50 + Math.random() * 10;
+        break;
+      case 's16':
+        finalValue = (Math.random() * 20 - 10);
+        break;
+      case 'u16':
+        finalValue = 150 + Math.random() * 20;
+        break;
+      case 'scaled':
+        const [baseType, scaleStr, ...rest] = params;
+        const scale = parseFloat(scaleStr) || 1.0;
+        // Handle optional offset at the end
+        const offset = rest.length > 2 ? parseFloat(rest[rest.length - 1]) : 0.0;
+  
+        let rawValue: number;
+        // Generate a plausible mock raw value that results in a realistic final value
+        if (did.desc.toLowerCase().includes('temp')) { // e.g., oil, coolant, trans
+            rawValue = (95 - offset) / scale + (Math.random() - 0.5) * 10 / scale;
+        } else if (did.desc.toLowerCase().includes('pressure')) { // e.g., boost, fuel
+            rawValue = (180 - offset) / scale + (Math.random() - 0.5) * 40 / scale;
+        } else if (did.desc.toLowerCase().includes('torque')) {
+            rawValue = (250 - offset) / scale + (Math.random() - 0.5) * 80 / scale;
+        } else if (did.desc.toLowerCase().includes('spark') || did.desc.toLowerCase().includes('angle')) {
+            rawValue = (15 - offset) / scale + (Math.random() - 0.5) * 10 / scale;
+        } else { // Generic
+            rawValue = (100 - offset) / scale + (Math.random() - 0.5) * 20 / scale;
+        }
+  
+        finalValue = rawValue * scale + offset;
+        break;
+      default:
+        return 'DECODE_ERR';
+    }
+  
+    if (typeof finalValue === 'number') {
+      const precision = did.unit.toLowerCase() === 'deg' || did.unit.toLowerCase() === 'bar' ? 1 : (Number.isInteger(finalValue) ? 0 : 2);
+      return `${finalValue.toFixed(precision)} ${did.unit}`;
+    }
+  
+    return finalValue;
+  }
+
   private async executeCommand(command: string, timeout: number): Promise<string[]> {
     return new Promise(async (resolve, reject) => {
         this.commandResolver = resolve;
@@ -247,10 +394,33 @@ class OBDService {
   }
 
   private async initializeELM327() {
-    const initCommands = ['ATZ', 'ATE0', 'ATL0', 'ATSP0']; // Reset, Echo Off, Linefeeds Off, Auto Protocol
-    for (const cmd of initCommands) {
-        await this.writeCommand(cmd);
-        await new Promise(resolve => setTimeout(resolve, 150));
+    // This is a robust, sequential initialization process.
+    // We are not polling yet, so we set command mode to use executeCommand.
+    this.commState = CommState.COMMAND_MODE;
+    try {
+      const initCommands = [
+        { cmd: 'ATZ', timeout: 2000 },  // Reset, can take a moment
+        { cmd: 'ATE0', timeout: 500 }, // Echo Off
+        { cmd: 'ATL0', timeout: 500 }, // Linefeeds Off
+        { cmd: 'ATH1', timeout: 500 }, // Headers On (useful for multi-ECU)
+        { cmd: 'ATSP0', timeout: 1500 } // Set Protocol to Auto, can also take a moment
+      ];
+      
+      for (const { cmd, timeout } of initCommands) {
+        const response = await this.executeCommand(cmd, timeout);
+        // Relying on the command not timing out is the primary success metric.
+        // We can also check for 'OK' for non-reset commands.
+        if (cmd !== 'ATZ' && !response.join('').includes('OK')) {
+          console.warn(`Command '${cmd}' might not have succeeded. Response: ${response.join('')}`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to initialize ELM327", error);
+      // Let the calling connect() method handle cleanup and status update
+      throw new Error(`Failed during ELM327 initialization: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      // Set state to idle, ready for polling to start
+      this.commState = CommState.IDLE;
     }
   }
 

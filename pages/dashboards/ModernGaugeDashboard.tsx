@@ -1,12 +1,15 @@
+
+
 import React from 'react';
 import { useVehicleStore } from '../../store/useVehicleStore';
 import { useUnitConversion } from '../../hooks/useUnitConversion';
 import CarbonTachometer from '../../components/tachometers/CarbonTachometer';
 import AuxGauge from '../../components/gauges/AuxGauge';
-import ShiftLight from '../../components/ShiftLight';
 
 const ModernGaugeDashboard: React.FC = () => {
-    const latestData = useVehicleStore(state => state.latestData);
+    const { latestData } = useVehicleStore(state => ({
+        latestData: state.latestData,
+    }));
     const { convertSpeed, getSpeedUnit } = useUnitConversion();
 
     const speed = convertSpeed(latestData.speed);
@@ -25,19 +28,18 @@ const ModernGaugeDashboard: React.FC = () => {
                 backgroundImage: "radial-gradient(ellipse at center, rgba(10, 20, 40, 0.2) 0%, rgba(13,16,24,0) 70%)"
             }}
         >
-            <div className="flex flex-col gap-4 w-48">
+            <div className="flex flex-col gap-6 w-32">
                 <AuxGauge label="FUEL" value={fuelLevel} min={0} max={100} unit="%" />
-                <AuxGauge label="A/F" value={afr} min={10} max={20} unit="ratio" />
+                <AuxGauge label="F/R" value={afr} min={10} max={20} unit="ratio" />
                 <AuxGauge label="VOLTS" value={latestData.batteryVoltage} min={11} max={15} unit="v" />
             </div>
-            <div className="relative flex-shrink-0">
+            <div className="relative flex-grow h-full flex items-center justify-center">
                 <CarbonTachometer 
                     rpm={latestData.rpm} 
                     speed={speed}
                     gear={latestData.speed < 1 ? 0 : latestData.gear}
                     speedUnit={speedUnit}
                 />
-                <ShiftLight rpm={latestData.rpm} />
             </div>
         </div>
     );

@@ -25,7 +25,7 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
 
 const SensorChart: React.FC<SensorChartProps> = ({ data, lines, title }) => {
   return (
-    <div className="bg-black p-4 rounded-lg shadow-lg h-80 border border-brand-cyan/30">
+    <div className="bg-black p-4 rounded-lg shadow-lg h-80 border border-[var(--theme-accent-primary)]/30">
       <h3 className="text-lg font-semibold text-gray-200 mb-4 font-display">{title}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart

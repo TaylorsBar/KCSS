@@ -23,23 +23,23 @@ const Hedera: React.FC = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-black text-center p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
+                <div className="bg-black text-center p-4 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
                     <p className="text-sm text-gray-400">Network Status</p>
                     <p className="font-semibold text-green-400">Connected to Mainnet</p>
                 </div>
-                <div className="bg-black text-center p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
+                <div className="bg-black text-center p-4 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
                     <p className="text-sm text-gray-400">Account ID</p>
                     <p className="font-mono text-gray-200">0.0.12345</p>
                 </div>
-                <div className="bg-black text-center p-4 rounded-lg border border-brand-cyan/30 shadow-lg">
+                <div className="bg-black text-center p-4 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
                     <p className="text-sm text-gray-400">Balance</p>
                     <p className="font-mono text-gray-200">4,501.2345 HBAR</p>
                 </div>
             </div>
 
             {/* Recent Records */}
-            <div className="bg-black rounded-lg border border-brand-cyan/30 shadow-lg">
-                <div className="p-4 border-b border-brand-cyan/30">
+            <div className="bg-black rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
+                <div className="p-4 border-b border-[var(--theme-accent-primary)]/30">
                     <h2 className="text-lg font-semibold text-gray-100 font-display">Recent Immutable Records</h2>
                     <p className="text-sm text-gray-400 mt-1">Records are automatically created for significant events like maintenance and tuning changes.</p>
                 </div>

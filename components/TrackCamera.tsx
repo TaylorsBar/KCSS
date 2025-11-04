@@ -1,128 +1,194 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SensorDataPoint, GpsPoint } from '../types';
+import { SensorDataPoint, GpsPoint, LapTime } from '../types';
 import { useUnitConversion } from '../hooks/useUnitConversion';
 
 interface TrackCameraProps {
     latestData: SensorDataPoint;
     gpsPath: GpsPoint[];
+    lapTimes: LapTime[];
+    elapsedTime: number;
 }
 
-const drawTelemetryOverlay = (ctx: CanvasRenderingContext2D, data: SensorDataPoint, path: GpsPoint[], convertSpeed: (s: number) => number, getSpeedUnit: () => string) => {
+type CameraStatus = 'initializing' | 'active' | 'error';
+
+const formatTime = (ms: number, showMs = true) => {
+    if (ms <= 0) return showMs ? '00:00.00' : '00:00';
+    const totalSeconds = ms / 1000;
+    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+    if (!showMs) return `${minutes}:${seconds}`;
+    const milliseconds = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+    return `${minutes}:${seconds}.${milliseconds}`;
+};
+
+const drawTelemetryOverlay = (ctx: CanvasRenderingContext2D, data: SensorDataPoint, lapTimes: LapTime[], elapsedTime: number, convertSpeed: (s: number) => number, getSpeedUnit: () => string) => {
     const { width, height } = ctx.canvas;
-    
-    // --- Main data display (bottom left) ---
-    ctx.font = 'bold 48px "Orbitron", sans-serif';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(10, height - 130, 300, 120);
-    
-    ctx.fillStyle = '#00FFFF';
-    ctx.textBaseline = 'middle';
-    
+    const RPM_MAX = 8000;
+    const RPM_SHIFT_WARN = 6500;
+    const RPM_REDLINE = 7200;
+
+    // --- Calculations ---
     const speed = convertSpeed(data.speed).toFixed(0);
-    ctx.fillText(`${speed}`, 25, height - 75);
+    const gear = data.gear > 0 ? data.gear.toString() : 'N';
+    const rpm = data.rpm;
+    const throttle = data.engineLoad / 100;
+    const brake = Math.max(0, Math.min(1, -data.longitudinalGForce / 1.2));
+
+    const totalLapsTime = lapTimes.reduce((acc, lap) => acc + lap.time, 0);
+    const currentLapTime = elapsedTime - totalLapsTime;
+    const lastLap = lapTimes.length > 0 ? lapTimes[lapTimes.length - 1].time : 0;
+    const bestLap = lapTimes.length > 0 ? Math.min(...lapTimes.map(l => l.time)) : 0;
     
+    // --- Styles ---
+    const primaryColor = 'var(--theme-accent-primary)';
+    const redColor = 'var(--theme-accent-red)';
+    const yellowColor = 'var(--theme-accent-yellow)';
+    const greenColor = 'var(--theme-accent-green)';
+    const whiteColor = 'rgba(255, 255, 255, 0.9)';
+    const textColor = 'rgba(200, 210, 220, 0.9)';
+    const bgPanel = 'rgba(10, 15, 25, 0.7)';
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 5;
+
+    // --- RPM Bar (Bottom) ---
+    const rpmBarHeight = 40;
+    const rpmBarY = height - rpmBarHeight;
+    const rpmRatio = rpm / RPM_MAX;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, rpmBarY, width, rpmBarHeight);
+
+    const segments = 100;
+    for (let i = 0; i < segments; i++) {
+        if (i / segments < rpmRatio) {
+            const segRPM = (i / segments) * RPM_MAX;
+            if (segRPM > RPM_REDLINE) ctx.fillStyle = redColor;
+            else if (segRPM > RPM_SHIFT_WARN) ctx.fillStyle = yellowColor;
+            else ctx.fillStyle = primaryColor;
+            
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.shadowBlur = 10;
+            ctx.fillRect((i / segments) * width, rpmBarY, (1 / segments) * width + 1, rpmBarHeight);
+        }
+    }
+    ctx.shadowBlur = 0; // Reset shadow
+
     ctx.font = 'bold 24px "Orbitron", sans-serif';
-    ctx.fillText(getSpeedUnit(), 25 + ctx.measureText(speed).width + 5, height - 75);
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${rpm.toFixed(0)}`, width - 15, height - 10);
+    ctx.textAlign = 'left';
+    ctx.fillText('RPM', 15, height - 10);
 
-    ctx.font = '20px "Roboto Mono", monospace';
-    ctx.fillStyle = 'white';
-    ctx.fillText(`${data.rpm.toFixed(0)} RPM`, 25, height - 35);
-    ctx.fillText(`GEAR: ${data.gear > 0 ? data.gear : 'N'}`, 200, height - 35);
+    // --- Speed & Gear (Center) ---
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = whiteColor;
 
-    // --- Temperatures & Pressures (top left) ---
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(10, 10, 220, 80);
-    ctx.font = '18px "Roboto Mono", monospace';
-    ctx.fillStyle = 'white';
-    ctx.textBaseline = 'top';
+    ctx.font = 'bold 180px "Orbitron", sans-serif';
+    ctx.shadowColor = 'rgba(255,255,255,0.5)';
+    ctx.shadowBlur = 20;
+    ctx.fillText(speed, width / 2 - 60, height / 2);
 
-    ctx.fillStyle = '#FF4500'; // Orange/Red for coolant
-    ctx.fillText('COOLANT', 20, 20);
-    ctx.fillStyle = 'white';
-    ctx.fillText(`${data.engineTemp.toFixed(1)} °C`, 130, 20);
+    ctx.font = 'bold 100px "Orbitron", sans-serif';
+    ctx.fillStyle = rpm > RPM_REDLINE ? redColor : primaryColor;
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.fillText(gear, width / 2 + 130, height / 2 + 30);
+    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#F3FF00'; // Yellow for oil
-    ctx.fillText('OIL PRES', 20, 50);
-    ctx.fillStyle = 'white';
-    ctx.fillText(`${data.oilPressure.toFixed(1)} bar`, 130, 50);
-
-    // --- G-Force Meter (bottom right) ---
-    const gForceX = width - 90;
-    const gForceY = height - 90;
-    const gForceRadius = 70;
+    ctx.font = '24px "Roboto Mono", monospace';
+    ctx.fillStyle = textColor;
+    ctx.fillText(getSpeedUnit(), width / 2 - 60, height / 2 + 70);
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // --- Input Meters (Left/Right) ---
+    const barWidth = 15;
+    const barHeight = 200;
+    const barY = height / 2 - barHeight / 2;
+
+    // Brake
+    ctx.fillStyle = 'rgba(20,0,0,0.7)';
+    ctx.fillRect(20, barY, barWidth, barHeight);
+    ctx.fillStyle = redColor;
+    ctx.shadowColor = redColor;
+    ctx.shadowBlur = 15;
+    ctx.fillRect(20, barY + barHeight * (1 - brake), barWidth, barHeight * brake);
+
+    // Throttle
+    ctx.fillStyle = 'rgba(0,20,0,0.7)';
+    ctx.fillRect(width - 20 - barWidth, barY, barWidth, barHeight);
+    ctx.fillStyle = greenColor;
+    ctx.shadowColor = greenColor;
+    ctx.shadowBlur = 15;
+    ctx.fillRect(width - 20 - barWidth, barY + barHeight * (1 - throttle), barWidth, barHeight * throttle);
+    ctx.shadowBlur = 0;
+
+    // --- Lap Timer (Top Right) ---
+    ctx.fillStyle = bgPanel;
+    ctx.fillRect(width - 230, 20, 210, 110);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.font = 'bold 18px "Roboto Mono", monospace';
+    ctx.fillStyle = textColor;
+
+    ctx.fillText('CURRENT', width - 30, 30);
+    ctx.fillText('LAST', width - 30, 65);
+    ctx.fillText('BEST', width - 30, 100);
+    
+    ctx.font = '30px "Roboto Mono", monospace';
+    ctx.fillStyle = whiteColor;
+    ctx.fillText(formatTime(currentLapTime), width - 110, 25);
+    ctx.fillText(formatTime(lastLap), width - 110, 60);
+    
+    if (bestLap > 0 && lastLap === bestLap) ctx.fillStyle = '#A855F7'; // Purple for best
+    ctx.fillText(formatTime(bestLap), width - 110, 95);
+
+
+    // --- Ancillary Data (Top Left) ---
+    ctx.fillStyle = bgPanel;
+    ctx.fillRect(20, 20, 200, 80);
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 18px "Roboto Mono", monospace';
+    
+    ctx.fillStyle = '#3498db';
+    ctx.fillText('WATER', 30, 30);
+    ctx.fillStyle = whiteColor;
+    ctx.fillText(`${data.engineTemp.toFixed(0)}°C`, 120, 30);
+
+    ctx.fillStyle = yellowColor;
+    ctx.fillText('OIL', 30, 65);
+    ctx.fillStyle = whiteColor;
+    ctx.fillText(`${data.oilPressure.toFixed(1)} Bar`, 120, 65);
+    
+    // --- G-Force Meter (Bottom Right) ---
+    const gForceX = width - 100;
+    const gForceY = height - 150;
+    const gSize = 120;
+    ctx.fillStyle = bgPanel;
+    ctx.fillRect(gForceX - gSize/2, gForceY - gSize/2, gSize, gSize);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 1;
-
     ctx.beginPath();
-    ctx.arc(gForceX, gForceY, gForceRadius, 0, 2 * Math.PI);
-    ctx.fill();
+    ctx.moveTo(gForceX - gSize/2, gForceY); ctx.lineTo(gForceX + gSize/2, gForceY);
+    ctx.moveTo(gForceX, gForceY - gSize/2); ctx.lineTo(gForceX, gForceY + gSize/2);
     ctx.stroke();
 
-    ctx.beginPath();
-    ctx.moveTo(gForceX - gForceRadius, gForceY);
-    ctx.lineTo(gForceX + gForceRadius, gForceY);
-    ctx.moveTo(gForceX, gForceY - gForceRadius);
-    ctx.lineTo(gForceX, gForceY + gForceRadius);
-    ctx.stroke();
-
-    const maxG = 1.5;
-    const gDotX = gForceX + (data.lateralGForce / maxG) * (gForceRadius * 0.9);
-    const gDotY = gForceY - (data.longitudinalGForce / maxG) * (gForceRadius * 0.9);
+    const maxG = 2.0;
+    const gDotX = gForceX + (data.lateralGForce / maxG) * (gSize / 2);
+    const gDotY = gForceY - (data.longitudinalGForce / maxG) * (gSize / 2);
+    
     ctx.fillStyle = '#FF00FF';
+    ctx.shadowColor = '#FF00FF';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(gDotX, gDotY, 6, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // --- GPS Mini-Map (top right) ---
-    if (path.length > 1) {
-        const mapSize = 200;
-        const mapPadding = 10;
-        const mapX = width - mapSize - mapPadding;
-        const mapY = mapPadding;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(mapX, mapY, mapSize, mapSize);
-        ctx.strokeStyle = '#00FFFF';
-        ctx.strokeRect(mapX, mapY, mapSize, mapSize);
-
-        const lats = path.map(p => p.latitude);
-        const lons = path.map(p => p.longitude);
-        const minLat = Math.min(...lats);
-        const maxLat = Math.max(...lats);
-        const minLon = Math.min(...lons);
-        const maxLon = Math.max(...lons);
-        
-        const latRange = maxLat - minLat || 1;
-        const lonRange = maxLon - minLon || 1;
-        const range = Math.max(latRange, lonRange) * 1.1; // Add 10% padding
-
-        const centerX = minLon + lonRange / 2;
-        const centerY = minLat + latRange / 2;
-        
-        const scale = (mapSize - mapPadding*2) / range;
-
-        ctx.beginPath();
-        ctx.strokeStyle = '#FFFF00';
-        ctx.lineWidth = 2;
-        path.forEach((point, index) => {
-            const px = mapX + (mapSize/2) + (point.longitude - centerX) * scale;
-            const py = mapY + (mapSize/2) - (point.latitude - centerY) * scale;
-            if (index === 0) {
-                ctx.moveTo(px, py);
-            } else {
-                ctx.lineTo(px, py);
-            }
-        });
-        ctx.stroke();
-    }
+    ctx.shadowBlur = 0;
 };
 
-const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
+const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath, lapTimes, elapsedTime }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -133,16 +199,22 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
     // Refs to hold latest props for the animation loop
     const latestDataRef = useRef(latestData);
     const gpsPathRef = useRef(gpsPath);
+    const lapTimesRef = useRef(lapTimes);
+    const elapsedTimeRef = useRef(elapsedTime);
     const conversionFnsRef = useRef({ convertSpeed, getSpeedUnit });
 
     const [isRecording, setIsRecording] = useState(false);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [cameraStatus, setCameraStatus] = useState<CameraStatus>('initializing');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
 
     // This effect runs on every render to keep the refs updated with the latest props
     useEffect(() => {
         latestDataRef.current = latestData;
         gpsPathRef.current = gpsPath;
+        lapTimesRef.current = lapTimes;
+        elapsedTimeRef.current = elapsedTime;
         conversionFnsRef.current = { convertSpeed, getSpeedUnit };
     });
 
@@ -153,35 +225,36 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
 
         const setupAndRun = async () => {
             if (!canvasRef.current || !videoRef.current) return;
+            setCameraStatus('initializing');
 
-            // 1. Check for browser API support before attempting to use them
-            if (typeof (canvasRef.current as any).captureStream !== 'function' || typeof window.MediaRecorder !== 'function') {
-                setError("Video recording is not supported on this browser. Please use a recent version of Chrome, Firefox, or Edge.");
-                return;
-            }
-
-            // 2. Get camera stream
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 videoRef.current.srcObject = stream;
-                await videoRef.current.play();
+                
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current?.play();
+                    setCameraStatus('active');
+                };
+
             } catch (err) {
                 console.error("Camera access error:", err);
-                setError("Camera access was denied or is unavailable. Please check your browser permissions.");
+                setErrorMessage("Camera access was denied or is unavailable. Please check your browser permissions.");
+                setCameraStatus('error');
                 return;
             }
 
             const ctx = canvasRef.current.getContext('2d');
             if (!ctx) return;
             
-            // 3. Start the drawing loop
+            // Start the drawing loop
             const drawLoop = () => {
-                if (videoRef.current && videoRef.current.readyState >= 2) { // HAVE_CURRENT_DATA
-                    ctx.drawImage(videoRef.current, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+                if (videoRef.current && canvasRef.current && videoRef.current.readyState >= 2) { // HAVE_CURRENT_DATA
+                    ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
                     drawTelemetryOverlay(
                         ctx,
                         latestDataRef.current,
-                        gpsPathRef.current,
+                        lapTimesRef.current,
+                        elapsedTimeRef.current,
                         conversionFnsRef.current.convertSpeed,
                         conversionFnsRef.current.getSpeedUnit
                     );
@@ -193,7 +266,7 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
 
         setupAndRun();
 
-        // 4. Cleanup function
+        // Cleanup function
         return () => {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
@@ -203,16 +276,23 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
     }, []); // Empty dependency array ensures this runs only once
 
     const handleStartRecording = () => {
-        if (!canvasRef.current || !!error) return;
+        if (!canvasRef.current || cameraStatus !== 'active') return;
+
+        if (typeof (canvasRef.current as any).captureStream !== 'function' || typeof window.MediaRecorder !== 'function') {
+            setErrorMessage("Video recording is not supported on this browser. Please use a recent version of Chrome, Firefox, or Edge.");
+            setCameraStatus('error');
+            return;
+        }
+
         setVideoUrl(null);
         recordedChunksRef.current = [];
 
         const mimeType = 'video/webm; codecs=vp9';
         if (!MediaRecorder.isTypeSupported(mimeType)) {
-            setError(`Recording format (${mimeType}) not supported. Video may not be playable.`);
+             console.warn(`Recording format (${mimeType}) not supported. Video may not be playable.`);
         }
 
-        const stream = canvasRef.current.captureStream(30); // 30 FPS
+        const stream = (canvasRef.current as any).captureStream(30); // 30 FPS
         mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
 
         mediaRecorderRef.current.ondataavailable = (event) => {
@@ -239,26 +319,32 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath }) => {
     };
 
     return (
-        <div className="w-full h-full bg-black p-4 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col gap-4">
-            <div className="relative w-full aspect-video">
-                <video ref={videoRef} className="absolute inset-0 w-full h-full hidden" playsInline autoPlay muted />
-                <canvas ref={canvasRef} width="1280" height="720" className="w-full h-full rounded-md bg-gray-900" />
-                {error && 
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-                        <p className="text-red-400 text-center max-w-sm">{error}</p>
-                    </div>
-                }
-            </div>
-            <div className="flex items-center justify-center gap-4">
+        <div className="w-full h-full relative bg-black rounded-lg overflow-hidden border-2 border-[var(--theme-accent-primary)]/30">
+            {cameraStatus === 'error' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-4 z-10">
+                    <p className="font-bold text-red-500">Camera Error</p>
+                    <p className="text-gray-300 text-sm mt-2">{errorMessage}</p>
+                </div>
+            )}
+            {cameraStatus === 'initializing' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+                    <p className="text-gray-300">Initializing camera...</p>
+                </div>
+            )}
+            <video ref={videoRef} playsInline autoPlay muted className="absolute top-0 left-0 w-full h-full object-cover" style={{ display: 'none' }} />
+            <canvas ref={canvasRef} width="1280" height="720" className="w-full h-full" />
+            
+            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">
+                <div>
+                    {videoUrl && <a href={videoUrl} download={`race-session-${new Date().toISOString()}.webm`} className="btn btn-secondary">Download Recording</a>}
+                </div>
                 {!isRecording ? (
-                    <button onClick={handleStartRecording} disabled={!!error || isRecording} className="bg-red-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-red-500 transition-colors disabled:bg-base-700 disabled:cursor-not-allowed">Start Recording</button>
+                    <button onClick={handleStartRecording} disabled={cameraStatus !== 'active'} className="btn btn-danger flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-white animate-pulse"></div>
+                        REC
+                    </button>
                 ) : (
-                    <button onClick={handleStopRecording} className="bg-gray-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-gray-500 transition-colors">Stop Recording</button>
-                )}
-                {videoUrl && (
-                    <a href={videoUrl} download={`CartelWorx-TrackDay-${new Date().toISOString()}.webm`} className="bg-brand-blue text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-600 transition-colors">
-                        Download Video
-                    </a>
+                    <button onClick={handleStopRecording} className="btn btn-secondary">Stop</button>
                 )}
             </div>
         </div>

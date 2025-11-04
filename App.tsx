@@ -1,6 +1,5 @@
 
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
@@ -18,10 +17,35 @@ import CoPilot from './components/CoPilot';
 import RacePack from './pages/RacePack';
 import { useVehicleStore } from './store/useVehicleStore';
 import { ConnectionStatus } from './types';
+import StartupOverlay from './components/StartupOverlay';
+import Training from './pages/LiveTuning';
 
 const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const connectionStatus = useVehicleStore(state => state.connectionStatus);
+  const { connectionStatus, triggerGaugeSweep } = useVehicleStore(state => ({
+    connectionStatus: state.connectionStatus,
+    triggerGaugeSweep: state.triggerGaugeSweep,
+  }));
+  const [isStartingUp, setIsStartingUp] = useState(true);
+
+  useEffect(() => {
+    // This sequence is timed to match the animations in StartupOverlay.tsx
+    const sequenceTimer = setTimeout(() => {
+      // After logo animation (3.5s), trigger the gauge sweep
+      triggerGaugeSweep();
+    }, 3500);
+
+    const finalTimer = setTimeout(() => {
+      // After the entire sequence is over (5s), remove the overlay
+      setIsStartingUp(false);
+    }, 5000);
+
+    return () => {
+      clearTimeout(sequenceTimer);
+      clearTimeout(finalTimer);
+    };
+  }, [triggerGaugeSweep]);
+
 
   const handleToggleSidebar = () => {
     setIsSidebarCollapsed(prev => !prev);
@@ -37,18 +61,19 @@ const App: React.FC = () => {
         return 'border-brand-red shadow-glow-red';
       case ConnectionStatus.DISCONNECTED:
       default:
-        return 'border-gray-600 shadow-none';
+        return 'border-gray-800 shadow-none';
     }
   };
 
   return (
     <AppearanceProvider>
       <HashRouter>
-        <div className="flex h-screen bg-black text-gray-200">
+        <StartupOverlay isVisible={isStartingUp} />
+        <div className="flex h-screen bg-black text-gray-200 p-4 gap-4">
           <Sidebar isCollapsed={isSidebarCollapsed} onToggle={handleToggleSidebar} />
           <div className="flex-1 flex flex-col overflow-hidden relative">
-            <main className="flex-1 overflow-hidden carbon-background p-4">
-              <div className={`h-full w-full rounded-lg border-2 overflow-y-auto transition-all duration-500 ${mainFrameClasses()}`}>
+            <main className="flex-1 overflow-hidden theme-background rounded-2xl">
+              <div className={`h-full w-full rounded-2xl border-2 bg-black/20 overflow-y-auto transition-all duration-500 ${mainFrameClasses()}`}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/diagnostics" element={<Diagnostics />} />
@@ -61,6 +86,7 @@ const App: React.FC = () => {
                   <Route path="/race-pack" element={<RacePack />} />
                   <Route path="/accessories" element={<Accessories />} />
                   <Route path="/appearance" element={<Appearance />} />
+                  <Route path="/training" element={<Training />} />
                 </Routes>
               </div>
             </main>

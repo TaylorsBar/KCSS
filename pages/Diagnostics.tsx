@@ -1,11 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useLiveConversation } from '../hooks/useLiveConversation';
 import MicrophoneIcon from '../components/icons/MicrophoneIcon';
 import SoundWaveIcon from '../components/icons/SoundWaveIcon';
 import { useVehicleStore } from '../store/useVehicleStore';
-import { obdService } from '../services/obdService';
-import { getDTCInfo } from '../services/geminiService';
-import { DTCInfo, ConnectionStatus } from '../types';
+import { ConnectionStatus, DTCInfo } from '../types';
+import GlassCard from '../components/Header'; // Repurposed for GlassCard
+import DataCard from '../components/StatCard'; // Repurposed for DataCard
+import { analyzeImage } from '../services/geminiService';
+import ReactMarkdown from 'react-markdown';
+import CameraIcon from '../components/icons/CameraIcon';
+import SparklesIcon from '../components/icons/SparklesIcon';
+import { useTrainingStore } from '../hooks/useVehicleData';
+import FeatureLock from '../components/DataBar';
+
+const TabButton: React.FC<{ label: string; icon?: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ label, icon, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${isActive ? 'bg-[var(--glass-bg)] border-b-2 border-b-[var(--theme-accent-primary)] text-white' : 'bg-transparent text-gray-400 hover:text-white'}`}
+    >
+        {icon}
+        {label}
+    </button>
+);
 
 const StatusIndicator: React.FC<{ status: string }> = ({ status }) => {
     const getStatusColor = () => {
@@ -56,23 +72,23 @@ const ConversationalDiagnostics: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-black rounded-lg border border-brand-cyan/30 shadow-lg p-6 text-center items-center justify-between">
+        <div className="flex flex-col h-full text-center items-center justify-between p-4">
             <div>
                 <h2 className="text-xl font-bold text-gray-100 font-display">Live Conversational AI</h2>
                 <p className="text-gray-400 mt-1 text-sm">Speak with KC for real-time help.</p>
                 <div className="mt-4">
                     <StatusIndicator status={error ? 'ERROR' : connectionState} />
-                    {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+                    {error && <p className="text-red-500 text-xs mt-1 max-w-sm mx-auto">{error}</p>}
                 </div>
             </div>
 
-            <div className="w-full max-w-2xl flex-grow flex flex-col justify-center gap-6 my-4">
-                <div className="min-h-[5rem] p-3 bg-base-900/50 rounded-lg border border-base-700">
-                    <h3 className="font-semibold text-brand-cyan mb-2 text-left text-sm">KC's Response:</h3>
+            <div className="w-full max-w-2xl flex-grow flex flex-col justify-center gap-4 my-4">
+                <div className="min-h-[4rem] p-3 bg-base-900/50 rounded-lg border border-base-700">
+                    <h3 className="font-semibold text-[var(--theme-accent-primary)] mb-1 text-left text-xs">KC's Response:</h3>
                     <p className="text-md text-gray-200 text-left">{lastAiTranscript}</p>
                 </div>
-                <div className="min-h-[5rem] p-3 bg-base-800/50 rounded-lg border border-base-700">
-                     <h3 className="font-semibold text-gray-400 mb-2 text-left text-sm">Your Input:</h3>
+                <div className="min-h-[4rem] p-3 bg-base-800/50 rounded-lg border border-base-700">
+                     <h3 className="font-semibold text-gray-400 mb-1 text-left text-xs">Your Input:</h3>
                      <p className="text-md text-gray-300 italic text-left">{lastUserTranscript || "..."}</p>
                 </div>
             </div>
@@ -80,12 +96,12 @@ const ConversationalDiagnostics: React.FC = () => {
             <div className="flex flex-col items-center">
                 <button
                     onClick={handleButtonClick}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mx-auto ${isSessionActive ? 'bg-red-500' : 'bg-brand-cyan'}`}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mx-auto btn-neumorphic ${isSessionActive ? 'btn-neumorphic-active !text-red-500' : ''}`}
                 >
-                    {isSessionActive ? <SoundWaveIcon className="w-10 h-10 text-black" /> : <MicrophoneIcon className="w-10 h-10 text-black" />}
+                    {isSessionActive ? <SoundWaveIcon className="w-10 h-10" /> : <MicrophoneIcon className="w-10 h-10" />}
                 </button>
                 <p className="text-xs text-gray-400 mt-3">
-                    {connectionState === 'CONNECTING' ? 'Connecting...' : (isSessionActive ? 'Tap to disconnect' : 'Tap to start')}
+                    {connectionState === 'CONNECTING' ? 'Connecting...' : (isSessionActive ? 'Session Active | Tap to Disconnect' : 'Tap to Start Session')}
                 </p>
             </div>
         </div>
@@ -93,33 +109,25 @@ const ConversationalDiagnostics: React.FC = () => {
 }
 
 const DTCScanner: React.FC = () => {
-    const connectionStatus = useVehicleStore(state => state.connectionStatus);
-    const [isScanning, setIsScanning] = useState(false);
-    const [dtcResults, setDtcResults] = useState<DTCInfo[]>([]);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleScan = async () => {
-        setIsScanning(true);
-        setError(null);
-        setDtcResults([]);
-
-        try {
-            const codes = await obdService.fetchDTCs();
-            if (codes.length === 0) {
-                // Add a "No codes" success message
-                 setDtcResults([{ code: "P0000", description: "No Diagnostic Trouble Codes found in the system.", severity: "Info", possibleCauses: [] }]);
-            } else {
-                const results = await Promise.all(codes.map(code => getDTCInfo(code)));
-                setDtcResults(results);
-            }
-        } catch (e) {
-            const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
-            setError(errorMessage);
-        } finally {
-            setIsScanning(false);
-        }
-    };
+    const isUnlocked = useTrainingStore(state => state.isUnlocked('dtc-diagnostics'));
+    const {
+        connectionStatus,
+        isScanning,
+        dtcResults,
+        error,
+        scanForDTCs,
+    } = useVehicleStore(state => ({
+        connectionStatus: state.connectionStatus,
+        isScanning: state.isScanningDTCs,
+        dtcResults: state.dtcResults,
+        error: state.dtcError,
+        scanForDTCs: state.scanForDTCs,
+    }));
     
+    if (!isUnlocked) {
+        return <FeatureLock featureName="Fault Code Scanner" moduleName="Diagnostic Trouble Codes" level={2} />;
+    }
+
     const severityStyles = {
         Critical: { border: 'border-red-500', text: 'text-red-400' },
         Warning: { border: 'border-yellow-500', text: 'text-yellow-400' },
@@ -127,14 +135,14 @@ const DTCScanner: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-black rounded-lg border border-brand-cyan/30 shadow-lg p-6">
+        <div className="flex flex-col h-full p-4">
             <div className="flex-shrink-0">
-                <h2 className="text-xl font-bold text-gray-100 font-display">Fault Code Scanner</h2>
-                <p className="text-gray-400 mt-1 text-sm">Scan your vehicle's ECU for Diagnostic Trouble Codes (DTCs).</p>
+                <h2 className="text-xl font-bold text-gray-100 font-display text-center">Fault Code Scanner</h2>
+                <p className="text-gray-400 mt-1 text-sm text-center">Scan your vehicle's ECU for Diagnostic Trouble Codes (DTCs).</p>
                  <button
-                    onClick={handleScan}
+                    onClick={scanForDTCs}
                     disabled={isScanning || connectionStatus !== ConnectionStatus.CONNECTED}
-                    className="w-full mt-4 bg-brand-blue text-white font-semibold py-2 rounded-md hover:bg-blue-600 transition-colors shadow-glow-blue disabled:bg-base-700 disabled:cursor-not-allowed"
+                    className="btn btn-primary w-full mt-4"
                 >
                     {isScanning ? 'Scanning...' : 'Scan for Fault Codes'}
                 </button>
@@ -160,7 +168,152 @@ const DTCScanner: React.FC = () => {
                     ))}
                      {isScanning && (
                         <div className="flex justify-center items-center py-10">
-                            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-brand-cyan"></div>
+                            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 animate-spin border-t-[var(--theme-accent-primary)]"></div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const DiagnosticsDeck: React.FC = () => {
+    const latestData = useVehicleStore(state => state.latestData);
+    const mapKpa = (latestData.turboBoost * 100) + 101.3;
+    const injectorDuty = Math.min(100, (latestData.rpm / 8000) * latestData.engineLoad * 0.9);
+    const ignitionAngle = 45 - (latestData.rpm / 8000 * 0.8 + latestData.engineLoad / 100 * 0.2) * 40;
+
+    return (
+        <div className="p-4 h-full overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-100 font-display text-center mb-4">Live Diagnostics Deck</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <DataCard title="MAP" value={mapKpa.toFixed(0)} unit="kPa" />
+                <DataCard title="Injector Duty" value={injectorDuty.toFixed(1)} unit="%" />
+                <DataCard title="Ignition Angle" value={ignitionAngle.toFixed(1)} unit="deg" />
+                <DataCard title="Throttle" value={latestData.engineLoad.toFixed(1)} unit="%" />
+                <DataCard title="Voltage" value={latestData.batteryVoltage.toFixed(1)} unit="V" />
+                <DataCard title="LTFT" value={latestData.longTermFuelTrim.toFixed(1)} unit="%" />
+            </div>
+        </div>
+    )
+}
+
+const VisualInspector: React.FC = () => {
+    const [image, setImage] = useState<{ file: File; previewUrl: string } | null>(null);
+    const [prompt, setPrompt] = useState('');
+    const [analysis, setAnalysis] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [isDragging, setIsDragging] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (files: FileList | null) => {
+        if (files && files[0]) {
+            if (!files[0].type.startsWith('image/')) {
+                setError('Only image files are accepted.');
+                return;
+            }
+            const file = files[0];
+            const previewUrl = URL.createObjectURL(file);
+            setImage({ file, previewUrl });
+            setAnalysis('');
+            setError('');
+        }
+    };
+
+    const handleAnalyze = async () => {
+        if (!image || !prompt.trim()) return;
+        setIsLoading(true);
+        setAnalysis('');
+        setError('');
+        try {
+            const result = await analyzeImage(image.file, prompt);
+            setAnalysis(result);
+        } catch (e: any) {
+            setError(e.message || 'An error occurred during analysis.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handleClear = () => {
+        setImage(null);
+        setPrompt('');
+        setAnalysis('');
+        setError('');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const dropHandler = (ev: React.DragEvent<HTMLDivElement>) => {
+        ev.preventDefault();
+        setIsDragging(false);
+        if (ev.dataTransfer.items && ev.dataTransfer.items.length > 0) {
+            handleFileChange(ev.dataTransfer.files);
+        }
+    };
+    
+    const dragOverHandler = (ev: React.DragEvent<HTMLDivElement>) => ev.preventDefault();
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full p-4">
+            {/* Left Panel: Image Upload & Preview */}
+            <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-bold text-gray-100 font-display text-center">Visual Inspector</h2>
+                {!image ? (
+                    <div 
+                        onDrop={dropHandler}
+                        onDragOver={dragOverHandler}
+                        onDragEnter={() => setIsDragging(true)}
+                        onDragLeave={() => setIsDragging(false)}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex-grow flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-[var(--theme-accent-primary)] bg-[var(--theme-accent-primary)]/10' : 'border-base-700 hover:border-gray-500'}`}
+                    >
+                        <CameraIcon className="w-12 h-12 text-gray-500 mb-2" />
+                        <p className="text-gray-400">Drag & drop an image here</p>
+                        <p className="text-sm text-gray-500">or click to select a file</p>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange(e.target.files)}
+                            className="hidden"
+                        />
+                    </div>
+                ) : (
+                    <div className="flex-grow relative rounded-lg overflow-hidden border-2 border-base-700">
+                        <img src={image.previewUrl} alt="Component Preview" className="w-full h-full object-contain" />
+                    </div>
+                )}
+            </div>
+
+            {/* Right Panel: Prompt & Analysis */}
+            <div className="flex flex-col gap-4">
+                <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder={image ? "Ask a question about the image...\ne.g., 'What part is this?' or 'Is this belt worn out?'" : "Upload an image to ask a question."}
+                    disabled={!image || isLoading}
+                    className="w-full flex-grow bg-base-800 border border-base-700 rounded-md p-3 text-gray-200 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent-primary)]"
+                />
+                <div className="flex gap-2">
+                    <button onClick={handleAnalyze} disabled={!image || !prompt.trim() || isLoading} className="btn btn-primary flex-grow flex items-center justify-center gap-2">
+                        <SparklesIcon className="w-5 h-5" />
+                        {isLoading ? 'Analyzing...' : 'Analyze Image'}
+                    </button>
+                    <button onClick={handleClear} disabled={isLoading} className="btn btn-secondary">Clear</button>
+                </div>
+                <div className="flex-grow bg-base-900/50 rounded-lg border border-base-700 p-3 overflow-y-auto">
+                    {isLoading && (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-10 w-10 animate-spin border-t-[var(--theme-accent-primary)]"></div>
+                        </div>
+                    )}
+                    {error && <p className="text-red-400">{error}</p>}
+                    {analysis && (
+                        <div className="prose prose-sm prose-invert max-w-none">
+                            <ReactMarkdown>{analysis}</ReactMarkdown>
                         </div>
                     )}
                 </div>
@@ -171,10 +324,29 @@ const DTCScanner: React.FC = () => {
 
 
 const Diagnostics: React.FC = () => {
+    const [activeTab, setActiveTab] = useState('scanner');
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full p-4">
-            <ConversationalDiagnostics />
-            <DTCScanner />
+        <div className="p-4 h-full flex flex-col">
+            <div className="flex-shrink-0 px-4">
+                <h1 className="text-2xl font-bold text-gray-100 font-display">Diagnostics</h1>
+                <p className="text-gray-400 mt-1">Advanced fault finding and live data analysis.</p>
+            </div>
+            <div className="flex-shrink-0 border-b border-[var(--glass-border)] mt-4 overflow-x-auto">
+                <div className="flex">
+                    <TabButton label="Fault Code Scanner" isActive={activeTab === 'scanner'} onClick={() => setActiveTab('scanner')} />
+                    <TabButton label="Live Diagnostics Deck" isActive={activeTab === 'deck'} onClick={() => setActiveTab('deck')} />
+                    <TabButton label="Conversational AI" isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')} />
+                    <TabButton label="Visual Inspector" icon={<CameraIcon className="w-5 h-5"/>} isActive={activeTab === 'inspector'} onClick={() => setActiveTab('inspector')} />
+                </div>
+            </div>
+            <div className="flex-grow mt-4">
+                <GlassCard className="h-full">
+                    {activeTab === 'scanner' && <DTCScanner />}
+                    {activeTab === 'deck' && <DiagnosticsDeck />}
+                    {activeTab === 'ai' && <ConversationalDiagnostics />}
+                    {activeTab === 'inspector' && <VisualInspector />}
+                </GlassCard>
+            </div>
         </div>
     );
 };

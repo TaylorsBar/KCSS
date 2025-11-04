@@ -69,9 +69,18 @@ const ARAssistant: React.FC = () => {
             streamRef.current = stream;
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
+                // This handler ensures play() is called after the stream is ready,
+                // making camera activation more reliable across browsers.
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current?.play();
+                    setIsConnected(true);
+                    setAssistantMessage("AR Link active. Point your camera at a component or use voice commands.");
+                };
+            } else {
+              // Fallback if ref isn't ready, though unlikely.
+              setIsConnected(true);
+              setAssistantMessage("AR Link established, but video display may be delayed.");
             }
-            setIsConnected(true);
-            setAssistantMessage("AR Link active. Point your camera at a component or use voice commands.");
         } catch (err) {
             console.error("Camera access denied:", err);
             let message = "Failed to access camera.";
@@ -230,7 +239,7 @@ const ARAssistant: React.FC = () => {
                  <div className="animate-fade-in space-y-4">
                     {inspectionResult.error && <p className="text-red-400">{inspectionResult.error}</p>}
                     {inspectionResult.imageUrl && (
-                        <img src={inspectionResult.imageUrl} alt="AI Generated Component Diagram" className="w-full h-auto rounded-md border-2 border-brand-cyan/50" />
+                        <img src={inspectionResult.imageUrl} alt="AI Generated Component Diagram" className="w-full h-auto rounded-md border-2 border-[var(--theme-accent-primary)]/50" />
                     )}
                     {inspectionResult.analysis && (
                         <div className="prose prose-sm prose-invert max-w-none">
@@ -248,13 +257,13 @@ const ARAssistant: React.FC = () => {
     return (
         <div className="flex flex-col lg:flex-row gap-6 h-full p-4">
             {/* Left Panel: Camera View and Controls */}
-            <div className="w-full lg:w-2/3 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col relative">
-                <h1 className="text-xl font-bold text-gray-100 font-display border-b border-brand-cyan/30 pb-2 mb-4">Augmented Reality Assistant</h1>
+            <div className="w-full lg:w-2/3 bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg flex flex-col relative">
+                <h1 className="text-xl font-bold text-gray-100 font-display border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-4">Augmented Reality Assistant</h1>
 
                 {!isConnected ? (
                     <div className="flex-grow flex flex-col items-center justify-center">
                         <p className="text-gray-400 mb-4">Connect to the vehicle's AR system to begin.</p>
-                        <button onClick={handleConnect} disabled={isConnecting} className="bg-brand-blue text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-600 transition-colors shadow-glow-blue disabled:bg-base-700">
+                        <button onClick={handleConnect} disabled={isConnecting} className="btn btn-action">
                             {isConnecting ? 'Connecting...' : 'Activate AR Link'}
                         </button>
                     </div>
@@ -282,8 +291,8 @@ const ARAssistant: React.FC = () => {
 
                             return (
                                 <button key={hotspot.id} onClick={() => setHighlightedComponent(hotspot.id)} className="absolute group" style={{ left: hotspot.cx, top: hotspot.cy, transform: 'translate(-50%, -50%)' }}>
-                                    <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-300 ${isHighlighted ? 'border-brand-cyan scale-150' : statusClasses.border}`}>
-                                        <div className={`w-3 h-3 rounded-full ${isHighlighted ? 'bg-brand-cyan animate-pulse' : statusClasses.bg}`}></div>
+                                    <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-300 ${isHighlighted ? 'border-[var(--theme-accent-primary)] scale-150' : statusClasses.border}`}>
+                                        <div className={`w-3 h-3 rounded-full ${isHighlighted ? 'bg-[var(--theme-accent-primary)] animate-pulse' : statusClasses.bg}`}></div>
                                     </div>
                                     <div className="absolute bottom-full mb-2 w-max bg-black/80 text-white text-sm px-3 py-1 rounded-md transition-opacity duration-300 opacity-0 group-hover:opacity-100">
                                         {hotspot.name}
@@ -296,11 +305,11 @@ const ARAssistant: React.FC = () => {
             </div>
 
             {/* Right Panel: Assistant and Inspector */}
-            <div className="w-full lg:w-1/3 bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg flex flex-col">
-                <h2 className="text-lg font-semibold border-b border-brand-cyan/30 pb-2 mb-4 font-display">Assistant & Inspector</h2>
+            <div className="w-full lg:w-1/3 bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg flex flex-col">
+                <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-4 font-display">Assistant & Inspector</h2>
                 <div className="flex flex-col flex-grow">
                      <div className="text-center my-4">
-                        <button onClick={handleListen} disabled={!isConnected || isConnecting} className={`w-20 h-20 rounded-full flex items-center justify-center transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mx-auto ${isListening ? 'bg-red-500 animate-ping' : 'bg-brand-cyan'}`}>
+                        <button onClick={handleListen} disabled={!isConnected || isConnecting} className={`w-20 h-20 rounded-full flex items-center justify-center transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mx-auto ${isListening ? 'bg-red-500 animate-ping' : 'bg-[var(--theme-accent-primary)]'}`}>
                             <MicrophoneIcon className="w-10 h-10 text-black" />
                         </button>
                         {isListening && <p className="text-sm text-gray-400 mt-2">Listening...</p>}

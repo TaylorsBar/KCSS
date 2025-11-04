@@ -14,6 +14,7 @@ import SoundWaveIcon from './icons/SoundWaveIcon';
 import ChevronDoubleLeftIcon from './icons/ChevronDoubleLeftIcon';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { ConnectionStatus } from '../types';
+import BookOpenIcon from './tachometers/Tachometer'; // Repurposed for BookOpenIcon
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: GaugeIcon },
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Diagnostics', href: '/diagnostics', icon: ChatIcon },
   { name: 'Logbook', href: '/logbook', icon: WrenchIcon },
   { name: 'Tuning', href: '/tuning', icon: TuningForkIcon },
+  { name: 'Training', href: '/training', icon: BookOpenIcon },
   { name: 'Accessories', href: '/accessories', icon: SoundWaveIcon },
   { name: 'Appearance', href: '/appearance', icon: PaintBrushIcon },
   { name: 'Security', href: '/security', icon: ShieldIcon },
