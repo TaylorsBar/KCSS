@@ -3,7 +3,6 @@ import { AppearanceContext, CopilotAudioOutput } from '../contexts/AppearanceCon
 import { useVehicleStore } from '../store/useVehicleStore';
 import { ConnectionStatus, AuditEvent, Did } from '../types';
 import { obdService, MOCK_OEM_PROFILES } from '../services/obdService';
-import { useTrainingStore } from '../hooks/useVehicleData';
 import FeatureLock from '../components/DataBar';
 
 const VehicleConnection: React.FC = () => {
@@ -121,7 +120,6 @@ const VehicleConnection: React.FC = () => {
 };
 
 const OemDiagnostics: React.FC = () => {
-    const isUnlocked = useTrainingStore(state => state.isUnlocked('oem-insights'));
     const { connectionStatus, addAuditEvent } = useVehicleStore(state => ({
         connectionStatus: state.connectionStatus,
         addAuditEvent: state.addAuditEvent,
@@ -148,14 +146,6 @@ const OemDiagnostics: React.FC = () => {
             setDidResults(prev => ({ ...prev, [symbol]: { value: `Error: ${error}`, isLoading: false } }));
         }
     };
-
-    if (!isUnlocked) {
-        return (
-            <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg min-h-[300px] flex items-center justify-center">
-                 <FeatureLock featureName="OEM Diagnostic Profiles" moduleName="OEM-Level Insights" level={3} />
-            </div>
-        )
-    }
 
     return (
         <div className="bg-black p-6 rounded-lg border border-brand-cyan/30 shadow-lg relative">

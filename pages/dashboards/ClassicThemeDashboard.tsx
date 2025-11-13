@@ -20,7 +20,7 @@ const ClassicThemeDashboard: React.FC = () => {
   return (
     <div className="flex h-full w-full items-center justify-center p-4 md:p-8">
       <div 
-        className="w-full max-h-full aspect-video rounded-2xl p-6 shadow-2xl flex flex-col items-center justify-center gap-6"
+        className="w-full max-h-full aspect-square md:aspect-video rounded-2xl p-6 shadow-2xl flex flex-col items-center justify-center gap-6"
         style={{
           boxShadow: 'inset 0 0 30px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.5)',
         }}

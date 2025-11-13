@@ -2,19 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GpsPoint } from '../../types';
 import { useUnitConversion } from '../../hooks/useUnitConversion';
 
-// Assume this is injected by the environment like process.env.API_KEY
-declare const process: {
-  env: {
-    GOOGLE_MAPS_API_KEY: string;
-  }
-};
+// FIX: Correctly typed the dynamically loaded Google Maps API to resolve namespace errors.
+// This makes `google.maps` available as a global namespace with the necessary types and constructors.
+declare namespace google {
+  export namespace maps {
+    export type Map = any;
+    export type MapTypeStyle = any;
+    export type Polyline = any;
+    export const Map: { new (element: HTMLElement | null, opts: any): Map };
+    export const Polyline: { new (opts: any): Polyline };
 
-// FIX: Declare 'google' in the global scope to resolve TypeScript errors for the Google Maps API.
-// The Google Maps script is loaded dynamically. 'declare global' makes 'google' available
-// on the global 'window' object, allowing for type annotations and property access,
-// resolving both namespace and property access errors within a module.
-declare global {
-  var google: any;
+    export namespace marker {
+      export type AdvancedMarkerElement = any;
+      export const AdvancedMarkerElement: { new (opts: any): AdvancedMarkerElement };
+    }
+  }
 }
 
 const MAP_ID = 'CARTEWORX_DARK_THEME';
@@ -73,13 +75,15 @@ const LiveTrackMap: React.FC<LiveTrackMapProps> = ({ gpsPath, latestData }) => {
 
     useEffect(() => {
         const loadGoogleMapsScript = () => {
-            if (window.google && window.google.maps) {
+            // FIX: Check for global `google` object directly instead of `window.google` to align with TypeScript's global namespace declaration.
+            if (typeof google !== 'undefined' && google.maps) {
                 initializeMap();
                 return;
             }
 
             const script = document.createElement('script');
-            const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+            // FIX: Use the correct environment variable `API_KEY` for the Google Maps script.
+            const GOOGLE_MAPS_API_KEY = process.env.API_KEY;
             
             if (!GOOGLE_MAPS_API_KEY) {
                 setError("Google Maps API key is missing. Map cannot be loaded.");

@@ -93,37 +93,36 @@ export const parseDTCResponse = (response: string): string[] => {
         return [];
     }
     
-    // The hex data for codes starts after the '43' and the byte indicating the number of codes.
-    // We can ignore the count byte and just parse all subsequent byte pairs.
+    // The hex data for codes starts after '43' and a byte indicating the number of codes.
+    // e.g., 430201020304 -> 2 DTCs (P0102, B0304). We will parse all pairs after the header.
     const hexData = cleaned.substring(4).match(/.{1,2}/g) || [];
-    
-    // Defensive check: Ensure we have pairs of bytes to process.
-    if (hexData.length % 2 !== 0) {
-        console.warn("Malformed DTC response, odd number of hex bytes:", cleaned);
-        // We can attempt to process the even part of the array.
-        hexData.pop();
-    }
     
     const dtcs: string[] = [];
     for (let i = 0; i < hexData.length; i += 2) {
+        if (i + 1 >= hexData.length) break; // Not a full pair
+        
         const byte1 = hexData[i];
         const byte2 = hexData[i+1];
         if (byte1 === '00' && byte2 === '00') {
-            continue; // Ignore padding bytes
+            continue; // Ignore padding bytes often at the end
         }
         
         const byte1Val = parseInt(byte1, 16);
         let firstChar = '';
         
+        // First 2 bits of byte1 determine the category per SAE J1979 standard
         switch (byte1Val >> 6) {
-            case 0: firstChar = 'P'; break;
-            case 1: firstChar = 'C'; break;
-            case 2: firstChar = 'B'; break;
-            case 3: firstChar = 'U'; break;
+            case 0b00: firstChar = 'P'; break; // Powertrain
+            case 0b01: firstChar = 'C'; break; // Chassis
+            case 0b10: firstChar = 'B'; break; // Body
+            case 0b11: firstChar = 'U'; break; // Network
         }
         
-        const secondChar = ((byte1Val >> 4) & 0x03).toString(16);
+        // Next 2 bits determine the type (0 for generic, 1-3 for manufacturer-specific)
+        const secondChar = (byte1Val >> 4) & 0x03;
+        // Last 4 bits of byte1 + byte2 form the rest of the code
         const restOfCode = (byte1Val & 0x0F).toString(16) + byte2;
+        
         dtcs.push(`${firstChar}${secondChar}${restOfCode}`.toUpperCase());
     }
     

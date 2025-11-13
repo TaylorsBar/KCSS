@@ -70,7 +70,7 @@ const RallyDataBlock: React.FC<{ label: string; value: number; unit: string; pre
     const sweptValue = useSweepValue(value, min, max);
     const animatedValue = useAnimatedValue(sweptValue);
     return (
-        <div className="w-full text-center bg-black/20 p-3 rounded-lg border border-[var(--theme-panel-border)]">
+        <div className="w-full text-center bg-black/20 p-3 rounded-lg border border-[var(--glass-border)]">
             <div className="text-gray-400 font-sans text-xs uppercase tracking-widest">{label}</div>
             <div className="font-mono text-white text-3xl font-bold tracking-tighter">
                 {animatedValue.toFixed(precision)}
@@ -78,6 +78,12 @@ const RallyDataBlock: React.FC<{ label: string; value: number; unit: string; pre
             </div>
         </div>
     );
+};
+
+const carbonFiberStyle: React.CSSProperties = {
+    backgroundColor: '#1a1a1a',
+    backgroundImage: 'linear-gradient(27deg, #151515 5px, transparent 5px), linear-gradient(207deg, #151515 5px, transparent 5px), linear-gradient(27deg, #222 5px, transparent 5px), linear-gradient(207deg, #222 5px, transparent 5px), linear-gradient(90deg, #1b1b1b 10px, transparent 10px), linear-gradient(#1d1d1d 25%, #1a1a1a 25%, #1a1a1a 50%, transparent 50%, transparent 75%, #242424 75%, #242424)',
+    backgroundSize: '20px 20px',
 };
 
 
@@ -91,14 +97,17 @@ const DigitalGaugeCluster: React.FC<{ latestData: SensorDataPoint }> = ({ latest
     const animatedSpeed = useAnimatedValue(sweptSpeed);
 
     return (
-        <div className="h-full w-full flex flex-col items-center justify-center p-4 glassmorphism-panel rounded-2xl shadow-glow-theme">
+        <div 
+            className="h-full w-full flex flex-col items-center justify-center p-4 glass-panel rounded-2xl shadow-glow-theme"
+            style={carbonFiberStyle}
+        >
             
             <div className="w-full h-32 -mb-16">
                  <RpmShiftLights rpm={rpm} />
             </div>
             
             <div className="flex flex-col items-center text-center">
-                <div className="font-display text-[var(--theme-accent-primary)]" style={{ fontSize: '15rem', lineHeight: 1, textShadow: '0 0 40px var(--theme-glow-color)' }}>
+                <div className="font-display text-[var(--theme-accent-primary)]" style={{ fontSize: '15rem', lineHeight: 1, textShadow: '0 0 40px var(--theme-accent-primary)' }}>
                     {gear === 0 ? 'N' : gear}
                 </div>
                 <div className="font-mono font-bold text-white -mt-8" style={{ fontSize: '7rem', textShadow: '0 0 20px rgba(255,255,255,0.7)' }}>

@@ -53,7 +53,7 @@ const Appearance: React.FC = () => {
     } = useContext(AppearanceContext);
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 p-4">
             <div>
                 <h1 className="text-2xl font-bold text-gray-100 font-display">Appearance Settings</h1>
                 <p className="text-gray-400 mt-1">Customize the look and feel of your dashboard and cabin.</p>
@@ -76,7 +76,7 @@ const Appearance: React.FC = () => {
 
             <div className="bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
                 <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-6 font-display">Dashboard Theme</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {themes.map(t => (
                         <div
                             key={t.id}
@@ -92,7 +92,7 @@ const Appearance: React.FC = () => {
 
             <div className="bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg">
                 <h2 className="text-lg font-semibold border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-6 font-display">Accent Material</h2>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
                     {materials.map(m => (
                         <div
                             key={m.id}

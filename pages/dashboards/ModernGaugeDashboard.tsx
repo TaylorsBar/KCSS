@@ -23,17 +23,17 @@ const ModernGaugeDashboard: React.FC = () => {
 
     return (
         <div 
-            className="flex items-center justify-center h-full w-full p-8 theme-background bg-black gap-8"
+            className="flex flex-col lg:flex-row items-center justify-center h-full w-full p-4 md:p-8 theme-background bg-black gap-4 md:gap-8"
             style={{
                 backgroundImage: "radial-gradient(ellipse at center, rgba(10, 20, 40, 0.2) 0%, rgba(13,16,24,0) 70%)"
             }}
         >
-            <div className="flex flex-col gap-6 w-32">
+            <div className="flex flex-row lg:flex-col justify-around lg:justify-start gap-2 md:gap-6 w-full lg:w-32">
                 <AuxGauge label="FUEL" value={fuelLevel} min={0} max={100} unit="%" />
                 <AuxGauge label="F/R" value={afr} min={10} max={20} unit="ratio" />
                 <AuxGauge label="VOLTS" value={latestData.batteryVoltage} min={11} max={15} unit="v" />
             </div>
-            <div className="relative flex-grow h-full flex items-center justify-center">
+            <div className="relative flex-grow h-full w-full flex items-center justify-center">
                 <CarbonTachometer 
                     rpm={latestData.rpm} 
                     speed={speed}

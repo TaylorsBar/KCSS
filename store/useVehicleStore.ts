@@ -63,6 +63,8 @@ const generateInitialData = (): SensorDataPoint[] => {
   for (let i = MAX_DATA_POINTS; i > 0; i--) {
     data.push({
       time: now - i * 20, rpm: RPM_IDLE, speed: 0, gear: 1, fuelUsed: 19.4, inletAirTemp: 25.0, batteryVoltage: 12.7, engineTemp: 90.0, fuelTemp: 20.0, turboBoost: -0.8, fuelPressure: 3.5, oilPressure: 1.5, shortTermFuelTrim: 0, longTermFuelTrim: 1.5, o2SensorVoltage: 0.45, engineLoad: 15, distance: 0, longitudinalGForce: 0, lateralGForce: 0, latitude: -37.88, longitude: 175.55,
+// FIX: Add missing 'egt' property to the initial data points.
+ egt: 300,
     });
   }
   return data;
@@ -257,6 +259,8 @@ const simulationManager = {
       navigator.geolocation.clearWatch(this.simState.watcherId);
       this.simState.watcherId = null;
     }
+    // FIX: Clear the GPS data reference to prevent holding onto stale data and fix a memory leak.
+    this.simState.gpsDataRef = null;
   },
 
   start() {
@@ -362,6 +366,8 @@ const simulationManager = {
         lateralGForce,
         latitude,
         longitude,
+// FIX: Add missing 'egt' property to the new data point.
+        egt: 300 + (rpm / this.RPM_MAX) * 600 + (isFaultActive ? 50 : 0),
       };
 
       const updatedData = [...data, newDataPoint];

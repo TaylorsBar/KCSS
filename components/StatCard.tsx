@@ -1,25 +1,40 @@
-import React from 'react';
 
-interface StatCardProps {
+import React from 'react';
+import { useAnimatedValue } from '../hooks/useAnimatedValue';
+
+interface DataReadoutProps {
   title: string;
   value: string | number;
   unit?: string;
-  className?: string;
-  children?: React.ReactNode;
+  max?: number;
 }
 
-const DataCard: React.FC<StatCardProps> = ({ title, value, unit, className = '' }) => {
+const DataReadout: React.FC<DataReadoutProps> = ({ title, value, unit, max=100 }) => {
+  const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+  const animatedValue = useAnimatedValue(isNaN(numericValue) ? 0 : numericValue);
+  
+  const getPrecision = () => {
+    if (title.includes('Duty') || title.includes('Angle') || title.includes('Dashbatt')) return 1;
+    return 0;
+  }
+
+  const displayValue = animatedValue.toFixed(getPrecision());
+  const percentage = (animatedValue / max) * 100;
+
   return (
-    <div className={`p-4 rounded-xl shadow-neumorphic-light bg-gradient-to-br from-base-800 to-base-900 ${className}`}>
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
-      </div>
-      <div>
-        <span className="text-3xl lg:text-4xl font-bold text-white font-display">{value}</span>
-        {unit && <span className="ml-1 text-base text-gray-400">{unit}</span>}
-      </div>
+    <div className="relative pl-3">
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-base-800 rounded-full overflow-hidden">
+            <div className="w-full bg-[var(--theme-accent-primary)] rounded-full" style={{height: `${Math.min(100, percentage)}%`}}></div>
+        </div>
+        <div className="flex justify-between items-baseline">
+            <div>
+                <div className="text-4xl font-display font-bold text-white">{displayValue}</div>
+                <div className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{title}</div>
+            </div>
+            <div className="text-sm text-gray-500">{unit}</div>
+        </div>
     </div>
   );
 };
 
-export default DataCard;
+export default DataReadout;

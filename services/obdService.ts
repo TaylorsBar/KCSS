@@ -159,6 +159,8 @@ class OBDService {
   private pidsToPoll = [
     '0C', '0D', '05', '0F', '0B', '04', '42', '0A', '2F', '06', '07', '14',
   ];
+  
+  private sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   subscribe(statusCallback: StatusCallback, dataCallback: DataCallback) {
     this.statusCallback = statusCallback;
@@ -304,11 +306,16 @@ class OBDService {
       case 'u16':
         finalValue = 150 + Math.random() * 20;
         break;
-      case 'scaled':
+      case 'scaled': {
         const [baseType, scaleStr, ...rest] = params;
         const scale = parseFloat(scaleStr) || 1.0;
-        // Handle optional offset at the end
-        const offset = rest.length > 2 ? parseFloat(rest[rest.length - 1]) : 0.0;
+        let offset = 0.0;
+        if (rest.length > 0) {
+            const lastParam = parseFloat(rest[rest.length - 1]);
+            if (!isNaN(lastParam)) {
+                offset = lastParam;
+            }
+        }
   
         let rawValue: number;
         // Generate a plausible mock raw value that results in a realistic final value
@@ -326,6 +333,7 @@ class OBDService {
   
         finalValue = rawValue * scale + offset;
         break;
+      }
       default:
         return 'DECODE_ERR';
     }
@@ -394,32 +402,41 @@ class OBDService {
   }
 
   private async initializeELM327() {
-    // This is a robust, sequential initialization process.
-    // We are not polling yet, so we set command mode to use executeCommand.
     this.commState = CommState.COMMAND_MODE;
     try {
       const initCommands = [
-        { cmd: 'ATZ', timeout: 2000 },  // Reset, can take a moment
-        { cmd: 'ATE0', timeout: 500 }, // Echo Off
-        { cmd: 'ATL0', timeout: 500 }, // Linefeeds Off
-        { cmd: 'ATH1', timeout: 500 }, // Headers On (useful for multi-ECU)
-        { cmd: 'ATSP0', timeout: 1500 } // Set Protocol to Auto, can also take a moment
+        { cmd: 'ATZ', timeout: 3000, retries: 2, delay: 500 },
+        { cmd: 'ATE0', timeout: 500, retries: 1 }, // Echo Off
+        { cmd: 'ATL0', timeout: 500, retries: 1 }, // Linefeeds Off
+        { cmd: 'ATH1', timeout: 500, retries: 1 }, // Headers On
+        { cmd: 'ATSP0', timeout: 5000, retries: 1 },// Set Protocol to Auto
+        { cmd: '0100', timeout: 2000, retries: 2 }, // Test query for PIDs
       ];
       
-      for (const { cmd, timeout } of initCommands) {
-        const response = await this.executeCommand(cmd, timeout);
-        // Relying on the command not timing out is the primary success metric.
-        // We can also check for 'OK' for non-reset commands.
-        if (cmd !== 'ATZ' && !response.join('').includes('OK')) {
-          console.warn(`Command '${cmd}' might not have succeeded. Response: ${response.join('')}`);
-        }
+      for (const { cmd, timeout, retries, delay } of initCommands) {
+          let lastError: any;
+          for (let i = 0; i <= (retries || 0); i++) {
+              try {
+                  if (delay && i > 0) await this.sleep(delay);
+                  const response = await this.executeCommand(cmd, timeout);
+                  if (cmd !== 'ATZ' && cmd !== '0100' && !response.join('').includes('OK')) {
+                      throw new Error(`Command '${cmd}' failed. Response: ${response.join('')}`);
+                  }
+                  lastError = null; // Clear error on success
+                  break; // Move to next command
+              } catch (e) {
+                  lastError = e;
+                  console.warn(`Attempt ${i + 1} for '${cmd}' failed:`, e);
+              }
+          }
+          if (lastError) {
+              throw lastError; // Throw if all retries for a command fail
+          }
       }
     } catch (error) {
       console.error("Failed to initialize ELM327", error);
-      // Let the calling connect() method handle cleanup and status update
       throw new Error(`Failed during ELM327 initialization: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      // Set state to idle, ready for polling to start
       this.commState = CommState.IDLE;
     }
   }

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Blob } from '@google/genai';
+// FIX: The `LiveSession` type is not exported from the library.
+import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
 
 type ConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
@@ -22,7 +23,8 @@ export const useLiveConversation = () => {
     const [aiTranscript, setAiTranscript] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
+    // FIX: The `LiveSession` type is not exported from the library. Use `any` to avoid type errors.
+    const sessionPromiseRef = useRef<Promise<any> | null>(null);
     const audioInfrastructureRef = useRef<{
         inputAudioContext: AudioContext;
         outputAudioContext: AudioContext;

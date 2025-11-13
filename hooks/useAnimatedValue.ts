@@ -1,15 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
+import { useVehicleStore } from '../store/useVehicleStore';
 
 const DURATION = 100; // Animation duration should be close to the data update interval
 
 export const useAnimatedValue = (targetValue: number, config: { duration?: number } = {}) => {
   const { duration = DURATION } = config;
+  const isGaugeSweeping = useVehicleStore(state => state.isGaugeSweeping);
   const [currentValue, setCurrentValue] = useState(targetValue);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number | undefined>(undefined);
   const startValueRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    // If a gauge sweep is active, this hook should not perform its own animation.
+    // Instead, it should immediately snap to the target value, which is being
+    // animated by the `useSweepValue` hook. This prevents the two animations
+    // from fighting each other and causing erratic, jerky movement.
+    if (isGaugeSweeping) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      setCurrentValue(targetValue);
+      return; // Bypass the smoothing animation
+    }
+
     const startAnimation = () => {
       startTimeRef.current = performance.now();
       startValueRef.current = currentValue;
@@ -48,7 +62,7 @@ export const useAnimatedValue = (targetValue: number, config: { duration?: numbe
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [targetValue, duration]);
+  }, [targetValue, duration, isGaugeSweeping]);
 
   // On initial mount, set the value directly without animation
   useEffect(() => {

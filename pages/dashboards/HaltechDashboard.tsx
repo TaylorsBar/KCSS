@@ -12,9 +12,9 @@ const HaltechDashboard: React.FC = () => {
 
     return (
         <div className="flex h-full w-full p-4 gap-4 items-center justify-center">
-            <div className="w-full flex items-stretch justify-center gap-4">
+            <div className="w-full flex flex-col lg:flex-row items-stretch justify-center gap-4">
                 {/* Left Gauges */}
-                <div className="flex flex-col justify-between w-1/6 gap-4">
+                <div className="w-full lg:w-1/6 flex flex-row lg:flex-col justify-around lg:justify-between gap-4">
                     <HaltechSideBarGauge
                         label="BOOST"
                         value={latestData.turboBoost}
@@ -35,7 +35,7 @@ const HaltechDashboard: React.FC = () => {
                 </div>
 
                 {/* Center Tachometer */}
-                <div className="w-4/6">
+                <div className="w-full lg:w-4/6">
                     <HaltechTachometer
                         rpm={latestData.rpm}
                         speed={convertSpeed(latestData.speed)}
@@ -45,7 +45,7 @@ const HaltechDashboard: React.FC = () => {
                 </div>
 
                 {/* Right Gauges */}
-                <div className="flex flex-col justify-between w-1/6 gap-4">
+                <div className="w-full lg:w-1/6 flex flex-row lg:flex-col justify-around lg:justify-between gap-4">
                      <HaltechSideBarGauge
                         label="COOLANT"
                         value={latestData.engineTemp}

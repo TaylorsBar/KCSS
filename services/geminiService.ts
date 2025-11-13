@@ -1,3 +1,4 @@
+
 import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession, DTCInfo, ComponentHealthAnalysisResult } from '../types';
 
 // Using a module-level variable to ensure a single worker instance.
@@ -7,14 +8,16 @@ let requestIdCounter = 0;
 
 function getWorker(): Worker {
     if (!worker) {
-        // FIX: Construct the worker URL explicitly from the current origin to prevent
-        // cross-origin errors in sandboxed environments. The browser was incorrectly
-        // resolving the relative path '/services/ai.worker.ts' against a different
-        // origin ('ai.studio') instead of the application's origin.
-        const workerUrl = new URL('/services/ai.worker.ts', window.location.origin);
+        // FIX: Use a relative URL based on the module's location (`import.meta.url`).
+        // This is the modern, standard way to load workers from modules and avoids
+        // cross-origin or pathing issues that can occur with `window.location.origin`.
+        const workerUrl = new URL('./ai.worker.ts', import.meta.url);
         worker = new Worker(workerUrl, {
             type: 'module'
         });
+        
+        // Send the API key to the worker for initialization, as it runs in a separate scope.
+        worker.postMessage({ type: 'init', apiKey: process.env.API_KEY });
 
         worker.onmessage = (e: MessageEvent) => {
             const { type, result, error, requestId } = e.data;
@@ -48,13 +51,26 @@ function callWorker<T>(type: string, payload: any): Promise<T> {
     return new Promise((resolve, reject) => {
         const requestId = `${type}-${requestIdCounter++}`;
         
-        // Add a timeout to prevent requests from hanging indefinitely
+        // FIX: Implement variable timeouts based on the expected duration of the AI task.
+        // This prevents short tasks from waiting too long and long tasks (like image generation) from timing out prematurely.
+        const timeouts: { [key: string]: number } = {
+            'analyzeImage': 60000,
+            'analyzeVideo': 120000, // Video analysis can take longer
+            'generateComponentImage': 60000,
+            'getPredictiveAnalysis': 45000,
+            'getComponentHealthAnalysis': 45000,
+            'getTuningSuggestion': 30000,
+            'getRaceAnalysis': 45000,
+            'default': 20000
+        };
+        const timeoutDuration = timeouts[type] || timeouts.default;
+
         const timeoutId = setTimeout(() => {
             if (pendingRequests.has(requestId)) {
                 pendingRequests.delete(requestId);
-                reject(new Error(`AI request '${type}' timed out after 30 seconds.`));
+                reject(new Error(`AI request '${type}' timed out after ${timeoutDuration / 1000} seconds.`));
             }
-        }, 30000);
+        }, timeoutDuration);
 
         // Augment the promise handlers to clear the timeout
         const enhancedResolve = (value: any) => {
@@ -89,10 +105,14 @@ const fileToBase64 = (file: File): Promise<string> => {
     });
 };
 
-export const analyzeImage = async (imageFile: File, prompt: string): Promise<string> => {
+export const analyzeImage = async (imageFile: File, prompt: string): Promise<GroundedResponse> => {
     const base64Image = await fileToBase64(imageFile);
     const mimeType = imageFile.type;
     return callWorker('analyzeImage', { base64Image, mimeType, prompt });
+};
+
+export const analyzeVideo = async (frames: {data: string, mimeType: string}[], prompt: string): Promise<string> => {
+    return callWorker('analyzeVideo', { frames, prompt });
 };
 
 export const getPredictiveAnalysis = (

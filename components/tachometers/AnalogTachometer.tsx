@@ -1,7 +1,7 @@
 // This file is repurposed to create the new primary CyberGauge component
 // for the new UI/UX redesign, as new file creation is not permitted.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAnimatedValue } from '../../hooks/useAnimatedValue';
 import { useSweepValue } from '../../hooks/useSweepValue';
 
@@ -18,22 +18,35 @@ const START_ANGLE = -160;
 const END_ANGLE = 160;
 const ANGLE_RANGE = END_ANGLE - START_ANGLE;
 
-const CyberGauge: React.FC<CyberGaugeProps> = ({ rpm, speed, gear, speedUnit }) => {
-  const sweptRpm = useSweepValue(rpm, 0, RPM_MAX);
-  const animatedRpm = useAnimatedValue(sweptRpm, { duration: 150 });
-  const animatedSpeed = useAnimatedValue(speed, { duration: 150 });
-  
-  const rpmRatio = Math.min(1, animatedRpm / RPM_MAX);
-  const redlineRatio = Math.max(0, (animatedRpm - (REDLINE_START-1000)) / (RPM_MAX - (REDLINE_START - 1000)));
-
-  const describeArc = (x:number, y:number, radius:number, startAngle:number, endAngle:number) => {
+const describeArc = (x:number, y:number, radius:number, startAngle:number, endAngle:number) => {
     const startRad = (startAngle - 90) * Math.PI / 180;
     const endRad = (endAngle - 90) * Math.PI / 180;
     const start = { x: x + radius * Math.cos(startRad), y: y + radius * Math.sin(startRad) };
     const end = { x: x + radius * Math.cos(endRad), y: y + radius * Math.sin(endRad) };
     const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
     return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
-  };
+};
+
+const valueToAngle = (val: number, min: number, max: number, start: number, range: number) => {
+    const ratio = (Math.max(min, Math.min(val, max)) - min) / (max - min);
+    return start + ratio * range;
+};
+
+const CyberGauge: React.FC<CyberGaugeProps> = ({ rpm, speed, gear, speedUnit }) => {
+  const sweptRpm = useSweepValue(rpm, 0, RPM_MAX);
+  const animatedRpm = useAnimatedValue(sweptRpm, { duration: 150 });
+  const animatedSpeed = useAnimatedValue(speed, { duration: 150 });
+  
+  // FIX: Memoize expensive calculations to prevent re-computation on every render.
+  const rpmRatio = useMemo(() => Math.min(1, animatedRpm / RPM_MAX), [animatedRpm]);
+  const redlineRatio = useMemo(() => Math.max(0, (animatedRpm - (REDLINE_START - 1000)) / (RPM_MAX - (REDLINE_START - 1000))), [animatedRpm]);
+
+  // FIX: Memoize SVG path strings to avoid re-generating them if inputs haven't changed.
+  const backgroundArcPath = useMemo(() => describeArc(200, 200, 180, START_ANGLE, END_ANGLE), []);
+  const mainArcPath = useMemo(() => describeArc(200, 200, 180, START_ANGLE, valueToAngle(REDLINE_START, 0, RPM_MAX, START_ANGLE, ANGLE_RANGE)), []);
+  const redlineArcPath = useMemo(() => describeArc(200, 200, 180, valueToAngle(REDLINE_START, 0, RPM_MAX, START_ANGLE, ANGLE_RANGE), END_ANGLE), []);
+  const rpmFillArcPath = useMemo(() => describeArc(200, 200, 180, START_ANGLE, START_ANGLE + (ANGLE_RANGE * rpmRatio)), [rpmRatio]);
+
 
   const gearDisplay = gear === 0 ? 'N' : gear;
   const flash = animatedRpm > REDLINE_START + 500 && Math.floor(Date.now() / 150) % 2 === 0;
@@ -48,13 +61,13 @@ const CyberGauge: React.FC<CyberGaugeProps> = ({ rpm, speed, gear, speedUnit }) 
         </defs>
         
         {/* Background arcs */}
-        <path d={describeArc(200, 200, 180, START_ANGLE, END_ANGLE)} fill="none" stroke="rgba(0, 255, 255, 0.1)" strokeWidth="12" />
-        <path d={describeArc(200, 200, 180, START_ANGLE, valueToAngle(REDLINE_START, 0, RPM_MAX, START_ANGLE, ANGLE_RANGE))} fill="none" stroke="rgba(0, 255, 255, 0.2)" strokeWidth="12" />
-        <path d={describeArc(200, 200, 180, valueToAngle(REDLINE_START, 0, RPM_MAX, START_ANGLE, ANGLE_RANGE), END_ANGLE)} fill="none" stroke="rgba(255, 0, 255, 0.3)" strokeWidth="12" />
+        <path d={backgroundArcPath} fill="none" stroke="rgba(0, 255, 255, 0.1)" strokeWidth="12" />
+        <path d={mainArcPath} fill="none" stroke="rgba(0, 255, 255, 0.2)" strokeWidth="12" />
+        <path d={redlineArcPath} fill="none" stroke="rgba(255, 0, 255, 0.3)" strokeWidth="12" />
         
         {/* RPM Fill Arc */}
         <path 
-          d={describeArc(200, 200, 180, START_ANGLE, START_ANGLE + (ANGLE_RANGE * rpmRatio))} 
+          d={rpmFillArcPath} 
           fill="none" 
           stroke="var(--theme-accent-primary)" 
           strokeWidth="14" 
@@ -82,12 +95,5 @@ const CyberGauge: React.FC<CyberGaugeProps> = ({ rpm, speed, gear, speedUnit }) 
     </div>
   );
 };
-
-// Helper function used inside the component
-const valueToAngle = (val: number, min: number, max: number, start: number, range: number) => {
-    const ratio = (Math.max(min, Math.min(val, max)) - min) / (max - min);
-    return start + ratio * range;
-};
-
 
 export default CyberGauge;

@@ -1,109 +1,184 @@
 
 
-import React from 'react';
-import { useAnimatedValue } from '../../hooks/useAnimatedValue';
-import { useUnitConversion } from '../../hooks/useUnitConversion';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 
-interface ClassicTachometerProps {
-  rpm: number;
-  speed: number;
+// Icons defined inside the component file for self-containment
+const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>;
+const MinusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M18 12H6" /></svg>;
+const SmoothIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>;
+
+
+interface InteractiveTuningMapProps {
+  title: string;
+  data: number[][];
+  xAxisLabels: string[];
+  yAxisLabels: string[];
+  onChange: (row: number, col: number, value: number) => void;
 }
 
-const ClassicTachometer: React.FC<ClassicTachometerProps> = ({ rpm, speed }) => {
-  const { convertSpeed, getSpeedUnit } = useUnitConversion();
-  const animatedRpm = useAnimatedValue(rpm);
-  const animatedSpeed = useAnimatedValue(convertSpeed(speed));
-  
-  const RPM_MAX = 8000;
-  const ANGLE_MIN = -150;
-  const ANGLE_MAX = 150;
-  const rpmRange = RPM_MAX;
-  const rpmValueRatio = (Math.max(0, Math.min(animatedRpm, RPM_MAX))) / rpmRange;
-  const rpmAngle = ANGLE_MIN + rpmValueRatio * (ANGLE_MAX - ANGLE_MIN);
+const InteractiveTuningMap: React.FC<InteractiveTuningMapProps> = ({ title, data, xAxisLabels, yAxisLabels, onChange }) => {
+  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [brushMode, setBrushMode] = useState<'add' | 'subtract' | 'smooth' | null>(null);
+  const [isBrushing, setIsBrushing] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
 
-  const SPEED_MAX = getSpeedUnit() === 'mph' ? 175 : 280;
-  const speedValueRatio = (Math.max(0, Math.min(animatedSpeed, SPEED_MAX))) / SPEED_MAX;
-  const speedAngle = ANGLE_MIN + speedValueRatio * (ANGLE_MAX - ANGLE_MIN);
+  const { minVal, maxVal } = useMemo(() => {
+    const allValues = data.flat();
+    return { minVal: Math.min(...allValues), maxVal: Math.max(...allValues, Math.min(...allValues) + 1) };
+  }, [data]);
+
+  const getColorForValue = (value: number) => {
+    const ratio = (value - minVal) / (maxVal - minVal);
+    const hue = 240 - (ratio * 240); // 240 (blue) for low, 0 (red) for high
+    return `hsl(${hue}, 90%, 55%)`;
+  };
+
+  const handleCellClick = (row: number, col: number) => {
+    if (brushMode) return;
+    setEditingCell({ row, col });
+    setEditValue(data[row][col].toFixed(2));
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditValue(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    if (editingCell) {
+      const value = parseFloat(editValue);
+      if (!isNaN(value)) {
+        onChange(editingCell.row, editingCell.col, value);
+      }
+      setEditingCell(null);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleInputBlur();
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+    }
+  };
+  
+  const handleBrush = (row: number, col: number) => {
+      if (!isBrushing || !brushMode) return;
+      
+      let newValue = data[row][col];
+      switch(brushMode) {
+          case 'add':
+              newValue += 0.5;
+              break;
+          case 'subtract':
+              newValue -= 0.5;
+              break;
+          case 'smooth':
+              let total = newValue;
+              let count = 1;
+              for (let r = -1; r <= 1; r++) {
+                  for (let c = -1; c <= 1; c++) {
+                      if (r === 0 && c === 0) continue;
+                      const neighborRow = row + r;
+                      const neighborCol = col + c;
+                      if (data[neighborRow] && data[neighborRow][neighborCol] !== undefined) {
+                          total += data[neighborRow][neighborCol];
+                          count++;
+                      }
+                  }
+              }
+              newValue = total / count;
+              break;
+      }
+      onChange(row, col, parseFloat(newValue.toFixed(2)));
+  };
+
+  useEffect(() => {
+    const handleMouseUp = () => setIsBrushing(false);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const toggleBrushMode = (mode: 'add' | 'subtract' | 'smooth') => {
+    setBrushMode(prev => prev === mode ? null : mode);
+  }
+
+  const ToolButton: React.FC<{ mode: 'add' | 'subtract' | 'smooth', children: React.ReactNode }> = ({ mode, children }) => (
+      <button 
+        onClick={() => toggleBrushMode(mode)}
+        className={`btn btn-secondary p-2 ${brushMode === mode ? 'btn-neumorphic-active' : ''}`}
+        title={mode.charAt(0).toUpperCase() + mode.slice(1)}
+      >
+          {children}
+      </button>
+  );
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center filter drop-shadow-lg">
-      <svg viewBox="0 0 400 400" className="w-full h-full">
-        <defs>
-            <radialGradient id="classic-bezel-grad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
-                <stop offset="0.9" stopColor="#e0e0e0" />
-                <stop offset="0.95" stopColor="#ffffff" />
-                <stop offset="1" stopColor="#888888" />
-            </radialGradient>
-            <filter id="classic-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="5" result="coloredBlur" />
-              <feMerge>
-                <feMergeNode in="coloredBlur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-        </defs>
-        
-        {/* Bezel & Face */}
-        <circle cx="200" cy="200" r="200" fill="url(#classic-bezel-grad)" />
-        <circle cx="200" cy="200" r="190" fill="#222" />
-        <circle cx="200" cy="200" r="185" fill="var(--theme-gauge-face)" stroke="#000" strokeWidth="2" />
-        <circle cx="200" cy="200" r="185" fill="var(--theme-glow-color)" opacity="0.1" filter="url(#classic-glow)" />
+    <div className="space-y-4" style={{ perspective: '1000px' }}>
+      <h3 className="text-lg font-semibold text-center mb-2 font-display">{title}</h3>
+      <div className="flex justify-center items-center gap-4">
+        <span className="text-sm text-gray-400">Brush Tools:</span>
+        <ToolButton mode="add"><PlusIcon /></ToolButton>
+        <ToolButton mode="subtract"><MinusIcon /></ToolButton>
+        <ToolButton mode="smooth"><SmoothIcon /></ToolButton>
+      </div>
 
-        {/* RPM Ticks & Labels */}
-        {Array.from({ length: 9 }).map((_, i) => {
-            const tickValue = i * 1000;
-            const tickRatio = tickValue / rpmRange;
-            const tickAngle = ANGLE_MIN + tickRatio * (ANGLE_MAX - ANGLE_MIN);
-            
-            return (
-                <g key={`rpm-tick-${i}`} transform={`rotate(${tickAngle} 200 200)`}>
-                    <line x1="200" y1="25" x2="200" y2="40" stroke="var(--theme-gauge-text)" strokeWidth="3" />
-                    <text
-                        x="200" y="60"
-                        textAnchor="middle"
-                        fill="var(--theme-gauge-text)"
-                        fontSize="20"
-                        transform="rotate(180 200 60)"
-                        className="font-sans font-bold"
-                    >
-                        {i}
-                    </text>
-                </g>
-            )
-        })}
-        <text x="200" y="100" textAnchor="middle" fill="var(--theme-text-secondary)" className="font-sans font-bold uppercase" fontSize="16">x1000 RPM</text>
+      <div ref={mapRef} style={{ transform: 'rotateX(25deg) rotateZ(-10deg)', transformStyle: 'preserve-3d' }}>
+        <div 
+          className="grid gap-px p-2 bg-base-900/50 border border-[var(--glass-border)] rounded-lg shadow-lg"
+          style={{ gridTemplateColumns: `50px repeat(${xAxisLabels.length}, 1fr)` }}
+          onMouseDown={(e) => { if (brushMode) {e.preventDefault(); setIsBrushing(true); } }}
+          onMouseLeave={() => setIsBrushing(false)}
+        >
+          {/* Corner piece */}
+          <div className="text-xs text-gray-500 flex items-end justify-end p-1">Load %</div>
+          {/* X-axis labels (RPM) */}
+          {xAxisLabels.map((label, colIndex) => (
+            <div key={`x-${colIndex}`} className="text-center font-mono text-xs text-gray-400 p-1">{label}</div>
+          ))}
 
-        {/* Speed Ticks */}
-        {Array.from({ length: 15 }).map((_, i) => {
-            const tickValue = i * (SPEED_MAX / 14);
-            const tickRatio = tickValue / SPEED_MAX;
-            const tickAngle = ANGLE_MIN + tickRatio * (ANGLE_MAX - ANGLE_MIN);
-            const isMajor = i % 2 === 0;
-
-            return (
-                 <g key={`speed-tick-${i}`} transform={`rotate(${tickAngle} 200 200)`}>
-                    <line x1="200" y1="170" x2="200" y2={isMajor ? "160" : "165"} stroke="var(--theme-text-secondary)" strokeWidth="2" />
-                </g>
-            )
-        })}
-
-        {/* Digital Speed & Gear */}
-        <foreignObject x="125" y="250" width="150" height="80">
-            <div className="flex flex-col items-center justify-center text-center w-full h-full">
-                <div className="font-display font-bold text-6xl text-white" style={{textShadow: '0 0 5px #fff'}}>{animatedSpeed.toFixed(0)}</div>
-                <div className="font-sans text-lg text-gray-400 -mt-2">{getSpeedUnit()}</div>
-            </div>
-        </foreignObject>
-
-        {/* RPM Needle */}
-        <g transform={`rotate(${rpmAngle} 200 200)`} style={{ transition: 'transform 0.1s ease-out' }}>
-            <path d="M 200 220 L 200 45" stroke="var(--theme-needle-color)" strokeWidth="4" strokeLinecap="round" />
-        </g>
-        <circle cx="200" cy="200" r="15" fill="#444" stroke="#111" strokeWidth="2" />
-        <circle cx="200" cy="200" r="8" fill="#111" />
-      </svg>
+          {/* Y-axis labels and data grid */}
+          {yAxisLabels.map((yLabel, rowIndex) => (
+            <React.Fragment key={`row-${rowIndex}`}>
+              <div className="text-center font-mono text-xs text-gray-400 p-1 flex items-center justify-center">{yLabel}</div>
+              {data[rowIndex].map((value, colIndex) => {
+                const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
+                return (
+                  <div
+                    key={`cell-${rowIndex}-${colIndex}`}
+                    className="relative text-center text-white font-mono rounded-sm transition-transform duration-100 ease-in-out hover:scale-110 hover:z-10"
+                    style={{
+                      backgroundColor: getColorForValue(value),
+                      textShadow: '1px 1px 2px black',
+                      cursor: brushMode ? 'crosshair' : 'pointer',
+                    }}
+                    onClick={() => handleCellClick(rowIndex, colIndex)}
+                    onMouseEnter={() => handleBrush(rowIndex, colIndex)}
+                  >
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editValue}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        onKeyDown={handleInputKeyDown}
+                        autoFocus
+                        className="absolute inset-0 w-full h-full text-center bg-transparent border-2 border-[var(--theme-accent-primary)] z-20"
+                      />
+                    ) : (
+                      <span className="p-1 text-sm">{value.toFixed(1)}</span>
+                    )}
+                  </div>
+                )
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+      <div className="text-center text-xs text-gray-500 -mt-2">RPM</div>
     </div>
   );
 };
 
-export default ClassicTachometer;
+export default InteractiveTuningMap;

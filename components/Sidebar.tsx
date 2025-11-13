@@ -14,6 +14,7 @@ import SoundWaveIcon from './icons/SoundWaveIcon';
 import ChevronDoubleLeftIcon from './icons/ChevronDoubleLeftIcon';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { ConnectionStatus } from '../types';
+import BookOpenIcon from './gauges/DigitalDisplay'; // Repurposed for BookOpenIcon
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: GaugeIcon },
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Diagnostics', href: '/diagnostics', icon: ChatIcon },
   { name: 'Logbook', href: '/logbook', icon: WrenchIcon },
   { name: 'Tuning', href: '/tuning', icon: TuningForkIcon },
+  { name: 'Training', href: '/training', icon: BookOpenIcon },
   { name: 'Accessories', href: '/accessories', icon: SoundWaveIcon },
   { name: 'Appearance', href: '/appearance', icon: PaintBrushIcon },
   { name: 'Security', href: '/security', icon: ShieldIcon },
@@ -59,7 +61,7 @@ const ConnectionIndicator: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   return (
-    <div className={`glass-panel rounded-2xl flex flex-col z-10 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
+    <div className={`hidden md:flex glass-panel rounded-2xl flex-col z-10 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
       <div className="relative flex items-center justify-center h-24 py-4 border-b border-[var(--glass-border)] overflow-hidden">
         {/* Expanded Logo */}
         <div className={`absolute transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 -translate-x-4' : 'opacity-100 translate-x-0'}`}>

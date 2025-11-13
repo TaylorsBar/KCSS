@@ -1,20 +1,35 @@
+
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, GroundedResponse, SavedRaceSession, DTCInfo, ComponentHealthAnalysisResult } from '../types';
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, AlertLevel, IntentAction, PredictiveAnalysisResult, SavedRaceSession, DTCInfo, ComponentHealthAnalysisResult } from '../types';
 
-// Safely access the API key. In a web worker, `process` might not be defined.
-// The execution environment is expected to provide this value.
-const API_KEY = (typeof process !== 'undefined' && process.env && process.env.API_KEY)
-    ? process.env.API_KEY
-    : undefined;
-
-
-if (!API_KEY) {
-  // This log helps in debugging if the key isn't injected correctly into the worker's scope.
-  console.error('AI Worker: API_KEY is not configured. AI services are unavailable.');
+// FIX: Define GroundingChunk and GroundedResponse locally to resolve type errors in the worker scope.
+// The library's GroundingChunk type is not directly used, and this ensures the mapping functions work correctly.
+interface GroundingChunk {
+  web?: {
+    uri: string;
+    title: string;
+  };
+  maps?: {
+    uri: string;
+    title: string;
+    placeAnswerSources?: {
+        reviewSnippets: {
+            text: string;
+            author: string;
+            uri: string;
+        }[]
+    }[]
+  };
 }
 
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+interface GroundedResponse {
+  text: string;
+  chunks: GroundingChunk[];
+}
 
+
+let ai: GoogleGenAI | null = null;
 const isOnline = () => self.navigator.onLine;
 
 const getPredictiveAnalysis = async (
@@ -70,6 +85,7 @@ const getPredictiveAnalysis = async (
       config: {
         systemInstruction: systemInstructionForAnalysis,
         responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 32768 },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -89,7 +105,7 @@ const getPredictiveAnalysis = async (
                       rootCause: { type: Type.STRING },
                       recommendedActions: { type: Type.ARRAY, items: { type: Type.STRING } },
                       plainEnglishSummary: { type: Type.STRING },
-                      tsbs: { type: Type.ARRAY, items: { type: Type.STRING }, nullable: true },
+                      tsbs: { type: Type.ARRAY, items: { type: Type.STRING } },
                     },
                     required: ["component", "rootCause", "recommendedActions", "plainEnglishSummary"],
                   }
@@ -134,6 +150,7 @@ const getComponentHealthAnalysis = async (payload: { dataHistory: SensorDataPoin
         config: {
             systemInstruction,
             responseMimeType: "application/json",
+            thinkingConfig: { thinkingBudget: 32768 },
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
@@ -181,6 +198,7 @@ const getTuningSuggestion = async (payload: { goal: string, liveData: SensorData
         config: {
             systemInstruction,
             responseMimeType: "application/json",
+            thinkingConfig: { thinkingBudget: 32768 },
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
@@ -190,7 +208,7 @@ const getTuningSuggestion = async (payload: { goal: string, liveData: SensorData
                             fuelMap: { type: Type.NUMBER, description: 'Global fuel trim percentage, from -10 to 10.' },
                             ignitionTiming: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } }, description: '8x8 grid of ignition timing (8 rows Load, 8 cols RPM).' },
                             boostPressure: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } }, description: '8x8 grid of boost pressure in bar (8 rows Load, 8 cols RPM).' },
-                            boostPressureOffset: { type: Type.NUMBER, description: 'Global boost pressure offset in bar, from -0.5 to 0.5.', nullable: true }
+                            boostPressureOffset: { type: Type.NUMBER, description: 'Global boost pressure offset in bar, from -0.5 to 0.5.' }
                         },
                         required: ["fuelMap", "ignitionTiming", "boostPressure"],
                     },
@@ -199,8 +217,8 @@ const getTuningSuggestion = async (payload: { goal: string, liveData: SensorData
                         properties: {
                             predictedGains: { type: Type.STRING },
                             potentialRisks: { type: Type.STRING },
-                            safetyWarnings: { type: Type.ARRAY, items: { type: Type.STRING }, nullable: true },
-                            educationalTip: { type: Type.STRING, nullable: true },
+                            safetyWarnings: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            educationalTip: { type: Type.STRING },
                         },
                         required: ["predictedGains", "potentialRisks"],
                     }
@@ -285,7 +303,7 @@ const getVoiceCommandIntent = async (command: string): Promise<VoiceCommandInten
                     type: Type.OBJECT,
                     properties: {
                         intent: { type: Type.STRING, enum: Object.values(IntentAction) },
-                        component: { type: Type.STRING, nullable: true },
+                        component: { type: Type.STRING },
                         confidence: { type: Type.NUMBER }
                     },
                     required: ['intent', 'confidence']
@@ -401,7 +419,35 @@ const getCrewChiefResponse = async (query: string): Promise<GroundedResponse> =>
                 tools: [{googleSearch: {}}],
             },
         });
-        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        // FIX: The GroundingChunk type from the library is incompatible with the local type.
+        // Manually map the library's chunk type to the local one, ensuring required fields like `uri` exist.
+        const libraryGroundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        const groundingChunks: GroundingChunk[] = libraryGroundingChunks
+            .map((chunk: any) => {
+                const newChunk: GroundingChunk = {};
+                if (chunk.web && chunk.web.uri) {
+                    newChunk.web = {
+                        uri: chunk.web.uri,
+                        title: chunk.web.title ?? '',
+                    };
+                }
+                if (chunk.maps && chunk.maps.uri) {
+                    newChunk.maps = {
+                        uri: chunk.maps.uri,
+                        title: chunk.maps.title ?? '',
+                        placeAnswerSources: chunk.maps.placeAnswerSources?.map((source: any) => ({
+                            reviewSnippets: source.reviewSnippets?.map((snippet: any) => ({
+                                text: snippet.text ?? '',
+                                author: snippet.author ?? '',
+                                uri: snippet.uri ?? '',
+                            })) ?? [],
+                        }))
+                    };
+                }
+                return newChunk;
+            })
+            .filter(chunk => chunk.web || chunk.maps);
+
         return { text: response.text, chunks: groundingChunks };
     } catch (error) {
         console.error("Error fetching Crew Chief response:", error);
@@ -430,7 +476,35 @@ const getRouteScoutResponse = async (query: string, location: { latitude: number
             },
         });
 
-        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        // FIX: The GroundingChunk type from the library is incompatible with the local type.
+        // Manually map the library's chunk type to the local one, ensuring required fields like `uri` exist.
+        const libraryGroundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        const groundingChunks: GroundingChunk[] = libraryGroundingChunks
+            .map((chunk: any) => {
+                const newChunk: GroundingChunk = {};
+                if (chunk.web && chunk.web.uri) {
+                    newChunk.web = {
+                        uri: chunk.web.uri,
+                        title: chunk.web.title ?? '',
+                    };
+                }
+                if (chunk.maps && chunk.maps.uri) {
+                    newChunk.maps = {
+                        uri: chunk.maps.uri,
+                        title: chunk.maps.title ?? '',
+                        placeAnswerSources: chunk.maps.placeAnswerSources?.map((source: any) => ({
+                            reviewSnippets: source.reviewSnippets?.map((snippet: any) => ({
+                                text: snippet.text ?? '',
+                                author: snippet.author ?? '',
+                                uri: snippet.uri ?? '',
+                            })) ?? [],
+                        }))
+                    };
+                }
+                return newChunk;
+            })
+            .filter(chunk => chunk.web || chunk.maps);
+
         return { text: response.text, chunks: groundingChunks };
     } catch (error) {
         console.error("Error fetching Route Scout response:", error);
@@ -449,17 +523,8 @@ const getRaceAnalysis = async (session: SavedRaceSession): Promise<string> => {
 - Conclude with an encouraging remark and a suggestion for the next session.
 - Format your response using markdown for clear readability with headings and bullet points.`;
     
-    // Sanitize and summarize data to send to the model
-    const sessionSummary = {
-        totalTime: session.totalTime,
-        maxSpeed: session.maxSpeed,
-        lapTimes: session.lapTimes,
-        benchmarks: {
-            "0-100km/h": session.zeroToHundredKmhTime,
-            "0-60mph": session.zeroToSixtyMphTime,
-            "1/4 Mile Time": session.quarterMileTime,
-            "1/4 Mile Speed": session.quarterMileSpeed,
-        }
+    const sessionSummary = { totalTime: session.totalTime, maxSpeed: session.maxSpeed, lapTimes: session.lapTimes,
+        benchmarks: { "0-100km/h": session.zeroToHundredKmhTime, "0-60mph": session.zeroToSixtyMphTime, "1/4 Mile Time": session.quarterMileTime, "1/4 Mile Speed": session.quarterMileSpeed, }
     };
 
     const userContent = `Please analyze this race session data and provide coaching feedback:\n${JSON.stringify(sessionSummary, null, 2)}`;
@@ -468,7 +533,10 @@ const getRaceAnalysis = async (session: SavedRaceSession): Promise<string> => {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-pro",
             contents: userContent,
-            config: { systemInstruction: systemInstructionForRaceCoach }
+            config: { 
+                systemInstruction: systemInstructionForRaceCoach,
+                thinkingConfig: { thinkingBudget: 32768 },
+            }
         });
         return response.text;
     } catch (error) {
@@ -514,60 +582,107 @@ const generateHealthReport = async (dataHistory: SensorDataPoint[], maintenanceH
     
     const systemInstruction = `You are 'KC', an expert diagnostic technician. Analyze the provided vehicle data history and maintenance log. Provide a comprehensive vehicle health report in Markdown format. Summarize the vehicle's condition, highlight any areas of concern based on data trends (e.g., fuel trims, voltages), note any overdue or upcoming maintenance, and provide a final summary of recommendations.`;
     
-    // Summarize data to keep prompt concise
-    const dataSummary = {
-        recordCount: dataHistory.length,
-        latest: dataHistory[dataHistory.length - 1],
-    };
-
+    const dataSummary = { recordCount: dataHistory.length, latest: dataHistory[dataHistory.length - 1] };
     const userContent = `Please generate a vehicle health report based on this data:\n- **Data Summary:** ${JSON.stringify(dataSummary, null, 2)}\n- **Maintenance Log:** ${JSON.stringify(maintenanceHistory, null, 2)}`;
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-pro",
         contents: userContent,
-        config: { systemInstruction },
+        config: { 
+            systemInstruction,
+            thinkingConfig: { thinkingBudget: 32768 },
+        },
     });
     return response.text;
 };
 
-const analyzeImage = async (base64Image: string, mimeType: string, prompt: string): Promise<string> => {
+const analyzeImage = async (base64Image: string, mimeType: string, prompt: string): Promise<GroundedResponse> => {
     if (!ai) throw new Error("AI service not initialized.");
 
-    const imagePart = {
-        inlineData: {
-            data: base64Image,
-            mimeType: mimeType,
-        },
-    };
-
-    const textPart = {
-        text: prompt,
-    };
+    const imagePart = { inlineData: { data: base64Image, mimeType: mimeType } };
+    const fullPrompt = `You are KC (Karapiro Cartel), an expert automotive mechanic and diagnostic technician. The user has provided an image of a car part and a question. Provide a detailed, helpful, and accurate analysis. If you see a problem, describe it clearly and suggest next steps. Use markdown for formatting. User's question: "${prompt}"`;
+    const textPart = { text: fullPrompt };
     
-    const systemInstruction = "You are KC (Karapiro Cartel), an expert automotive mechanic and diagnostic technician. The user has provided an image of a car part and a question. Provide a detailed, helpful, and accurate analysis. If you see a problem, describe it clearly and suggest next steps. Use markdown for formatting.";
-
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: { parts: [imagePart, textPart] },
             config: {
-                systemInstruction: systemInstruction,
-            },
+                thinkingConfig: { thinkingBudget: 32768 },
+            }
         });
-        return response.text;
+        const libraryGroundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        const groundingChunks: GroundingChunk[] = libraryGroundingChunks
+            .map((chunk: any) => {
+                const newChunk: GroundingChunk = {};
+                if (chunk.web && chunk.web.uri) newChunk.web = { uri: chunk.web.uri, title: chunk.web.title ?? '' };
+                if (chunk.maps && chunk.maps.uri) newChunk.maps = { uri: chunk.maps.uri, title: chunk.maps.title ?? '',
+                    placeAnswerSources: chunk.maps.placeAnswerSources?.map((source: any) => ({
+                        reviewSnippets: source.reviewSnippets?.map((snippet: any) => ({ text: snippet.text ?? '', author: snippet.author ?? '', uri: snippet.uri ?? '' })) ?? [],
+                    }))
+                };
+                return newChunk;
+            })
+            .filter(chunk => chunk.web || chunk.maps);
+
+        return { text: response.text, chunks: groundingChunks };
     } catch (error) {
         console.error("Error analyzing image:", error);
         throw new Error("Failed to analyze the image. The model may not be able to process this image or there might be a connection issue.");
     }
 };
 
+const analyzeVideo = async (frames: {data: string, mimeType: string}[], prompt: string): Promise<string> => {
+    if (!ai) throw new Error("AI service not initialized.");
+
+    const imageParts = frames.map(frame => ({
+        inlineData: { data: frame.data, mimeType: frame.mimeType },
+    }));
+
+    const fullPrompt = `You are KC (Karapiro Cartel), an expert automotive mechanic and diagnostic technician. The user has provided a sequence of video frames from a vehicle inspection and a question. Analyze the frames as a video sequence to answer the user's question. Provide a detailed, helpful, and accurate analysis. If you see or hear a problem (based on the user's description), describe it clearly and suggest next steps. Use markdown for formatting. User's question: "${prompt}"`;
+    const textPart = { text: fullPrompt };
+    
+    const contents = { parts: [textPart, ...imageParts] };
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents: contents,
+            config: {
+                thinkingConfig: { thinkingBudget: 32768 }
+            }
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error analyzing video:", error);
+        throw new Error("Failed to analyze the video. The model may not be able to process this content or there might be a connection issue.");
+    }
+};
 
 self.onmessage = async (e: MessageEvent) => {
-    const { type, payload, requestId } = e.data;
-    if (!API_KEY || !ai) {
-        self.postMessage({ type: 'error', command: type, error: 'AI worker is not initialized. API_KEY might be missing.', requestId });
+    if (e.data.type === 'init') {
+        const { apiKey } = e.data;
+        if (apiKey) {
+            try {
+                ai = new GoogleGenAI({ apiKey });
+                console.log("AI Worker initialized successfully.");
+            } catch (error) {
+                console.error("AI Worker: Failed to initialize GoogleGenAI", error);
+                ai = null;
+            }
+        } else {
+            console.error('AI Worker: API_KEY not provided in init message.');
+        }
         return;
     }
+
+    const { type, payload, requestId } = e.data;
+    
+    if (!ai) {
+        self.postMessage({ type: 'error', command: type, error: 'AI worker is not initialized. API_KEY might be missing or invalid.', requestId });
+        return;
+    }
+    
     try {
         let result;
         switch (type) {
@@ -615,6 +730,9 @@ self.onmessage = async (e: MessageEvent) => {
                 break;
             case 'analyzeImage':
                 result = await analyzeImage(payload.base64Image, payload.mimeType, payload.prompt);
+                break;
+            case 'analyzeVideo':
+                result = await analyzeVideo(payload.frames, payload.prompt);
                 break;
             default:
                 throw new Error(`Unknown worker command: ${type}`);

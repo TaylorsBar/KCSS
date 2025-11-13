@@ -106,6 +106,7 @@ const CoPilot: React.FC = () => {
       
     if (state === CoPilotState.Idle) {
       setIsOpen(true);
+      setUserTranscript('');
       startListening();
     } else {
       // Allow interrupting any state
@@ -118,14 +119,10 @@ const CoPilot: React.FC = () => {
 
   const getStatusText = () => {
     switch (state) {
-      case CoPilotState.Listening:
-        return 'Listening...';
-      case CoPilotState.Thinking:
-        return `Processing: "${userTranscript}"`;
-      case CoPilotState.Speaking:
-        return 'KC is responding...';
-      default:
-        return 'AI Co-Pilot is standing by.';
+      case CoPilotState.Listening: return 'Listening...';
+      case CoPilotState.Thinking: return 'Thinking...';
+      case CoPilotState.Speaking: return 'KC is responding...';
+      default: return 'AI Co-Pilot is standing by.';
     }
   };
 
@@ -148,7 +145,7 @@ const CoPilot: React.FC = () => {
 
       {isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center" onClick={() => {if (state !== CoPilotState.Speaking) setIsOpen(false)}}>
-          <div className="w-full max-w-md text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-xl text-center" onClick={(e) => e.stopPropagation()}>
             <div className={`relative inline-block p-4 border-2 ${ringColor} rounded-full mb-6`}>
               <div className={`w-24 h-24 rounded-full ${fabColor} flex items-center justify-center`}>
                  <MicrophoneIcon className="w-12 h-12 text-black"/>
@@ -157,7 +154,16 @@ const CoPilot: React.FC = () => {
             </div>
 
             <p className="text-lg text-gray-400 mb-2">{getStatusText()}</p>
-            <p className="text-xl text-white min-h-[56px] px-4">{aiResponse}</p>
+            
+            <div className="min-h-[56px] px-4">
+              {state === CoPilotState.Listening && <p className="text-xl text-gray-300 italic">{userTranscript || '...'}</p>}
+              {state === CoPilotState.Thinking && <p className="text-xl text-gray-300 italic">"{userTranscript}"</p>}
+              {aiResponse && (
+                  <p className={`text-xl font-semibold ${aiResponse.startsWith('Critical Alert:') ? 'text-red-500' : 'text-white'}`}>
+                      {aiResponse}
+                  </p>
+              )}
+            </div>
           </div>
         </div>
       )}

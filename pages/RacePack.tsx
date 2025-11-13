@@ -16,7 +16,6 @@ import { useVehicleStore } from '../store/useVehicleStore';
 import { useUnitConversion } from '../hooks/useUnitConversion';
 import SessionComparison from '../components/SessionComparison';
 import TrackCamera from '../components/TrackCamera';
-import { useTrainingStore } from '../hooks/useVehicleData';
 import FeatureLock from '../components/DataBar';
 import LiveTrackMap from '../components/tuning/EngineDiagram'; // Repurposed for LiveTrackMap
 
@@ -53,7 +52,6 @@ const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: bool
 
 
 const RacePack: React.FC = () => {
-    const isAdvancedUnlocked = useTrainingStore(state => state.isUnlocked('advanced-performance'));
     const [activeTab, setActiveTab] = useState('live');
     const { session, startSession, stopSession, recordLap } = useRaceSession();
     const { latestData, vehicleDataHistory } = useVehicleStore(state => ({
@@ -242,8 +240,6 @@ const RacePack: React.FC = () => {
         </div>
     );
 
-    const featureLock = <div className="p-4 bg-black/30 rounded-b-lg h-[70vh]"><FeatureLock featureName="Advanced Race Pack" moduleName="Performance & Pro Diagnostics" level={5} /></div>;
-
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -254,18 +250,18 @@ const RacePack: React.FC = () => {
             </div>
             <div className="bg-base-800/30 rounded-t-lg flex">
                 <TabButton label="Live Session" icon={<StopwatchIcon />} isActive={activeTab === 'live'} onClick={() => setActiveTab('live')} />
-                <TabButton label="Track Camera" icon={<CameraIcon />} isActive={activeTab === 'camera'} onClick={() => setActiveTab('camera')} isDisabled={!isAdvancedUnlocked} />
+                <TabButton label="Track Camera" icon={<CameraIcon />} isActive={activeTab === 'camera'} onClick={() => setActiveTab('camera')} />
                 <TabButton label="GPS Tracking" icon={<GpsIcon />} isActive={activeTab === 'gps'} onClick={() => setActiveTab('gps')} />
-                <TabButton label="History" icon={<HistoryIcon />} isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} isDisabled={!isAdvancedUnlocked} />
-                <TabButton label="Leaderboard" icon={<TrophyIcon />} isActive={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} isDisabled={!isAdvancedUnlocked} />
+                <TabButton label="History" icon={<HistoryIcon />} isActive={activeTab === 'history'} onClick={() => setActiveTab('history')} />
+                <TabButton label="Leaderboard" icon={<TrophyIcon />} isActive={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} />
             </div>
 
             <div className="p-4 bg-black/30 rounded-b-lg">
                 {activeTab === 'live' && renderLiveSession()}
-                {activeTab === 'camera' && (isAdvancedUnlocked ? (session.isActive ? <TrackCamera latestData={session.data[session.data.length - 1]} gpsPath={session.gpsPath} lapTimes={session.lapTimes} elapsedTime={session.elapsedTime} /> : <div className="text-center text-gray-400 p-10 bg-black rounded-lg border border-[var(--theme-accent-primary)]/30">Please start a live session to use the track camera.</div>) : featureLock)}
+                {activeTab === 'camera' && (session.isActive ? <TrackCamera latestData={session.data[session.data.length - 1]} gpsPath={session.gpsPath} lapTimes={session.lapTimes} elapsedTime={session.elapsedTime} /> : <div className="text-center text-gray-400 p-10 bg-black rounded-lg border border-[var(--theme-accent-primary)]/30">Please start a live session to use the track camera.</div>)}
                 {activeTab === 'gps' && renderGpsTracking()}
-                {activeTab === 'history' && (isAdvancedUnlocked ? renderHistory() : featureLock)}
-                {activeTab === 'leaderboard' && (isAdvancedUnlocked ? renderLeaderboard() : featureLock)}
+                {activeTab === 'history' && renderHistory()}
+                {activeTab === 'leaderboard' && renderLeaderboard()}
             </div>
 
             {isSummaryVisible && sessionToSave && (

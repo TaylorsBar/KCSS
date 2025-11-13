@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { SensorDataPoint, LapTime, RaceSession } from '../types';
@@ -32,10 +33,14 @@ const initialSessionState: RaceSession = {
     }
 };
 
-const interpolateTime = (p1: SensorDataPoint, p2: SensorDataPoint, targetSpeed: number): number => {
-    if (p2.speed === p1.speed) return p2.time;
-    const fraction = (targetSpeed - p1.speed) / (p2.speed - p1.speed);
-    return p1.time + (p2.time - p1.time) * fraction;
+const interpolateTime = (p1: SensorDataPoint, p2: SensorDataPoint, target: number, key: 'speed' | 'distance'): number => {
+    const val1 = p1[key];
+    const val2 = p2[key];
+    const diff = val2 - val1;
+    if (Math.abs(diff) < 1e-6) return p2.time; // too close, or same, return end time
+    const fraction = (target - val1) / diff;
+    const clampedFraction = Math.max(0, Math.min(1, fraction)); // Clamp to prevent extrapolation
+    return p1.time + (p2.time - p1.time) * clampedFraction;
 };
 
 export const useRaceSession = () => {
@@ -70,7 +75,7 @@ export const useRaceSession = () => {
                 
                 const checkBenchmark = (targetKey: keyof typeof TARGETS_KPH, fieldKey: keyof Omit<RaceSession, 'data' | '_internal' | 'isActive' | 'startTime' | 'elapsedTime' | 'lapTimes' | 'gpsPath'>) => {
                     if (!benchmarks[fieldKey] && prevPoint.speed < TARGETS_KPH[targetKey] && latestData.speed >= TARGETS_KPH[targetKey]) {
-                        const crossingTime = interpolateTime(prevPoint, latestData, TARGETS_KPH[targetKey]);
+                        const crossingTime = interpolateTime(prevPoint, latestData, TARGETS_KPH[targetKey], 'speed');
                         _internal.crossingTimes[targetKey] = crossingTime;
                         // @ts-ignore
                         benchmarks[fieldKey] = (crossingTime - startTime) / 1000;
@@ -83,25 +88,25 @@ export const useRaceSession = () => {
                 // Interval benchmarks
                 // 60-130 mph
                 if (!_internal.crossingTimes['60mph'] && prevPoint.speed < TARGETS_KPH['60mph'] && latestData.speed >= TARGETS_KPH['60mph']) {
-                     _internal.crossingTimes['60mph'] = interpolateTime(prevPoint, latestData, TARGETS_KPH['60mph']);
+                     _internal.crossingTimes['60mph'] = interpolateTime(prevPoint, latestData, TARGETS_KPH['60mph'], 'speed');
                 }
                 if (_internal.crossingTimes['60mph'] && !benchmarks.sixtyToHundredThirtyMphTime && prevPoint.speed < TARGETS_KPH['130mph'] && latestData.speed >= TARGETS_KPH['130mph']) {
-                    const crossingTime = interpolateTime(prevPoint, latestData, TARGETS_KPH['130mph']);
+                    const crossingTime = interpolateTime(prevPoint, latestData, TARGETS_KPH['130mph'], 'speed');
                     benchmarks.sixtyToHundredThirtyMphTime = (crossingTime - _internal.crossingTimes['60mph']!) / 1000;
                 }
 
                 // 100-200 km/h
                 if (!_internal.crossingTimes['100kmh'] && prevPoint.speed < TARGETS_KPH['100kmh'] && latestData.speed >= TARGETS_KPH['100kmh']) {
-                     _internal.crossingTimes['100kmh'] = interpolateTime(prevPoint, latestData, TARGETS_KPH['100kmh']);
+                     _internal.crossingTimes['100kmh'] = interpolateTime(prevPoint, latestData, TARGETS_KPH['100kmh'], 'speed');
                 }
                 if (_internal.crossingTimes['100kmh'] && !benchmarks.hundredToTwoHundredKmhTime && prevPoint.speed < TARGETS_KPH['200kmh'] && latestData.speed >= TARGETS_KPH['200kmh']) {
-                    const crossingTime = interpolateTime(prevPoint, latestData, TARGETS_KPH['200kmh']);
+                    const crossingTime = interpolateTime(prevPoint, latestData, TARGETS_KPH['200kmh'], 'speed');
                     benchmarks.hundredToTwoHundredKmhTime = (crossingTime - _internal.crossingTimes['100kmh']!) / 1000;
                 }
 
                 // 1/4 mile
                 if (!benchmarks.quarterMileTime && prevPoint.distance < QUARTER_MILE_METERS && latestData.distance >= QUARTER_MILE_METERS) {
-                    const crossingTime = interpolateTime(prevPoint, latestData, QUARTER_MILE_METERS);
+                    const crossingTime = interpolateTime(prevPoint, latestData, QUARTER_MILE_METERS, 'distance');
                     benchmarks.quarterMileTime = (crossingTime - startTime) / 1000;
                     benchmarks.quarterMileSpeed = latestData.speed;
                 }

@@ -48,7 +48,9 @@ const drawTelemetryOverlay = (ctx: CanvasRenderingContext2D, data: SensorDataPoi
     const textColor = 'rgba(200, 210, 220, 0.9)';
     const bgPanel = 'rgba(10, 15, 25, 0.7)';
 
-    ctx.clearRect(0, 0, width, height);
+    // This function only draws the overlay, it should not clear the canvas.
+    // The main draw loop is responsible for drawing the video frame first, which acts as the "clear".
+    
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur = 5;
 
@@ -224,17 +226,28 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath, lapTimes
         let stream: MediaStream | undefined;
 
         const setupAndRun = async () => {
-            if (!canvasRef.current || !videoRef.current) return;
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            if (!canvas || !video) return;
+            
             setCameraStatus('initializing');
 
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                videoRef.current.srcObject = stream;
                 
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play();
-                    setCameraStatus('active');
+                // Set up the event listener *before* setting the source to avoid race conditions.
+                video.onloadedmetadata = () => {
+                    // The play() method returns a promise which should be handled for robust error checking.
+                    video.play().then(() => {
+                        setCameraStatus('active');
+                    }).catch(playError => {
+                        console.error("Error playing video:", playError);
+                        setErrorMessage("Failed to start camera feed. Autoplay may be blocked by your browser.");
+                        setCameraStatus('error');
+                    });
                 };
+                
+                video.srcObject = stream;
 
             } catch (err) {
                 console.error("Camera access error:", err);
@@ -243,13 +256,13 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath, lapTimes
                 return;
             }
 
-            const ctx = canvasRef.current.getContext('2d');
+            const ctx = canvas.getContext('2d');
             if (!ctx) return;
             
             // Start the drawing loop
             const drawLoop = () => {
-                if (videoRef.current && canvasRef.current && videoRef.current.readyState >= 2) { // HAVE_CURRENT_DATA
-                    ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+                if (video && canvas && video.readyState >= 2) { // HAVE_CURRENT_DATA
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     drawTelemetryOverlay(
                         ctx,
                         latestDataRef.current,
@@ -331,7 +344,7 @@ const TrackCamera: React.FC<TrackCameraProps> = ({ latestData, gpsPath, lapTimes
                     <p className="text-gray-300">Initializing camera...</p>
                 </div>
             )}
-            <video ref={videoRef} playsInline autoPlay muted className="absolute top-0 left-0 w-full h-full object-cover" style={{ display: 'none' }} />
+            <video ref={videoRef} playsInline muted className="absolute w-px h-px opacity-0 -z-10" />
             <canvas ref={canvasRef} width="1280" height="720" className="w-full h-full" />
             
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">

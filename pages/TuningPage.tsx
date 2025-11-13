@@ -1,12 +1,16 @@
+
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useVehicleStore } from '../store/useVehicleStore';
 import { getTuningSuggestion, analyzeTuneSafety, getTuningChatResponse } from '../services/geminiService';
 import { TuningSuggestion, ChatMessage, AuditEvent, HederaEventType } from '../types';
 import TuningSlider from '../components/tuning/TuningSlider';
-import TuningMap from '../components/tuning/TuningMap';
+import InteractiveTuningMap from '../components/tachometers/ClassicTachometer';
 import SparklesIcon from '../components/icons/SparklesIcon';
 import ReactMarkdown from 'react-markdown';
 import RealtimeMetrics from './TuningSandbox';
+import { useTrainingStore } from '../hooks/useVehicleData';
+import FeatureLock from '../components/DataBar';
 
 const RPM_AXIS = ['800', '1500', '2500', '3500', '4500', '5500', '6500', '7500'];
 const LOAD_AXIS = ['20', '30', '40', '50', '60', '70', '80', '100'];
@@ -26,6 +30,7 @@ const TuningPage: React.FC = () => {
         addAuditEvent: state.addAuditEvent,
         addHederaRecord: state.addHederaRecord,
     }));
+    const isUnlocked = useTrainingStore(state => state.isUnlocked('advanced-performance'));
 
     const [currentTune, setCurrentTune] = useState(DEFAULT_TUNE);
     const [boostPressureOffset, setBoostPressureOffset] = useState(0);
@@ -165,6 +170,14 @@ const TuningPage: React.FC = () => {
         }
     };
     
+    if (!isUnlocked) {
+        return (
+            <div className="p-4 h-full">
+                <FeatureLock featureName="ECU Tuning Interface" moduleName="Performance & Pro Diagnostics" level={5} />
+            </div>
+        );
+    }
+    
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full p-4">
             {/* Left Panel: AI Assistant */}
@@ -211,10 +224,10 @@ const TuningPage: React.FC = () => {
                 
                 <div className="flex-grow mt-2 overflow-y-auto">
                     <div>
-                        {activeTab === 'ignition' && <TuningMap title="Ignition Timing (deg BTDC)" data={currentTune.ignitionTiming} xAxisLabels={RPM_AXIS} yAxisLabels={LOAD_AXIS} onChange={(r, c, v) => handleMapChange('ignitionTiming', r, c, v)} />}
+                        {activeTab === 'ignition' && <InteractiveTuningMap title="Ignition Timing (deg BTDC)" data={currentTune.ignitionTiming} xAxisLabels={RPM_AXIS} yAxisLabels={LOAD_AXIS} onChange={(r, c, v) => handleMapChange('ignitionTiming', r, c, v)} />}
                         {activeTab === 'boost' && (
                             <div>
-                                <TuningMap 
+                                <InteractiveTuningMap 
                                     title="Effective Boost Pressure Target (bar)" 
                                     data={displayBoostMap} 
                                     xAxisLabels={RPM_AXIS} 

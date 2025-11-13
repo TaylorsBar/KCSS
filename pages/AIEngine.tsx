@@ -10,7 +10,6 @@ import ReactMarkdown from 'react-markdown';
 import GroundingSources from '../components/GroundingSources';
 import HeartIcon from '../components/icons/HeartIcon';
 import GlassCard from '../components/Header';
-import { useTrainingStore } from '../hooks/useVehicleData';
 import FeatureLock from '../components/DataBar';
 
 const ToggleSwitch: React.FC<{ checked: boolean, onChange: (checked: boolean) => void }> = ({ checked, onChange }) => (
@@ -187,7 +186,6 @@ const ProgressCircle: React.FC<{ score: number, className?: string }> = ({ score
 
 
 const ComponentHealthTab: React.FC = () => {
-    const isUnlocked = useTrainingStore(state => state.isUnlocked('predictive-maintenance'));
     const [analysisResult, setAnalysisResult] = useState<ComponentHealth[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -197,14 +195,6 @@ const ComponentHealthTab: React.FC = () => {
         maintenanceLog: state.maintenanceLog,
         addAuditEvent: state.addAuditEvent,
     }));
-
-    if (!isUnlocked) {
-        return (
-            <div className="h-[60vh]">
-                <FeatureLock featureName="Component Health & RUL" moduleName="Predictive Maintenance" level={4} />
-            </div>
-        );
-    }
 
     const handleRunAnalysis = async () => {
         setIsLoading(true);

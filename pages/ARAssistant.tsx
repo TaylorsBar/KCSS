@@ -58,28 +58,35 @@ const ARAssistant: React.FC = () => {
             setAssistantMessage("Camera access is not supported by your browser.");
             return;
         }
-
+    
         setIsConnecting(true);
         setAssistantMessage("Requesting camera access...");
-
+    
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "environment" } // Prefer rear camera
             });
             streamRef.current = stream;
             if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                // This handler ensures play() is called after the stream is ready,
-                // making camera activation more reliable across browsers.
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play();
-                    setIsConnected(true);
-                    setAssistantMessage("AR Link active. Point your camera at a component or use voice commands.");
+                const video = videoRef.current;
+                // Set up the event listener *before* setting the source to avoid race conditions.
+                video.onloadedmetadata = () => {
+                    // The play() method returns a promise which should be handled for robust error checking.
+                    video.play().then(() => {
+                        setIsConnected(true);
+                        setAssistantMessage("AR Link active. Point your camera at a component or use voice commands.");
+                    }).catch(playError => {
+                        console.error("Error playing video:", playError);
+                        setAssistantMessage("Failed to start camera feed. Autoplay may be blocked by your browser.");
+                        setIsConnected(false);
+                    });
                 };
+                video.srcObject = stream;
             } else {
-              // Fallback if ref isn't ready, though unlikely.
-              setIsConnected(true);
-              setAssistantMessage("AR Link established, but video display may be delayed.");
+              // This case should not happen with the new rendering logic, but is kept as a safeguard.
+              console.error("Video ref not found, cannot start AR stream.");
+              setAssistantMessage("An internal error occurred: Video component not ready.");
+              setIsConnected(false);
             }
         } catch (err) {
             console.error("Camera access denied:", err);
@@ -260,48 +267,51 @@ const ARAssistant: React.FC = () => {
             <div className="w-full lg:w-2/3 bg-black p-6 rounded-lg border border-[var(--theme-accent-primary)]/30 shadow-lg flex flex-col relative">
                 <h1 className="text-xl font-bold text-gray-100 font-display border-b border-[var(--theme-accent-primary)]/30 pb-2 mb-4">Augmented Reality Assistant</h1>
 
-                {!isConnected ? (
-                    <div className="flex-grow flex flex-col items-center justify-center">
-                        <p className="text-gray-400 mb-4">Connect to the vehicle's AR system to begin.</p>
-                        <button onClick={handleConnect} disabled={isConnecting} className="btn btn-action">
-                            {isConnecting ? 'Connecting...' : 'Activate AR Link'}
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex-grow relative engine-3d-container bg-black">
-                        <video
-                            ref={videoRef}
-                            playsInline
-                            autoPlay
-                            muted
-                            className="absolute top-0 left-0 w-full h-full object-cover"
-                        />
-                        {MOCK_HOTSPOTS.map(hotspot => {
-                            const isHighlighted = highlightedComponent === hotspot.id;
-                            const liveData = getLiveDataForComponent(hotspot.id);
-                            
-                            const getStatusClasses = (status: 'Normal' | 'Warning' | 'Failing') => {
-                                switch (status) {
-                                    case 'Failing': return { border: 'border-red-500', bg: 'bg-red-500' };
-                                    case 'Warning': return { border: 'border-yellow-500', bg: 'bg-yellow-500' };
-                                    default: return { border: 'border-gray-500', bg: 'bg-gray-500' };
-                                }
-                            };
-                            const statusClasses = getStatusClasses(hotspot.status);
+                <div className="flex-grow relative engine-3d-container bg-black">
+                    {/* Video element is now always in the DOM to ensure ref is available */}
+                    <video
+                        ref={videoRef}
+                        playsInline
+                        muted
+                        className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-500 ${isConnected ? 'opacity-100' : 'opacity-0'}`}
+                    />
+                    
+                    {!isConnected ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <p className="text-gray-400 mb-4">Connect to the vehicle's AR system to begin.</p>
+                            <button onClick={handleConnect} disabled={isConnecting} className="btn btn-action">
+                                {isConnecting ? 'Connecting...' : 'Activate AR Link'}
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            {MOCK_HOTSPOTS.map(hotspot => {
+                                const isHighlighted = highlightedComponent === hotspot.id;
+                                const liveData = getLiveDataForComponent(hotspot.id);
+                                
+                                const getStatusClasses = (status: 'Normal' | 'Warning' | 'Failing') => {
+                                    switch (status) {
+                                        case 'Failing': return { border: 'border-red-500', bg: 'bg-red-500' };
+                                        case 'Warning': return { border: 'border-yellow-500', bg: 'bg-yellow-500' };
+                                        default: return { border: 'border-gray-500', bg: 'bg-gray-500' };
+                                    }
+                                };
+                                const statusClasses = getStatusClasses(hotspot.status);
 
-                            return (
-                                <button key={hotspot.id} onClick={() => setHighlightedComponent(hotspot.id)} className="absolute group" style={{ left: hotspot.cx, top: hotspot.cy, transform: 'translate(-50%, -50%)' }}>
-                                    <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-300 ${isHighlighted ? 'border-[var(--theme-accent-primary)] scale-150' : statusClasses.border}`}>
-                                        <div className={`w-3 h-3 rounded-full ${isHighlighted ? 'bg-[var(--theme-accent-primary)] animate-pulse' : statusClasses.bg}`}></div>
-                                    </div>
-                                    <div className="absolute bottom-full mb-2 w-max bg-black/80 text-white text-sm px-3 py-1 rounded-md transition-opacity duration-300 opacity-0 group-hover:opacity-100">
-                                        {hotspot.name}
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
+                                return (
+                                    <button key={hotspot.id} onClick={() => setHighlightedComponent(hotspot.id)} className="absolute group" style={{ left: hotspot.cx, top: hotspot.cy, transform: 'translate(-50%, -50%)' }}>
+                                        <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-300 ${isHighlighted ? 'border-[var(--theme-accent-primary)] scale-150' : statusClasses.border}`}>
+                                            <div className={`w-3 h-3 rounded-full ${isHighlighted ? 'bg-[var(--theme-accent-primary)] animate-pulse' : statusClasses.bg}`}></div>
+                                        </div>
+                                        <div className="absolute bottom-full mb-2 w-max bg-black/80 text-white text-sm px-3 py-1 rounded-md transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                                            {hotspot.name}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* Right Panel: Assistant and Inspector */}

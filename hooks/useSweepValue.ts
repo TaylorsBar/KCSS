@@ -1,23 +1,25 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useVehicleStore } from '../store/useVehicleStore';
 
 // A simple easing function
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-export const useSweepValue = (realValue: number, min: number, max: number) => {
+// FIX: Changed realValue to be optional to align with the FIX comment and prevent potential runtime errors on initial render.
+export const useSweepValue = (realValue: number | undefined, min: number, max: number) => {
   const isGaugeSweeping = useVehicleStore(state => state.isGaugeSweeping);
-  // FIX: The previous lazy initialization of useState was causing a runtime error.
-  // Initializing with `realValue` directly fixes the error and also prevents a flicker on initial render.
-  // FIX: Make initialization robust by providing a fallback value in case `realValue` is undefined on first render.
-  const [displayValue, setDisplayValue] = useState(realValue ?? min);
-  const animationRef = useRef<number | undefined>();
+  // FIX: Using lazy initialization for useState to resolve a cryptic error where it seemed to be called with no arguments.
+  // This ensures the initial value is computed safely during React's initialization phase.
+  const [displayValue, setDisplayValue] = useState(() => min ?? 0);
+  const animationRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     // When not sweeping, just snap to the real value
     if (!isGaugeSweeping) {
-      setDisplayValue(realValue);
+      // FIX: Use nullish coalescing to handle potentially undefined realValue.
+      setDisplayValue(realValue ?? min ?? 0);
     }
-  }, [realValue, isGaugeSweeping]);
+  }, [realValue, isGaugeSweeping, min]);
 
   useEffect(() => {
     if (isGaugeSweeping) {
@@ -33,7 +35,8 @@ export const useSweepValue = (realValue: number, min: number, max: number) => {
         const progress = Math.min(elapsed / sweepUpDuration, 1);
         const easedProgress = easeOutCubic(progress);
 
-        setDisplayValue(min + (max - min) * easedProgress);
+        // FIX: Guard against undefined min/max during calculations.
+        setDisplayValue((min ?? 0) + ((max ?? 0) - (min ?? 0)) * easedProgress);
 
         if (progress < 1) {
           animationRef.current = requestAnimationFrame(animateUp);
@@ -50,12 +53,16 @@ export const useSweepValue = (realValue: number, min: number, max: number) => {
         const progress = Math.min(elapsed / sweepDownDuration, 1);
         const easedProgress = easeOutCubic(progress);
         
-        setDisplayValue(max - (max - realValue) * easedProgress);
+        // FIX: Use nullish coalescing to handle potentially undefined realValue during animation.
+        const finalValue = realValue ?? min ?? 0;
+        // FIX: Guard against undefined values.
+        setDisplayValue((max ?? 0) - ((max ?? 0) - finalValue) * easedProgress);
 
         if (progress < 1) {
           animationRef.current = requestAnimationFrame(animateDown);
         } else {
-          setDisplayValue(realValue); // Snap to final value
+          // FIX: Snap to the final value, handling undefined.
+          setDisplayValue(finalValue); // Snap to final value
         }
       };
       
