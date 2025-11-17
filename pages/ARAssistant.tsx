@@ -7,7 +7,8 @@ import ReactMarkdown from 'react-markdown';
 
 // @ts-ignore
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+// FIX: Cast SpeechRecognition to `any` to resolve "not constructable" error.
+const recognition = SpeechRecognition ? new (SpeechRecognition as any)() : null;
 
 const MOCK_HOTSPOTS: ComponentHotspot[] = [
     { id: 'o2-sensor', name: 'O2 Sensor', cx: '75%', cy: '70%', status: 'Failing' },
@@ -103,9 +104,14 @@ const ARAssistant: React.FC = () => {
     
     // Cleanup effect to stop the camera stream when the component unmounts
     useEffect(() => {
+        const videoEl = videoRef.current; // Capture ref value for cleanup
         return () => {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+            if (videoEl) {
+                videoEl.srcObject = null;
             }
         };
     }, []);

@@ -6,7 +6,8 @@ const DURATION = 100; // Animation duration should be close to the data update i
 export const useAnimatedValue = (targetValue: number, config: { duration?: number } = {}) => {
   const { duration = DURATION } = config;
   const isGaugeSweeping = useVehicleStore(state => state.isGaugeSweeping);
-  const [currentValue, setCurrentValue] = useState(targetValue);
+  // FIX: Use lazy initialization for useState to resolve a cryptic error where it seemed to be called with no arguments.
+  const [currentValue, setCurrentValue] = useState(() => targetValue ?? 0);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number | undefined>(undefined);
   const startValueRef = useRef<number | undefined>(undefined);
@@ -64,11 +65,6 @@ export const useAnimatedValue = (targetValue: number, config: { duration?: numbe
     };
   }, [targetValue, duration, isGaugeSweeping]);
 
-  // On initial mount, set the value directly without animation
-  useEffect(() => {
-    setCurrentValue(targetValue);
-  }, []);
-
-
+  // FIX: Removed redundant useEffect. The initial value is now correctly set in the useState hook.
   return currentValue;
 };

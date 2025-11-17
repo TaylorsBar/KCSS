@@ -1,4 +1,4 @@
-import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession, DTCInfo, ComponentHealthAnalysisResult } from '../types';
+import { MaintenanceRecord, SensorDataPoint, TuningSuggestion, VoiceCommandIntent, DiagnosticAlert, GroundedResponse, SavedRaceSession, DTCInfo, ComponentHealthAnalysisResult } from '../types.ts';
 
 // Using a module-level variable to ensure a single worker instance.
 let worker: Worker | undefined;

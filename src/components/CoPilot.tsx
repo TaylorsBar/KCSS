@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { useTextToSpeech } from '../hooks/useTextToSpeech';
-import { getCoPilotResponse } from '../services/geminiService';
-import { DiagnosticAlert, AlertLevel } from '../types';
-import { useVehicleStore } from '../store/useVehicleStore';
-import { MOCK_ALERTS } from './Alerts';
-import MicrophoneIcon from './icons/MicrophoneIcon';
-import SoundWaveIcon from './icons/SoundWaveIcon';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition.ts';
+import { useTextToSpeech } from '../hooks/useTextToSpeech.ts';
+import { getCoPilotResponse } from '../services/geminiService.ts';
+import { DiagnosticAlert, AlertLevel } from '../types.ts';
+import { useVehicleStore } from '../store/useVehicleStore.ts';
+import { MOCK_ALERTS } from './Alerts.tsx';
+import MicrophoneIcon from './icons/MicrophoneIcon.tsx';
+import SoundWaveIcon from './icons/SoundWaveIcon.tsx';
 
 enum CoPilotState {
   Idle,

@@ -1,8 +1,12 @@
+
+
+
+
 import React from 'react';
-import { useVehicleStore } from '../../store/useVehicleStore';
-import { useUnitConversion } from '../../hooks/useUnitConversion';
-import Ic7Tachometer from '../../components/dashboards/ic7/Ic7Tachometer';
-import Ic7DataReadout from '../../components/dashboards/ic7/Ic7DataReadout';
+import { useVehicleStore } from '../../store/useVehicleStore.ts';
+import { useUnitConversion } from '../../hooks/useUnitConversion.ts';
+import Ic7Tachometer from '../../components/dashboards/ic7/Ic7Tachometer.tsx';
+import Ic7DataReadout from '../../components/dashboards/ic7/Ic7DataReadout.tsx';
 
 const RPM_MAX = 8000;
 

@@ -1,25 +1,25 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
-import { AppearanceProvider } from './contexts/AppearanceContext';
-import CoPilot from './components/CoPilot';
-import { useVehicleStore } from './store/useVehicleStore';
-import { ConnectionStatus } from './types';
-import StartupOverlay from './components/StartupOverlay';
-import BottomNavBar from './components/Tachometer'; // Repurposed for BottomNavBar
+import Sidebar from './components/Sidebar.tsx';
+import { AppearanceProvider } from './contexts/AppearanceContext.tsx';
+import CoPilot from './components/CoPilot.tsx';
+import { useVehicleStore } from './store/useVehicleStore.ts';
+import { ConnectionStatus } from './types.ts';
+import StartupOverlay from './components/StartupOverlay.tsx';
+import BottomNavBar from './components/Tachometer.tsx'; // Repurposed for BottomNavBar
 
-import Dashboard from './pages/Dashboard';
-import Diagnostics from './pages/Diagnostics';
-import MaintenanceLog from './pages/MaintenanceLog';
-import TuningPage from './pages/TuningPage';
-import AIEngine from './pages/AIEngine';
-import Security from './pages/Security';
-import ARAssistant from './pages/ARAssistant';
-import Hedera from './pages/Hedera';
-import Appearance from './pages/Appearance';
-import Accessories from './pages/Accessories';
-import RacePack from './pages/RacePack';
-import Training from './pages/LiveTuning';
+import Dashboard from './pages/Dashboard.tsx';
+import Diagnostics from './pages/Diagnostics.tsx';
+import MaintenanceLog from './pages/MaintenanceLog.tsx';
+import TuningPage from './pages/TuningPage.tsx';
+import AIEngine from './pages/AIEngine.tsx';
+import Security from './pages/Security.tsx';
+import ARAssistant from './pages/ARAssistant.tsx';
+import Hedera from './pages/Hedera.tsx';
+import Appearance from './pages/Appearance.tsx';
+import Accessories from './pages/Accessories.tsx';
+import RacePack from './pages/RacePack.tsx';
+import Training from './pages/LiveTuning.tsx';
 
 const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -75,7 +75,7 @@ const App: React.FC = () => {
             <Sidebar isCollapsed={isSidebarCollapsed} onToggle={handleToggleSidebar} />
             <div className="flex-1 flex flex-col overflow-hidden relative">
               <main className="flex-1 overflow-hidden md:rounded-2xl theme-background">
-                <div className={`h-full w-full md:rounded-2xl border-0 md:border-2 bg-black/20 overflow-y-auto transition-all duration-500 pb-20 md:pb-0 ${mainFrameClasses()}`}>
+                <div className={`h-full w-full md:rounded-2xl border-0 md:border-2 overflow-y-auto transition-all duration-500 pb-20 md:pb-0 ${mainFrameClasses()}`}>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/diagnostics" element={<Diagnostics />} />

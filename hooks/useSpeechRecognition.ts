@@ -15,7 +15,8 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    // FIX: Cast SpeechRecognition to `any` to resolve "not constructable" error.
+    const recognition = new (SpeechRecognition as any)();
     recognition.continuous = false;
     recognition.lang = 'en-US';
     recognition.interimResults = false;

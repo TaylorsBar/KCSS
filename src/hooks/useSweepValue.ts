@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { useVehicleStore } from '../store/useVehicleStore';
+import { useVehicleStore } from '../store/useVehicleStore.ts';
 
 // A simple easing function
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);

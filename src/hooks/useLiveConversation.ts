@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+// FIX: The `LiveSession` type is not exported from the library.
 import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
-import { encode, decode, decodeAudioData } from '../utils/audioUtils';
+import { encode, decode, decodeAudioData } from '../utils/audioUtils.ts';
 
 type ConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 

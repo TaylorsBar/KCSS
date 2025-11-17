@@ -1,9 +1,9 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import App from './App.tsx';
 import './index.css';
-import './firebaseConfig'; // Initialize Firebase and connect to emulators
+import './firebaseConfig.ts'; // Initialize Firebase and connect to emulators
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

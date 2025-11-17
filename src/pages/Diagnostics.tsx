@@ -246,7 +246,6 @@ const VisualInspector: React.FC = () => {
                 setError('Only image files are accepted.');
                 return;
             }
-            // Revoke the old URL to prevent memory leaks
             if (image) {
                 URL.revokeObjectURL(image.previewUrl);
             }

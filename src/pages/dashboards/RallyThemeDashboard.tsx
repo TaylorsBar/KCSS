@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { useVehicleStore } from '../../store/useVehicleStore';
-import { useUnitConversion } from '../../hooks/useUnitConversion';
-import CyberGauge from '../../components/tachometers/AnalogTachometer';
-import DataCard from '../../components/StatCard'; // Repurposed for data readouts
+import { useVehicleStore } from '../../store/useVehicleStore.ts';
+import { useUnitConversion } from '../../hooks/useUnitConversion.ts';
+import CarbonTachometer from '../../components/tachometers/CarbonTachometer.tsx'; // Repurposed for the default gauge
+import DataCard from '../../components/StatCard.tsx'; // Repurposed for data readouts
 
 const RallyThemeDashboard: React.FC = () => {
     const latestData = useVehicleStore(state => state.latestData);
@@ -25,7 +25,7 @@ const RallyThemeDashboard: React.FC = () => {
                     <DataCard title="Injector Duty" value={injectorDuty.toFixed(1)} unit="%" max={100} />
                 </div>
                 <div className="col-span-3 flex items-center justify-center">
-                    <CyberGauge 
+                    <CarbonTachometer 
                         rpm={d.rpm} 
                         speed={convertSpeed(d.speed)}
                         gear={d.gear}
