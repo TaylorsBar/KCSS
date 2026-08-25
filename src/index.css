@@ -199,3 +199,8 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--theme-accent-primary);
 }
+
+/* Genesis/KCSS signature layer: verified signal over decorative noise. */
+.genesis-shell { --genesis-lime: #c8f23b; --genesis-carbon: #090b0c; }
+.genesis-stage { background: radial-gradient(circle at 78% 8%, rgba(200,242,59,.08), transparent 28%), linear-gradient(rgba(200,242,59,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(200,242,59,.018) 1px, transparent 1px), var(--genesis-carbon) !important; background-size: auto, 32px 32px, 32px 32px, auto !important; }
+.genesis-stage::before { content: 'GENESIS OS / VERIFIED SIGNAL PATH'; display: block; position: absolute; top: 12px; right: 22px; color: rgba(200,242,59,.62); font: 9px/1 'IBM Plex Mono', monospace; letter-spacing: .18em; pointer-events: none; }
