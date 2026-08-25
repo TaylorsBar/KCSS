@@ -1,8 +1,8 @@
 
 
 import React from 'react';
-import { useAnimatedValue } from '../../hooks/useAnimatedValue.ts';
-import { useSweepValue } from '../../hooks/useSweepValue.ts';
+import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useSweepValue } from '../../hooks/useSweepValue';
 
 interface HaltechSideBarGaugeProps {
   label: string;
