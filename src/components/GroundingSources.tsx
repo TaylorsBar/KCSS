@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { GroundingChunk } from '../types.ts';
+import { GroundingChunk } from '../types';
 
 interface GroundingSourcesProps {
     chunks: GroundingChunk[];

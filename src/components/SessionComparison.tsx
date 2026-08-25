@@ -88,7 +88,7 @@ const SessionComparison: React.FC<SessionComparisonProps> = ({ sessions }) => {
                         <Tooltip
                             contentStyle={{ backgroundColor: '#0A0A0F', border: '1px solid #1E1E2D' }}
                             labelStyle={{ color: '#AAAAAA' }}
-                            formatter={(value: number, name: string) => [`${convertSpeed(value).toFixed(1)} ${getSpeedUnit()}`, new Date(name).toLocaleTimeString()]}
+                            formatter={(value: unknown, name: unknown) => [`${convertSpeed(Number(value)).toFixed(1)} ${getSpeedUnit()}`, new Date(String(name)).toLocaleTimeString()]}
                          />
                         <Legend />
                         <Line type="monotone" dataKey={sessionA.id} name={new Date(sessionA.date).toLocaleTimeString()} stroke="#8884d8" dot={false} strokeWidth={2} />

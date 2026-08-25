@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAnimatedValue } from '../../hooks/useAnimatedValue.ts';
+import { useAnimatedValue } from '../../hooks/useAnimatedValue';
 
 interface ModernTachometerProps {
     value: number;

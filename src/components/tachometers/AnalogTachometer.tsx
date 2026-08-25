@@ -2,8 +2,8 @@
 // for the new UI/UX redesign, as new file creation is not permitted.
 
 import React, { useMemo } from 'react';
-import { useAnimatedValue } from '../../hooks/useAnimatedValue.ts';
-import { useSweepValue } from '../../hooks/useSweepValue.ts';
+import { useAnimatedValue } from '../../hooks/useAnimatedValue';
+import { useSweepValue } from '../../hooks/useSweepValue';
 
 interface CyberGaugeProps {
   rpm: number;

@@ -129,7 +129,7 @@ export const useLiveConversation = () => {
                             currentOutput = '';
                         }
                         
-                        const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                        const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio && audioInfrastructureRef.current) {
                             const { outputAudioContext, sources } = audioInfrastructureRef.current;
                             let { nextStartTime } = audioInfrastructureRef.current;

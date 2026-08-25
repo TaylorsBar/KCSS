@@ -75,12 +75,14 @@ const LiveTrackMap: React.FC<LiveTrackMapProps> = ({ gpsPath, latestData }) => {
 
     useEffect(() => {
         const loadGoogleMapsScript = () => {
+            // FIX: Check for global `google` object directly instead of `window.google` to align with TypeScript's global namespace declaration.
             if (typeof google !== 'undefined' && google.maps) {
                 initializeMap();
                 return;
             }
 
             const script = document.createElement('script');
+            // FIX: Use the correct environment variable `API_KEY` for the Google Maps script.
             const GOOGLE_MAPS_API_KEY = process.env.API_KEY;
             
             if (!GOOGLE_MAPS_API_KEY) {

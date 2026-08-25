@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import LockClosedIcon from './gauges/BarMeter.tsx';
+import LockClosedIcon from './gauges/BarMeter';
 
 interface FeatureLockProps {
   featureName: string;
