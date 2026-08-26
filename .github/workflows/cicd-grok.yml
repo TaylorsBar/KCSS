@@ -21,7 +21,7 @@ permissions:
   checks: write
   issues: write
   pull-requests: write
-  id-token: write   # for future OIDC if we go hardcore
+  id-token: write
 
 env:
   NODE_VERSION: '20'
@@ -71,7 +71,6 @@ jobs:
           retention-days: 7
 
       - name: Generate Grok summary
-        id: summary
         run: |
           echo "## 🔥 Grok CI Summary — CartelWorx KCSS" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -86,17 +85,64 @@ jobs:
           echo "| Vite Build | ${{ steps.build.outcome }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.build.outcome }}" = "success" ]; then
-            echo "### ✅ Pipeline green. Ready for the track." >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Pipeline green so far. E2E next." >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Build failed. Pull over and check the gauges." >> $GITHUB_STEP_SUMMARY
           fi
+
+  # ─────────────────────────────────────────────────────────────
+  #  E2E — Playwright takes her for a real drive
+  # ─────────────────────────────────────────────────────────────
+  e2e:
+    name: Playwright E2E
+    needs: build-and-validate
+    if: needs.build-and-validate.outputs.build_success == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E
+        id: e2e
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ github.sha }}
+          path: test-results/
+          retention-days: 7
 
   # ─────────────────────────────────────────────────────────────
   #  PR PREVIEW — temporary channel so reviewers can feel it live
   # ─────────────────────────────────────────────────────────────
   preview:
     name: Preview Deploy
-    needs: build-and-validate
+    needs: [build-and-validate, e2e]
     if: github.event_name == 'pull_request' && needs.build-and-validate.outputs.build_success == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -132,6 +178,7 @@ jobs:
 |-------|--------|
 | TypeScript | ✅ |
 | Build | ✅ |
+| Playwright E2E | ✅ |
 | Preview | 🔗 [Open Preview](${{ steps.preview.outputs.details_url }}) |
 
 ### Reviewer notes
@@ -153,7 +200,7 @@ Watch the gauges, feel the glassmorphism, test the CoPilot voice, and tell me if
   # ─────────────────────────────────────────────────────────────
   deploy-production:
     name: Production Deploy
-    needs: build-and-validate
+    needs: [build-and-validate, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.build-and-validate.outputs.build_success == 'true'
     runs-on: ubuntu-latest
     environment: production
@@ -191,13 +238,12 @@ Watch the gauges, feel the glassmorphism, test the CoPilot voice, and tell me if
 **Commit:** \`${{ github.sha }}\`  
 **Channel:** production
 
-The platform is now on the main stage.  
+Build + Playwright E2E passed.  
 Gauges calibrated. CoPilot online. Neon locked.
 
 ---
 *Grok CI/CD • Sent from the performance pipeline*`;
 
-            // Try to comment on a known tracking issue or create a new one if needed
             try {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
