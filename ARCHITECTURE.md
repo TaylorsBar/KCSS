@@ -19,50 +19,38 @@
 | E2E | `e2e/` | Playwright |
 | CI/CD | `.github/workflows/cicd-grok.yml` | Build → E2E → Deploy |
 
-**Legacy root folders** (`components/`, `pages/`, `hooks/`, `store/`, `services/`, root `App.tsx`, etc.) are **deprecated migration leftovers**. They must not be imported by `src/`.
+---
+
+## 2. Legacy purge status (2026-08-26)
+
+### Removed
+- Root stubs: `App.tsx`, `index.tsx`, `CoPilot.tsx`, `Sidebar.tsx`, `types.ts`
+- Empty files: `.env.development`, `.env.production`, `.firebaserc`, `ThemeContext`, `ModernThemeDashboard`
+- Root `store/`, `contexts/`, `utils/`
+- Root `services/` (gemini, obd, speech, storage, ai.worker)
+- Root `hooks/` (full set; `useSpeechRecognition` promoted to `src/` first)
+- Root pages: Accessories, RacePack, TuningPage (+ more in progress)
+
+### Still pending (next purge pass)
+- Remaining `pages/*` duplicates
+- Entire root `components/*` tree (icons, gauges, tachometers, etc.)
+
+**Do not import from root `components/` or `pages/`.** Canonical lives under `src/`.
 
 ---
 
-## 2. Product Intent (PRD Alignment)
+## 3. Product Intent
 
-1. **Multi-theme dashboards** — Rally, Modern, Classic, Haltech, Minimalist, IC-7  
-2. **Live vehicle data** — Zustand store + OBD boundary  
-3. **AI CoPilot** — Voice in/out, Gemini-backed responses  
-4. **Diagnostics** — Alerts, risk timeline, sensor charts  
-5. **Tuning** — Maps, AI suggestions, safety analysis  
-6. **Race Pack** — Session timing, history, leaderboard, camera  
-7. **Appearance** — Theme, material, LED, units (persisted)  
-8. **Security / Hedera** — Audit-style surfaces  
-9. **AR / Accessories / Training** — Feature modules  
-
-Every route in `src/App.tsx` resolves under `src/pages/`.
+1. Multi-theme dashboards  
+2. Live vehicle data  
+3. AI CoPilot  
+4. Diagnostics  
+5. Tuning  
+6. Race Pack  
+7. Appearance (persisted)  
+8. Security / Hedera  
+9. AR / Accessories / Training  
 
 ---
 
-## 3. Unification Method
-
-1. Inventory missing / external imports  
-2. Promote into `src/` with clean relative imports  
-3. Fix hacks (repurposed filenames → real components)  
-4. Align README claims  
-5. Green build + E2E  
-6. Delete root legacy only after green  
-
----
-
-## 4. Gap List
-
-- [x] Architecture + README foundation  
-- [x] `src/components/StartupOverlay.tsx`  
-- [x] Core + secondary `src/components/icons/*`  
-- [x] `GlassCard`, `TuningSlider`, `TuningMap`  
-- [x] `storageService`, `useTrainingStore`  
-- [x] Pages: `TuningPage`, `AIEngine`, `Accessories`, `RacePack`  
-- [ ] Full `obdService` + `obdParser` under `src/` (Accessories uses store connect for now)  
-- [ ] Root legacy tree deletion  
-- [ ] Empty stubs cleanup (`.env*`, ThemeContext, etc.)  
-- [ ] CI green confirmation after this pass  
-
----
-
-*Grok · CartelWorx performance foundation · Neon locked*
+*Grok · CartelWorx · Ground Control → MajorTom · Neon locked*
