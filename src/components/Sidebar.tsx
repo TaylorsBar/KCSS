@@ -12,9 +12,9 @@ import StopwatchIcon from './icons/StopwatchIcon.tsx';
 import PaintBrushIcon from './icons/PaintBrushIcon.tsx';
 import SoundWaveIcon from './icons/SoundWaveIcon.tsx';
 import ChevronDoubleLeftIcon from './icons/ChevronDoubleLeftIcon.tsx';
+import BookOpenIcon from './icons/BookOpenIcon.tsx';
 import { useVehicleStore } from '../store/useVehicleStore.ts';
 import { ConnectionStatus } from '../types.ts';
-import BookOpenIcon from './gauges/DigitalDisplay.tsx'; // Repurposed for BookOpenIcon
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: GaugeIcon },
@@ -63,14 +63,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   return (
     <div className={`hidden md:flex glass-panel rounded-2xl flex-col z-10 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'}`}>
       <div className="relative flex items-center justify-center h-24 py-4 border-b border-[var(--glass-border)] overflow-hidden">
-        {/* Expanded Logo */}
         <div className={`absolute transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 -translate-x-4' : 'opacity-100 translate-x-0'}`}>
           <div className="font-classic text-4xl whitespace-nowrap">
             <span className="text-gray-300 tracking-tighter">Cartel</span>
             <span className="text-[var(--theme-accent-primary)] tracking-normal">Worx</span>
           </div>
         </div>
-        {/* Collapsed Logo */}
         <div className={`absolute transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`}>
           <div className="font-classic text-4xl">
             <span className="text-gray-300 tracking-tighter">C</span>
@@ -86,9 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
             end={item.href === '/'}
             className={({ isActive }) =>
               `group relative flex items-center py-3 text-sm font-medium transition-all duration-200 ease-in-out btn-neumorphic ${isCollapsed ? 'px-3 justify-center' : 'px-4'} ${
-                isActive
-                  ? 'btn-neumorphic-active'
-                  : ''
+                isActive ? 'btn-neumorphic-active' : ''
               }`
             }
             title={item.name}
@@ -103,13 +99,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       <div className="mt-auto">
         <ConnectionIndicator isCollapsed={isCollapsed} />
         <div className="p-2">
-            <button
+          <button
             onClick={onToggle}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className="flex items-center justify-center w-full p-3 text-gray-400 rounded-xl hover:bg-[var(--neumorphic-shadow-light)] hover:text-white"
-            >
+          >
             <ChevronDoubleLeftIcon className={`w-6 h-6 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
-            </button>
+          </button>
         </div>
       </div>
     </div>
