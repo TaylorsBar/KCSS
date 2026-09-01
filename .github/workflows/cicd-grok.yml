@@ -19,7 +19,7 @@ permissions:
   id-token: write
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 jobs:
   build-and-test:
@@ -35,7 +35,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          # Do not set cache: npm until package-lock.json is committed.
+          # setup-node fails immediately if cache=npm and no lockfile exists.
 
       - name: Install dependencies
         run: |
@@ -115,7 +116,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: PR comment with review notes
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -134,13 +135,13 @@ jobs:
               `| Playwright E2E | ${{ steps.e2e.outcome }} |`,
               '',
               passed
-                ? '**Tests passed.** Preview deploy can proceed if Firebase secrets are set.'
+                ? '**Tests passed.** Preview / production deploy stays gated on Firebase secrets + main push.'
                 : '**Tests failed.** Do not merge until typecheck/build/E2E are green.',
               '',
               '### Actionable review',
               '- Commit a `package-lock.json` so `npm ci` is reproducible.',
               '- Canonical source is `src/` — keep root duplicates out.',
-              '- Hit CoPilot, gauges, and Appearance persistence on preview before merge.',
+              '- Hit CoPilot, gauges, and Appearance persistence before merge.',
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -197,7 +198,7 @@ jobs:
               '',
               ok
                 ? 'Live channel updated (or hook reported success).'
-                : 'Deploy failed. See remediation in the following comment path and run `python3 scripts/rollback_deployment.py`.',
+                : 'Deploy failed. Run `python3 scripts/rollback_deployment.py` and check secrets.',
             ].join('\n');
             try {
               await github.rest.issues.createComment({
