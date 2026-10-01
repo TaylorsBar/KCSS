@@ -1,10 +1,4 @@
-name: Grok CI/CD — CartelWorx Performance Pipeline
-
-# ═══════════════════════════════════════════════════════════════
-#  CYBERPUNK PERFORMANCE PIPELINE
-#  Built for CartelWorx KCSS — AI Automotive Intelligence
-#  Neon. Fast. Zero lag. Zero mercy.
-# ═══════════════════════════════════════════════════════════════
+name: Grok Automated CI/CD
 
 on:
   push:
@@ -24,195 +18,164 @@ permissions:
   id-token: write
 
 env:
-  NODE_VERSION: '20'
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NODE_VERSION: "20"
 
 jobs:
-  # ─────────────────────────────────────────────────────────────
-  #  BUILD & VALIDATE — the engine bay inspection
-  # ─────────────────────────────────────────────────────────────
-  build-and-validate:
-    name: Build • Typecheck • Lint
+  build-and-test:
+    name: Build, typecheck, E2E
     runs-on: ubuntu-latest
     outputs:
-      build_success: ${{ steps.build.outcome == 'success' }}
+      tests_passed: ${{ steps.e2e.outcome == 'success' && steps.build.outcome == 'success' }}
+      typecheck: ${{ steps.typecheck.outcome }}
+      build: ${{ steps.build.outcome }}
+      e2e: ${{ steps.e2e.outcome }}
     steps:
-      - name: Checkout (full history for better cache)
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup Node ${{ env.NODE_VERSION }}
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
 
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
+        run: npm ci --no-audit
 
-      - name: TypeScript type-check
+      - name: Static analysis (TypeScript)
         id: typecheck
-        run: npx tsc --noEmit
-
-      - name: ESLint (soft fail for now)
-        id: lint
-        run: npx eslint . --ext .ts,.tsx --max-warnings 50 || echo "Lint warnings present — still shipping"
+        run: npx tsc --noEmit --pretty false
 
       - name: Production build
         id: build
         run: npm run build
 
-      - name: Upload dist artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: kcss-dist-${{ github.sha }}
-          path: dist/
-          retention-days: 7
-
-      - name: Generate Grok summary
-        run: |
-          echo "## 🔥 Grok CI Summary — CartelWorx KCSS" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript | ${{ steps.typecheck.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ESLint | ${{ steps.lint.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Vite Build | ${{ steps.build.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.build.outcome }}" = "success" ]; then
-            echo "### ✅ Pipeline green so far. E2E next." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Build failed. Pull over and check the gauges." >> $GITHUB_STEP_SUMMARY
-          fi
-
-  # ─────────────────────────────────────────────────────────────
-  #  E2E — Playwright takes her for a real drive
-  # ─────────────────────────────────────────────────────────────
-  e2e:
-    name: Playwright E2E
-    needs: build-and-validate
-    if: needs.build-and-validate.outputs.build_success == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
-
-      - name: Install Playwright browsers
+      - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright E2E
+      - name: Run tests
         id: e2e
-        run: npm run test:e2e
+        run: npx playwright test --reporter=list,junit
         env:
           CI: true
 
-      - name: Upload Playwright report
+      - name: Upload JUnit results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.sha }}
-          path: playwright-report/
+          name: test-results-${{ github.sha }}
+          path: |
+            results.xml
+            test-results/
+            playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
 
-      - name: Upload test results
+      - name: Summarize test results
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-results-${{ github.sha }}
-          path: test-results/
-          retention-days: 7
+        run: |
+          {
+            echo "## CI summary"
+            echo ""
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Branch: \`${{ github.ref_name }}\`"
+            echo "- Event: ${{ github.event_name }}"
+            echo ""
+            echo "| Stage | Result |"
+            echo "| --- | --- |"
+            echo "| TypeScript | ${{ steps.typecheck.outcome }} |"
+            echo "| Vite build | ${{ steps.build.outcome }} |"
+            echo "| Playwright | ${{ steps.e2e.outcome }} |"
+            echo ""
+            if [ -f results.xml ]; then
+              echo "### Error highlights"
+              python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          try:
+              root = ET.parse("results.xml").getroot()
+          except Exception as exc:
+              print(f"Could not parse results.xml: {exc}")
+              raise SystemExit(0)
+          failures = []
+          for case in root.iter("testcase"):
+              fail = case.find("failure")
+              err = case.find("error")
+              node = fail if fail is not None else err
+              if node is None:
+                  continue
+              name = case.get("name", "?")
+              classname = case.get("classname", "")
+              message = (node.get("message") or node.text or "").strip().splitlines()
+              first = message[0][:240] if message else "failed"
+              failures.append(f"- `{classname}::{name}` — {first}")
+          print("\n".join(failures[:12]) if failures else "No failing test cases in results.xml.")
+          PY
+            else
+              echo "No results.xml produced."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
-  # ─────────────────────────────────────────────────────────────
-  #  PR PREVIEW — temporary channel so reviewers can feel it live
-  # ─────────────────────────────────────────────────────────────
-  preview:
-    name: Preview Deploy
-    needs: [build-and-validate, e2e]
-    if: github.event_name == 'pull_request' && needs.build-and-validate.outputs.build_success == 'true'
+  pr-comment:
+    name: PR summary comment
+    needs: build-and-test
+    if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download dist
-        uses: actions/download-artifact@v4
-        with:
-          name: kcss-dist-${{ github.sha }}
-          path: dist
-
-      - name: Deploy Preview Channel
-        id: preview
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
-          channelId: pr-${{ github.event.pull_request.number }}
-          entryPoint: .
-
-      - name: Post sexy PR comment
+      - name: Post summary on the pull request
         uses: actions/github-script@v7
         with:
           script: |
-            const body = `## 🚀 Grok Preview Deploy — CartelWorx KCSS
-
-**Status:** Live & glowing  
-**Commit:** \`${{ github.sha }}\`
-
-| Check | Result |
-|-------|--------|
-| TypeScript | ✅ |
-| Build | ✅ |
-| Playwright E2E | ✅ |
-| Preview | 🔗 [Open Preview](${{ steps.preview.outputs.details_url }}) |
-
-### Reviewer notes
-@${{ github.event.pull_request.user.login }} — take her for a spin.  
-Watch the gauges, feel the glassmorphism, test the CoPilot voice, and tell me if the neon is still making you hard.
-
----
-*Grok CI/CD • Performance first • Zero lag*`;
-
-            github.rest.issues.createComment({
+            const passed = '${{ needs.build-and-test.result }}' === 'success';
+            const author = context.payload.pull_request.user.login;
+            const body = [
+              '## CI summary',
+              '',
+              `**Result:** ${passed ? 'passed' : 'failed'}`,
+              `**Commit:** \`${context.sha}\``,
+              '',
+              '| Stage | Result |',
+              '| --- | --- |',
+              `| TypeScript | ${{ needs.build-and-test.outputs.typecheck }} |`,
+              `| Vite build | ${{ needs.build-and-test.outputs.build }} |`,
+              `| Playwright | ${{ needs.build-and-test.outputs.e2e }} |`,
+              '',
+              `@${author} actionable review:`,
+              passed
+                ? '- Confirm dashboard, diagnostics, and tuning routes still match the change.'
+                : '- Open the failed job log. Fix the first TypeScript or Playwright error before re-requesting review.',
+              '- Do not import from legacy root `components/` or `pages/`. New code stays under `src/`.',
+              '- Keep README claims aligned with what this PR actually ships.',
+              '',
+              'Job logs: ' + `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            ].join('\n');
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body
             });
 
-  # ─────────────────────────────────────────────────────────────
-  #  PRODUCTION DEPLOY — only on main, only if everything passed
-  # ─────────────────────────────────────────────────────────────
-  deploy-production:
-    name: Production Deploy
-    needs: [build-and-validate, e2e]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.build-and-validate.outputs.build_success == 'true'
+  deploy:
+    name: Deploy to production
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.build-and-test.result == 'success'
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download dist
-        uses: actions/download-artifact@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          name: kcss-dist-${{ github.sha }}
-          path: dist
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit
+
+      - name: Build
+        run: npm run build
 
       - name: Deploy to Production
         id: deploy
@@ -224,33 +187,65 @@ Watch the gauges, feel the glassmorphism, test the CoPilot voice, and tell me if
           channelId: live
           entryPoint: .
 
-      - name: Run deploy script (extra hooks)
+      - name: deploy_to_production()
+        run: python3 scripts/deploy_to_production.py
+
+      - name: Notify maintainers
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
         run: |
-          python3 scripts/deploy_to_production.py || true
+          python3 - <<'PY'
+          import json, os, urllib.request
+          outcome = os.environ.get("DEPLOY_OUTCOME", "unknown")
+          text = f"KCSS production deploy {outcome} for {os.environ.get('GITHUB_SHA','')} on main."
+          url = os.environ.get("SLACK_WEBHOOK_URL", "")
+          if url:
+              req = urllib.request.Request(url, data=json.dumps({"text": text}).encode(), headers={"Content-Type": "application/json"})
+              urllib.request.urlopen(req, timeout=15).read()
+              print("Slack notified")
+          else:
+              print("SLACK_WEBHOOK_URL not set; skipped Slack")
+          print(text)
+          PY
+          gh issue comment 1 --body "## Production deploy ${{ steps.deploy.outcome }}
 
-      - name: Post production status
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const body = `## 🏁 Production Deploy Complete — CartelWorx KCSS
+          Commit \`${{ github.sha }}\`.
+          Firebase channel: live.
+          Hook log: see deploy job artifacts / deploy_log.txt.
+          " || echo "Issue #1 comment skipped"
 
-**Status:** LIVE  
-**Commit:** \`${{ github.sha }}\`  
-**Channel:** production
+  rollback:
+    name: Rollback on deploy failure
+    needs: deploy
+    if: failure() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-Build + Playwright E2E passed.  
-Gauges calibrated. CoPilot online. Neon locked.
+      - name: rollback_deployment()
+        run: python3 scripts/rollback_deployment.py || true
 
----
-*Grok CI/CD • Sent from the performance pipeline*`;
+      - name: Post remediation
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          MSG=$(cat <<EOF
+          ## Production deploy failed — remediation
 
-            try {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: 1,
-                body
-              });
-            } catch (e) {
-              console.log('No issue #1 found — skipping comment');
-            }
+          Commit \`${{ github.sha }}\` did not stay live.
+
+          1. Read the deploy job log and \`deploy_log.txt\`.
+          2. Confirm \`FIREBASE_SERVICE_ACCOUNT\` and \`FIREBASE_PROJECT_ID\` secrets.
+          3. \`rollback_deployment()\` ran \`scripts/rollback_deployment.py\`. Without \`rollback.sh\`, revert manually:
+             \`firebase hosting:clone <site>:<last-good-channel> <site>:live\`
+          4. Re-run the workflow only after the failing check is fixed. Do not force-push over a red main.
+          EOF
+          )
+          echo "$MSG"
+          gh issue comment 1 --body "$MSG" || echo "Issue #1 comment skipped"
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -sS -X POST -H 'Content-type: application/json' --data "{\"text\":\"KCSS production deploy failed for ${{ github.sha }}. Rollback hook ran. See issue #1.\"}" "$SLACK_WEBHOOK_URL" || true
+          fi
