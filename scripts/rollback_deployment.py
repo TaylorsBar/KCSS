@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""
-CartelWorx KCSS — Rollback Hook
-Grok CI/CD performance pipeline
+"""Rollback hook for CartelWorx KCSS.
+
+Wire rollback.sh to a real revert (Firebase channel clone or previous artifact).
+Without that script this returns non-zero so CI flags manual remediation.
 """
 
 import subprocess
@@ -11,49 +12,45 @@ from pathlib import Path
 
 LOG_FILE = Path("rollback_log.txt")
 
+
 def log(msg: str) -> None:
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     line = f"[{timestamp}] {msg}"
     print(line)
-    with LOG_FILE.open("a") as f:
-        f.write(line + "\n")
+    with LOG_FILE.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
 
 def rollback_deployment() -> bool:
-    """
-    Emergency rollback.
-    Wire this to Firebase channel revert, previous artifact, or your own script.
-    """
-    log("═" * 60)
-    log("⏪ CartelWorx KCSS — ROLLBACK initiated")
-    log("═" * 60)
+    log("=" * 60)
+    log("CartelWorx KCSS rollback started")
+    log("=" * 60)
 
     rollback_sh = Path("./rollback.sh")
     if rollback_sh.exists():
-        log("Found rollback.sh — executing...")
+        log("Found rollback.sh — executing")
         result = subprocess.run(
             ["./rollback.sh"],
             capture_output=True,
             text=True,
             timeout=180,
+            check=False,
         )
-        log(result.stdout)
+        if result.stdout:
+            log(result.stdout)
         if result.stderr:
             log("STDERR:\n" + result.stderr)
         success = result.returncode == 0
     else:
-        log("No custom rollback.sh found.")
-        log("Manual action required: revert Firebase Hosting channel or redeploy previous artifact.")
-        log("Suggested: firebase hosting:clone SOURCE_SITE:SOURCE_CHANNEL TARGET_SITE:live")
+        log("No rollback.sh found.")
+        log("Remediation: firebase hosting:clone <site>:<previous-channel> <site>:live")
+        log("Or redeploy the last green dist artifact from Actions.")
         success = False
 
-    if success:
-        log("✅ Rollback complete — previous version restored")
-    else:
-        log("⚠️  Automatic rollback not fully configured — manual intervention needed")
-
-    log("═" * 60)
+    log("Rollback complete" if success else "Rollback not fully automated")
+    log("=" * 60)
     return success
 
+
 if __name__ == "__main__":
-    success = rollback_deployment()
-    sys.exit(0 if success else 1)
+    sys.exit(0 if rollback_deployment() else 1)
