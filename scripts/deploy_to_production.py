@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""
-CartelWorx KCSS — Production Deploy Hook
-Grok CI/CD performance pipeline
+"""Production deploy hook for CartelWorx KCSS.
+
+Primary path is Firebase Hosting (`dist/`). A local ./deploy.sh overrides that
+if present. Called by .github/workflows/cicd-grok.yml on push to main.
 """
 
+from __future__ import annotations
+
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -11,51 +15,69 @@ from pathlib import Path
 
 LOG_FILE = Path("deploy_log.txt")
 
+
 def log(msg: str) -> None:
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    line = f"[{timestamp}] {msg}"
+    line = f"[{datetime.now(timezone.utc):%Y-%m-%d %H:%M:%S UTC}] {msg}"
     print(line)
-    with LOG_FILE.open("a") as f:
-        f.write(line + "\n")
+    with LOG_FILE.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
+def _run(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess[str]:
+    log("running: " + " ".join(cmd))
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if result.stdout:
+        log(result.stdout.rstrip())
+    if result.stderr:
+        log("STDERR:\n" + result.stderr.rstrip())
+    log(f"exit={result.returncode}")
+    return result
+
 
 def deploy_to_production() -> bool:
-    """
-    Main production deploy entrypoint.
-    Currently acts as a post-Firebase hook.
-    Replace the body with real kubectl / docker / custom logic when needed.
-    """
-    log("═" * 60)
-    log("🚀 CartelWorx KCSS — Production Deploy initiated")
-    log("═" * 60)
+    LOG_FILE.write_text("", encoding="utf-8")
+    log("CartelWorx KCSS production deploy started")
+    log(f"sha={os.environ.get('GITHUB_SHA', 'local')} ref={os.environ.get('GITHUB_REF', 'local')}")
 
-    # Example: call your real deploy script if it exists
+    if not Path("dist").is_dir():
+        log("dist/ missing; running npm run build")
+        build = _run(["npm", "run", "build"])
+        if build.returncode != 0:
+            log("build failed before deploy")
+            return False
+
     deploy_sh = Path("./deploy.sh")
     if deploy_sh.exists():
-        log("Found deploy.sh — executing...")
-        result = subprocess.run(
-            ["./deploy.sh"],
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-        log(result.stdout)
-        if result.stderr:
-            log("STDERR:\n" + result.stderr)
-        success = result.returncode == 0
-    else:
-        log("No custom deploy.sh found — relying on Firebase Hosting action")
-        log("Status: Firebase live channel already updated by GitHub Action")
-        success = True
+        result = _run(["./deploy.sh"])
+        return result.returncode == 0
 
-    if success:
-        log("✅ Deployment successful — platform is live")
-        log("Gauges online. CoPilot ready. Neon locked.")
-    else:
-        log("❌ Deployment failed — check logs and consider rollback")
+    project = os.environ.get("FIREBASE_PROJECT_ID", "").strip()
+    token = os.environ.get("FIREBASE_TOKEN", "").strip()
+    if not project or not token:
+        log("FIREBASE_PROJECT_ID or FIREBASE_TOKEN is unset")
+        log("Remediation: add both repository secrets, or provide ./deploy.sh")
+        return False
 
-    log("═" * 60)
-    return success
+    result = _run(
+        [
+            "npx",
+            "--yes",
+            "firebase-tools@13",
+            "deploy",
+            "--only",
+            "hosting",
+            "--project",
+            project,
+            "--token",
+            token,
+            "--non-interactive",
+        ],
+        timeout=420,
+    )
+    ok = result.returncode == 0
+    log("Deployment successful" if ok else "Deployment failed")
+    return ok
+
 
 if __name__ == "__main__":
-    success = deploy_to_production()
-    sys.exit(0 if success else 1)
+    sys.exit(0 if deploy_to_production() else 1)

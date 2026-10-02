@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""
-CartelWorx KCSS — Rollback Hook
-Grok CI/CD performance pipeline
+"""Rollback hook for CartelWorx KCSS production hosting.
+
+Uses ./rollback.sh when present. Otherwise clones the last Firebase Hosting
+preview/live release is not automatic: this script records the exact command
+maintainers should run and returns non-zero so CI stays red.
 """
 
+from __future__ import annotations
+
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -11,49 +16,38 @@ from pathlib import Path
 
 LOG_FILE = Path("rollback_log.txt")
 
+
 def log(msg: str) -> None:
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    line = f"[{timestamp}] {msg}"
+    line = f"[{datetime.now(timezone.utc):%Y-%m-%d %H:%M:%S UTC}] {msg}"
     print(line)
-    with LOG_FILE.open("a") as f:
-        f.write(line + "\n")
+    with LOG_FILE.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
 
 def rollback_deployment() -> bool:
-    """
-    Emergency rollback.
-    Wire this to Firebase channel revert, previous artifact, or your own script.
-    """
-    log("═" * 60)
-    log("⏪ CartelWorx KCSS — ROLLBACK initiated")
-    log("═" * 60)
+    LOG_FILE.write_text("", encoding="utf-8")
+    log("CartelWorx KCSS rollback started")
 
     rollback_sh = Path("./rollback.sh")
     if rollback_sh.exists():
-        log("Found rollback.sh — executing...")
-        result = subprocess.run(
-            ["./rollback.sh"],
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
-        log(result.stdout)
+        result = subprocess.run(["./rollback.sh"], capture_output=True, text=True, timeout=180)
+        log(result.stdout or "")
         if result.stderr:
             log("STDERR:\n" + result.stderr)
-        success = result.returncode == 0
-    else:
-        log("No custom rollback.sh found.")
-        log("Manual action required: revert Firebase Hosting channel or redeploy previous artifact.")
-        log("Suggested: firebase hosting:clone SOURCE_SITE:SOURCE_CHANNEL TARGET_SITE:live")
-        success = False
+        return result.returncode == 0
 
-    if success:
-        log("✅ Rollback complete — previous version restored")
-    else:
-        log("⚠️  Automatic rollback not fully configured — manual intervention needed")
+    project = os.environ.get("FIREBASE_PROJECT_ID", "<project>").strip() or "<project>"
+    log("No ./rollback.sh found. Automatic channel clone is not configured.")
+    log("Remediation:")
+    log("1. Open Firebase Hosting release history and roll back the live channel.")
+    log(
+        "2. Or clone a known-good channel: "
+        f"npx firebase-tools hosting:clone {project}:<good-channel> {project}:live"
+    )
+    log("3. Re-run the last green main commit rather than forward-fixing a red deploy.")
+    log("4. Confirm FIREBASE_TOKEN still has Hosting Admin on the project.")
+    return False
 
-    log("═" * 60)
-    return success
 
 if __name__ == "__main__":
-    success = rollback_deployment()
-    sys.exit(0 if success else 1)
+    sys.exit(0 if rollback_deployment() else 1)
