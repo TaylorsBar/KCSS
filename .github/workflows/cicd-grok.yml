@@ -27,7 +27,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tests_passed: ${{ steps.gate.outputs.tests_passed }}
-      summary: ${{ steps.gate.outputs.summary }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -69,7 +68,7 @@ jobs:
         id: tests
         if: steps.build.outcome == 'success'
         continue-on-error: true
-        run: npx playwright test --reporter=list,junit 2>&1 | tee test.log
+        run: npx playwright test --reporter=list 2>&1 | tee test.log
         env:
           CI: "true"
 
@@ -80,62 +79,43 @@ jobs:
           python3 << 'PY'
           from pathlib import Path
           import os
-
-          def tail(name, n=40):
+          def tail(name, n=30):
               p = Path(name)
               if not p.exists():
                   return "(no log)"
               lines = p.read_text(errors="replace").splitlines()
               return "\n".join(lines[-n:]) or "(empty)"
-
           type_ok = os.environ.get("TYPE_OUTCOME") == "success"
           build_ok = os.environ.get("BUILD_OUTCOME") == "success"
-          test_outcome = os.environ.get("TEST_OUTCOME")
-          test_ok = test_outcome == "success"
+          test_ok = os.environ.get("TEST_OUTCOME") == "success"
           passed = type_ok and build_ok and test_ok
-
-          highlights = []
-          if not type_ok:
-              highlights.append("TypeScript failed")
-          if not build_ok:
-              highlights.append("Vite build failed")
-          if not test_ok:
-              highlights.append("Playwright failed or was skipped")
-
           status = "PASS" if passed else "FAIL"
-          summary = f"KCSS CI {status}. Highlights: {', '.join(highlights) or 'none'}."
-          Path("ci-summary.md").write_text(
-              "\n".join([
-                  f"## Grok CI summary — {status}",
-                  "",
-                  f"- Commit: `{os.environ.get('SHA','')}`",
-                  f"- Branch: `{os.environ.get('REF','')}`",
-                  f"- Event: {os.environ.get('EVENT','')}",
-                  f"- Typecheck: {os.environ.get('TYPE_OUTCOME')}",
-                  f"- Build: {os.environ.get('BUILD_OUTCOME')}",
-                  f"- Playwright: {test_outcome or 'skipped'}",
-                  "",
-                  "### Error highlights",
-                  "```",
-                  tail("typecheck.log") if not type_ok else "typecheck clean",
-                  tail("build.log") if not build_ok else "",
-                  tail("test.log") if not test_ok else "tests clean",
-                  "```",
-                  "",
-                  "### Review feedback",
-                  "- Confirm gauge and CoPilot flows still render after this diff.",
-                  "- Do not merge if typecheck or Playwright is red.",
-                  "",
-              ])
-          )
-          Path(os.environ["GITHUB_OUTPUT"]).open("a").write(
-              f"tests_passed={'true' if passed else 'false'}\n"
-              f"summary={summary}\n"
-          )
-          print(summary)
+          body = [
+              f"## Grok CI summary — {status}",
+              "",
+              f"- Commit: `{os.environ.get('SHA','')}`",
+              f"- Branch: `{os.environ.get('REF','')}`",
+              f"- Event: {os.environ.get('EVENT','')}",
+              f"- Typecheck: {os.environ.get('TYPE_OUTCOME')}",
+              f"- Lint: {os.environ.get('LINT_OUTCOME')}",
+              f"- Build: {os.environ.get('BUILD_OUTCOME')}",
+              f"- Playwright: {os.environ.get('TEST_OUTCOME') or 'skipped'}",
+              "",
+              "### Error highlights",
+              "```",
+              tail("typecheck.log") if not type_ok else "typecheck clean",
+              tail("build.log") if not build_ok else "",
+              tail("test.log") if not test_ok else "tests clean",
+              "```",
+          ]
+          Path("ci-summary.md").write_text("\n".join(body) + "\n")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as fh:
+              fh.write(f"tests_passed={'true' if passed else 'false'}\n")
+          print(status)
           PY
         env:
           TYPE_OUTCOME: ${{ steps.typecheck.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           TEST_OUTCOME: ${{ steps.tests.outcome }}
           SHA: ${{ github.sha }}
@@ -157,7 +137,7 @@ jobs:
             lint.log
             build.log
             test.log
-            test-results/
+            dist/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -171,18 +151,133 @@ jobs:
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
+      - name: Download summary
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-logs-${{ github.sha }}
+          path: logs
+        continue-on-error: true
+
       - name: Comment on pull request
         uses: actions/github-script@v7
         with:
           script: |
-            const passed = '${{ needs.build-and-test.outputs.tests_passed }}' === 'true';
+            const fs = require('fs');
+            const passed = '${{ needs.build-and-test.result }}' === 'success';
             const author = context.payload.pull_request.user.login;
+            let detail = '';
+            try { detail = fs.readFileSync('logs/ci-summary.md', 'utf8'); } catch (e) { detail = 'Summary artifact unavailable.'; }
             const body = [
               `## Grok CI/CD — ${passed ? 'tests passed' : 'tests failed'}`,
               '',
               `@${author} actionable review:`,
               passed
-                ? '- Gates are green. Review UX on gauges, CoPilot, and mobile layout before merge.'
-                : '- Do not merge. Open the failed job log, fix the highlighted typecheck/build/Playwright errors, and re-run.',
+                ? '- Gates are green. Review gauges, CoPilot, and mobile layout before merge.'
+                : '- Do not merge. Fix the highlighted typecheck, build, or Playwright errors, then re-run.',
               '',
-              `- Commit: \
+              detail.slice(0, 6000)
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+  deploy:
+    name: Deploy to production
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.build-and-test.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install and build
+        run: npm ci --no-audit --no-fund && npm run build
+
+      - name: Deploy to Production
+        id: deploy
+        run: python3 scripts/deploy_to_production.py
+
+      - name: Publish GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          cname: ""
+
+      - name: Notify maintainers
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ok = '${{ steps.deploy.outcome }}' === 'success';
+            const body = [
+              `## Production deploy ${ok ? 'succeeded' : 'failed'}`,
+              '',
+              `- Commit: \`${context.sha}\``,
+              `- Script: scripts/deploy_to_production.py`,
+              `- Pages: https://taylorsbar.github.io/KCSS/`,
+              ok ? '- Maintainers: production is live.' : '- Maintainers: deploy hook failed. Rollback job will run.'
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 1,
+              body
+            });
+
+      - name: Slack webhook
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -sS -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"KCSS deploy ${{ steps.deploy.outcome }} for ${{ github.sha }}\"}" \
+              "$SLACK_WEBHOOK_URL"
+          fi
+
+  rollback:
+    name: Rollback on deploy failure
+    needs: deploy
+    if: failure() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Rollback deployment
+        id: rollback
+        run: python3 scripts/rollback_deployment.py
+
+      - name: Post remediation
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              '## Deployment failed — rollback attempted',
+              '',
+              'Remediation:',
+              '1. Read deploy_log.txt and the Actions log for the failing step.',
+              '2. Confirm GitHub Pages is allowed to publish from the gh-pages branch.',
+              '3. If automatic rollback did not restore live, redeploy the last green commit.',
+              '4. rollback_deployment() looks for ./rollback.sh; add that script for a real revert.',
+              '',
+              `Rollback step outcome: ${{ steps.rollback.outcome }}`
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 1,
+              body
+            });
