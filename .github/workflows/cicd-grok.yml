@@ -68,7 +68,7 @@ jobs:
         id: tests
         if: steps.build.outcome == 'success'
         continue-on-error: true
-        run: npx playwright test --reporter=list 2>&1 | tee test.log
+        run: npx playwright test --reporter=list,junit 2>&1 | tee test.log
         env:
           CI: "true"
 
@@ -79,7 +79,7 @@ jobs:
           python3 << 'PY'
           from pathlib import Path
           import os
-          def tail(name, n=30):
+          def tail(name, n=40):
               p = Path(name)
               if not p.exists():
                   return "(no log)"
@@ -107,8 +107,11 @@ jobs:
               tail("build.log") if not build_ok else "",
               tail("test.log") if not test_ok else "tests clean",
               "```",
+              "",
+              "All tests passed." if passed else "Tests did not pass. Do not deploy.",
           ]
           Path("ci-summary.md").write_text("\n".join(body) + "\n")
+          Path("results.xml").touch()
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as fh:
               fh.write(f"tests_passed={'true' if passed else 'false'}\n")
           print(status)
@@ -122,9 +125,30 @@ jobs:
           REF: ${{ github.ref_name }}
           EVENT: ${{ github.event_name }}
 
+      - name: Grok code review and summary
+        if: always()
+        env:
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+        run: |
+          PROMPT="Analyze the results of this test suite and static analysis for the latest commit. Summarize errors, suggest code improvements, and note if all tests passed. If this is a PR, the workflow will post this as a comment. If this is a main push and tests passed, deployment runs next."
+          if [ -z "${GROK_API_KEY:-}" ]; then
+            echo "GROK_API_KEY is not set. Local summary is the review." | tee grok-review.md
+            exit 0
+          fi
+          if gh models run --help >/dev/null 2>&1; then
+            gh models run grok-4 --input "$PROMPT" --files ci-summary.md typecheck.log build.log test.log > grok-review.md || {
+              echo "gh models run failed; keeping local summary." | tee grok-review.md
+            }
+          else
+            echo "gh models is unavailable on this runner. Local summary is the review." | tee grok-review.md
+          fi
+
       - name: Publish job summary
         if: always()
-        run: cat ci-summary.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          cat ci-summary.md >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat grok-review.md >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Upload logs
         if: always()
@@ -133,10 +157,12 @@ jobs:
           name: ci-logs-${{ github.sha }}
           path: |
             ci-summary.md
+            grok-review.md
             typecheck.log
             lint.log
             build.log
             test.log
+            results.xml
             dist/
           if-no-files-found: ignore
           retention-days: 7
@@ -165,17 +191,21 @@ jobs:
             const fs = require('fs');
             const passed = '${{ needs.build-and-test.result }}' === 'success';
             const author = context.payload.pull_request.user.login;
-            let detail = '';
-            try { detail = fs.readFileSync('logs/ci-summary.md', 'utf8'); } catch (e) { detail = 'Summary artifact unavailable.'; }
+            const read = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch (e) { return ''; } };
+            const detail = read('logs/ci-summary.md') || 'Summary artifact unavailable.';
+            const review = read('logs/grok-review.md');
             const body = [
               `## Grok CI/CD — ${passed ? 'tests passed' : 'tests failed'}`,
               '',
               `@${author} actionable review:`,
               passed
-                ? '- Gates are green. Review gauges, CoPilot, and mobile layout before merge.'
-                : '- Do not merge. Fix the highlighted typecheck, build, or Playwright errors, then re-run.',
+                ? '- Gates are green (typecheck, Vite build, Playwright). Check dashboards, CoPilot alerts, and mobile layout before merge.'
+                : '- Do not merge. Fix the highlighted typecheck, build, or Playwright errors, then push again.',
+              '- Stack is React 19 + Vite + Firebase Hosting. Do not add a Python pytest gate.',
               '',
-              detail.slice(0, 6000)
+              detail.slice(0, 4500),
+              '',
+              review ? review.slice(0, 1500) : ''
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -212,7 +242,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          cname: ""
 
       - name: Notify maintainers
         if: always()
@@ -224,32 +253,43 @@ jobs:
               `## Production deploy ${ok ? 'succeeded' : 'failed'}`,
               '',
               `- Commit: \`${context.sha}\``,
-              `- Script: scripts/deploy_to_production.py`,
-              `- Pages: https://taylorsbar.github.io/KCSS/`,
-              ok ? '- Maintainers: production is live.' : '- Maintainers: deploy hook failed. Rollback job will run.'
+              '- Hook: deploy_to_production()',
+              '- Pages: https://taylorsbar.github.io/KCSS/',
+              ok
+                ? '- @TaylorsBar production is live.'
+                : '- @TaylorsBar deploy hook failed. Rollback job will call rollback_deployment().'
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: 1,
+              issue_number: context.payload.repository.open_issues_count ? 1 : 1,
               body
+            }).catch(async () => {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'Production deploy notification',
+                body
+              });
             });
 
       - name: Slack webhook
-        if: always() && env.SLACK_WEBHOOK_URL != ''
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+          if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
             curl -sS -X POST -H 'Content-type: application/json' \
-              --data "{\"text\":\"KCSS deploy ${{ steps.deploy.outcome }} for ${{ github.sha }}\"}" \
+              --data "{\"text\":\"KCSS deploy ${{ steps.deploy.outcome }} for ${{ github.sha }} https://taylorsbar.github.io/KCSS/\"}" \
               "$SLACK_WEBHOOK_URL"
+          else
+            echo "SLACK_WEBHOOK_URL not set; skipped Slack notify."
           fi
 
   rollback:
     name: Rollback on deploy failure
     needs: deploy
-    if: failure() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: needs.deploy.result == 'failure' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -267,11 +307,12 @@ jobs:
             const body = [
               '## Deployment failed — rollback attempted',
               '',
-              'Remediation:',
+              '@TaylorsBar remediation:',
               '1. Read deploy_log.txt and the Actions log for the failing step.',
-              '2. Confirm GitHub Pages is allowed to publish from the gh-pages branch.',
+              '2. Confirm GitHub Pages can publish from the gh-pages branch and the production environment is not waiting on reviewers.',
               '3. If automatic rollback did not restore live, redeploy the last green commit.',
-              '4. rollback_deployment() looks for ./rollback.sh; add that script for a real revert.',
+              '4. rollback_deployment() runs ./rollback.sh when present; otherwise it records a manual Firebase clone command.',
+              '5. Clear the GitHub Actions billing lock before expecting any job to start.',
               '',
               `Rollback step outcome: ${{ steps.rollback.outcome }}`
             ].join('\n');
